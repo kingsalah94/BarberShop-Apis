@@ -1,0 +1,54 @@
+package com.salahtech.BarberShop_Apis.Enums;
+
+public enum ErrorCodes {
+
+  // === ApplicationUser ===
+  USER_NOT_FOUND(1000),
+  USER_NOT_VALID(1001),
+  USER_ALREADY_EXISTS(1002),
+  USER_EMAIL_ALREADY_USED(1003),
+  USER_PHONE_ALREADY_USED(1004),
+
+  // === Barber ===
+  BARBER_NOT_FOUND(2000),
+  BARBER_NOT_VALID(2001),
+  BARBER_ALREADY_EXISTS(2002),
+
+  // === Booking ===
+  BOOKING_NOT_FOUND(3000),
+  BOOKING_NOT_VALID(3001),
+  BOOKING_ALREADY_EXISTS(3002),
+  BOOKING_TIME_CONFLICT(3003),
+  BOOKING_ALREADY_COMPLETED(3004),
+  BOOKING_ALREADY_CANCELLED(3005),
+
+  // === Service ===
+  SERVICE_NOT_FOUND(4000),
+  SERVICE_NOT_VALID(4001),
+  SERVICE_ALREADY_EXISTS(4002),
+  SERVICE_INACTIVE(4003),
+
+  // === Role / Authorization (si personnalisés) ===
+  ROLE_NOT_FOUND(5000),
+  ROLE_NOT_VALID(5001),
+  UNAUTHORIZED_ACCESS(5002),
+
+  // === Génériques / communs ===
+  INVALID_ENTITY(9000),
+  ENTITY_ALREADY_EXISTS(9001),
+  ENTITY_NOT_FOUND(9002),
+  OPERATION_NOT_ALLOWED(9003),
+  BAD_CREDENTIALS(9004),
+  ACCESS_DENIED(9005),
+  INTERNAL_SERVER_ERROR(9006);
+
+  private final int code;
+
+  ErrorCodes(int code) {
+    this.code = code;
+  }
+
+  public int getCode() {
+    return code;
+  }
+}
