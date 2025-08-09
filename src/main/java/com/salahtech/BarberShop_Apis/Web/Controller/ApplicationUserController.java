@@ -14,8 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
-import com.salahtech.BarberShop_Apis.Services.ApplicationUserService;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.UserService;
+import com.salahtech.BarberShop_Apis.Services.Implementations.ApplicationUserServiceImpl;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 
 @RestController
@@ -24,7 +23,7 @@ import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 public class ApplicationUserController {
 
     @Autowired
-    private ApplicationUserService userService;
+    private ApplicationUserServiceImpl userService;
     
     @GetMapping("/profile")
     @PreAuthorize("hasAuthority('USER_READ')")

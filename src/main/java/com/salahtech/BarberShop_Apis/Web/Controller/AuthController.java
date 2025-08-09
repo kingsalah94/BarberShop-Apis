@@ -18,6 +18,7 @@ import com.salahtech.BarberShop_Apis.Dtos.AuthRequestDTO;
 import com.salahtech.BarberShop_Apis.Dtos.AuthResponseDTO;
 import com.salahtech.BarberShop_Apis.Dtos.RegisterRequestDTO;
 import com.salahtech.BarberShop_Apis.Services.Implementations.AuthService;
+import com.salahtech.BarberShop_Apis.Utils.RateLimitUtil;
 import com.salahtech.BarberShop_Apis.Web.Api.AuthApi;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Auth.LoginRequest;
