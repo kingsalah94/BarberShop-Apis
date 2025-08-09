@@ -2,10 +2,11 @@ package com.salahtech.BarberShop_Apis.Dtos;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
-import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,35 +23,55 @@ import lombok.NoArgsConstructor;
 public class BarberDto {
 
     private Long id;
+    private String name;        // "Ahmed Benali"
 
+   
     //private Long userId;
 
     private ApplicationUserDto userDto;
 
+    @NotNull(message = "Salon name is required")
+    @Size(min = 2, max = 100, message = "Salon name must be between 2 and 100 characters")
     private String salonName;
 
+    @NotNull(message = "Location is required")
+    @Size(min = 2, max = 255, message = "Location must be between 2 and 255 characters")
     private String location;
+
 
     private BigDecimal latitude;
 
     private BigDecimal longitude;
 
+     private Integer experience; // en années
+
     private BigDecimal rating;
 
     private Integer reviewsCount;
 
+    @Size(max = 1000, message = "Description cannot exceed 1000 characters")
     private String description;
 
     private String specialties; // JSON string
 
+    @DecimalMin(value = "0.0", inclusive = false, message = "Price must be positive")
     private BigDecimal priceFrom;
 
     private Boolean available;
+
+    private String workingHours;
+
+    private Integer totalReviews;
 
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
+    // Champs pour la réponse
+    private String userFirstName;
+    private String userLastName;
+    private String userEmail;
+    private String profilePicture;
 
 
     public static BarberDto fromEntity(Barber barber) {

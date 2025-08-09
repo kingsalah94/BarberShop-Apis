@@ -3,6 +3,8 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -22,7 +24,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
@@ -76,7 +78,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     public List<BookingDto> findByServiceId(Long serviceId) {
-        return bookingRepository.findByServiceId(serviceId).stream()
+        return bookingRepository.findByBarberServiceId(serviceId).stream()
                 .map(BookingDto::fromEntity)
                 .collect(Collectors.toList());
     }

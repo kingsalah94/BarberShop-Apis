@@ -3,8 +3,9 @@ package com.salahtech.BarberShop_Apis.security.config;
 import java.io.IOException;
 import java.util.Map;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.security.autoconfigure.SecurityProperties.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -12,9 +13,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
-import com.salahtech.BarberShop_Apis.Services.ApplicationUserService;
-import com.salahtech.BarberShop_Apis.Services.Implementations.AuthService;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.UserService;
+import com.salahtech.BarberShop_Apis.Services.RefreshTokenService;
+import com.salahtech.BarberShop_Apis.Services.Implementations.ApplicationUserServiceImpl;
 import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 
@@ -22,6 +22,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+@AllArgsConstructor
+@NoArgsConstructor
 @Component
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
     
@@ -29,10 +31,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private JwtUtil jwtUtil;
     
     @Autowired
-    private ApplicationUserService userService;
-    
+    private ApplicationUserServiceImpl userService;
+
     @Autowired
-    private AuthService authService;
+    private RefreshTokenService refreshTokenService;
     
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -63,7 +65,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String refreshToken = jwtUtil.generateRefreshToken(user);
         
         // Sauvegarder le refresh token
-        authService.saveRefreshToken(user, refreshToken);
+       refreshTokenService.saveRefreshToken(user, refreshToken);
+
         
         // Rediriger vers le frontend avec les tokens
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:4200/auth/callback")

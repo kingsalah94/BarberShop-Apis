@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.salahtech.BarberShop_Apis.models.BarberService;
 import org.springframework.stereotype.Component;
 
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
@@ -11,8 +12,7 @@ import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
-import com.salahtech.BarberShop_Apis.models.Service;
-import com.salahtech.BarberShop_Apis.reppsitories.ServiceRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberServiceRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,13 +20,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ServiceServiceImpl implements ServiceService {
+public class BarberServiceServiceImpl implements ServiceService {
 
-    private final ServiceRepository serviceRepository;
+    private final BarberServiceRepository serviceRepository;
 
     @Override
     public ServiceDto save(ServiceDto dto) {
-        Service entity = ServiceDto.toEntity(dto);
+        BarberService entity = ServiceDto.toEntity(dto);
         return ServiceDto.fromService(serviceRepository.save(entity));
     }
 

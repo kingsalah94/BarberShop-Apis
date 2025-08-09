@@ -2,8 +2,6 @@ package com.salahtech.BarberShop_Apis.Dtos;
 
 import java.time.LocalDateTime;
 
-import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-
 public class AuthResponseDTO {
 
     private String accessToken;

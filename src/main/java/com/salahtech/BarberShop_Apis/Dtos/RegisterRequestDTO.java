@@ -1,7 +1,5 @@
 package com.salahtech.BarberShop_Apis.Dtos;
 
-import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
-
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

@@ -4,6 +4,7 @@ package com.salahtech.BarberShop_Apis.security.config;
 import java.util.Arrays;
 import java.util.List;
 
+import org.hibernate.validator.internal.util.stereotypes.Lazy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,8 +16,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsPasswordService;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -26,10 +25,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.salahtech.BarberShop_Apis.Services.CustomUserDetailsService;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.UserService;
 import com.salahtech.BarberShop_Apis.security.Filter.JwtAuthenticationFilter;
-
-import jakarta.servlet.Filter;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 

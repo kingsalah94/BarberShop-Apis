@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,9 +26,7 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
 @AllArgsConstructor
@@ -43,7 +39,18 @@ public class Barber {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
+    private String name;        // "Ahmed Benali"
+
+    // @NotNull
+    // @GeneratedValue(strategy = GenerationType.UUID)
+    // @Column(name = "user_id", nullable = false, unique = true)
+    // @NotNull(message = "User ID cannot be null")
+    // @Size(min = 1, message = "User ID must be provided")
+
+    // ID de l'utilisateur, utilisé pour la relation avec ApplicationUser
+    private Long barberId;
+
     // Relation OneToOne avec ApplicationUser
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true)
@@ -92,12 +99,22 @@ public class Barber {
     
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    // Nouvelle relation inverse avec Availability
+    @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Availability> availabilities = new ArrayList<>();
     
     @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Service> services = new ArrayList<>();
+    private List<BarberService> barberServices = new ArrayList<>();
     
     @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Booking> bookings = new ArrayList<>();
+
+    @Column(name = "working_hours")
+    private String workingHours; // JSON string for working hours
+
+    @Column(name = "total_reviews")
+    private Integer totalReviews = 0;
 
      @PrePersist
     protected void onCreate() {

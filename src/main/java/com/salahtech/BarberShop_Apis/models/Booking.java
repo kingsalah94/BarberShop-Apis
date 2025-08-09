@@ -45,7 +45,7 @@ public class Booking {
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_id", nullable = false)
-    private Service service;
+    private BarberService barberService;
     
     @NotNull
     @Column(name = "booking_date", nullable = false)
@@ -67,8 +67,12 @@ public class Booking {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     
+    
+
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
     
 
     @PrePersist
@@ -80,6 +84,11 @@ public class Booking {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    public LocalDateTime getEndTime() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getEndTime'");
     }
 
 }

@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,19 +22,23 @@ import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Permission;
 import com.salahtech.BarberShop_Apis.models.Role;
-import com.salahtech.BarberShop_Apis.models.Auth.RefreshToken;
+import com.salahtech.BarberShop_Apis.models.RefreshToken;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RefreshTokenRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
 
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @Transactional
+@AllArgsConstructor
+@NoArgsConstructor
 public class AuthService {
     
     @Autowired
@@ -115,7 +118,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         user.setFirstName(registerRequest.getFirstName());
         user.setLastName(registerRequest.getLastName());
-        user.setPhoneNumber(registerRequest.getPhone());
+        user.setPhone(registerRequest.getPhone());
         user.setIsEnabled(true);
         user.setIsVerified(false);
         user.setVerificationToken(UUID.randomUUID().toString());
@@ -139,7 +142,7 @@ public class AuthService {
         saveRefreshToken(user, refreshToken);
         
         // Préparer la réponse
-        ApplicationUser userDTO = convertToUserDTO(user);
+        ApplicationUserDto userDTO = convertToUserDTO(user);
         
         return new AuthResponseDTO(
                 accessToken,
@@ -177,7 +180,7 @@ public class AuthService {
         refreshTokenRepository.delete(storedRefreshToken);
         saveRefreshToken(user, newRefreshToken);
         
-        ApplicationUser userDTO = convertToUserDTO(user);
+        ApplicationUserDto userDTO = convertToUserDTO(user);
         
         return new AuthResponseDTO(
                 newAccessToken,
@@ -269,7 +272,7 @@ public class AuthService {
         userDTO.setEmail(user.getEmail());
         userDTO.setFirstName(user.getFirstName());
         userDTO.setLastName(user.getLastName());
-        userDTO.setPhoneNumber(user.getPhone());
+        userDTO.setPhone(user.getPhone());
         userDTO.setIsEnabled(user.isEnabled());
         userDTO.setIsVerified(user.getIsVerified());
         userDTO.setCreatedAt(user.getCreatedAt());

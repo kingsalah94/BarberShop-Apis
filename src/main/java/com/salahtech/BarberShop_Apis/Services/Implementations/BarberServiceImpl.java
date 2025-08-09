@@ -10,6 +10,7 @@ import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BarberService;
 import com.salahtech.BarberShop_Apis.Validators.BarberValidator;
 import com.salahtech.BarberShop_Apis.models.Barber;
+import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -24,6 +25,8 @@ import java.util.stream.Collectors;
 public class BarberServiceImpl implements BarberService {
 
     private final BarberRepository barberRepository;
+
+    ApplicationUserRepository userRepository;
 
     @Override
     public BarberDto save(BarberDto dto) {
@@ -125,4 +128,7 @@ public class BarberServiceImpl implements BarberService {
         log.warn("Deleting barber with ID: {}", id);
         barberRepository.deleteById(id);
     }
+
+
+
 }

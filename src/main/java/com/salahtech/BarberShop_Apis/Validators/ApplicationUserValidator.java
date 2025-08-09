@@ -22,7 +22,7 @@ public class ApplicationUserValidator {
         if (!StringUtils.hasLength(dto.getEmail())) {
             errors.add("L'email est obligatoire");
         }
-        if (!StringUtils.hasLength(dto.getPhoneNumber())) {
+        if (!StringUtils.hasLength(dto.getPhone())) {
             errors.add("Le numero de telephone est obligatoire est obligatoire");
         }
 
