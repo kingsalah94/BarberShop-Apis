@@ -1,13 +1,11 @@
 package com.salahtech.BarberShop_Apis.security.config;
 
-
 import java.util.Arrays;
 import java.util.List;
 
-import org.hibernate.validator.internal.util.stereotypes.Lazy;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -25,6 +23,9 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.salahtech.BarberShop_Apis.Services.CustomUserDetailsService;
+import com.salahtech.BarberShop_Apis.Services.Interfaces.ApplicationUserService;
+import com.salahtech.BarberShop_Apis.Services.RefreshTokenService;
+import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 import com.salahtech.BarberShop_Apis.security.Filter.JwtAuthenticationFilter;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -33,20 +34,31 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
-    
-    @Autowired
-    private CustomUserDetailsService userDetailsService;
-    
-    @Autowired
-    private JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    
-    @Autowired
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-    
-    @Autowired
-    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
-    
-    // Endpoints publics
+
+    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    public SecurityConfig(
+            CustomUserDetailsService userDetailsService,
+            JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+            JwtAuthenticationFilter jwtAuthenticationFilter
+    ) {
+        this.userDetailsService = userDetailsService;
+        this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+
+    // ⚠️ On ne garde PAS de champ @Autowired du handler pour éviter le cycle
+    @Bean
+    public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler(
+            JwtUtil jwtUtil,
+            @Lazy ApplicationUserService userService,   // <— casse la boucle
+            RefreshTokenService refreshTokenService
+    ) {
+        return new OAuth2AuthenticationSuccessHandler(jwtUtil, userService, refreshTokenService);
+    }
+
     private static final String[] PUBLIC_URLS = {
         "/auth/login",
         "/auth/register",
@@ -62,57 +74,32 @@ public class SecurityConfig {
         "/health",
         "/actuator/**"
     };
-    
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           OAuth2AuthenticationSuccessHandler successHandler) throws Exception {
         http
-            // Désactiver CSRF pour les API REST
             .csrf(AbstractHttpConfigurer::disable)
-            
-            // Configuration CORS
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            
-            // Configuration des sessions (stateless pour JWT)
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            // Configuration des autorisations
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                // Endpoints publics
                 .requestMatchers(PUBLIC_URLS).permitAll()
-                
-                // Endpoints pour les clients
                 .requestMatchers("/client/**").hasAuthority("CLIENT_ACCESS")
-                
-                // Endpoints pour les barbiers
                 .requestMatchers("/barber/**").hasAuthority("BARBER_ACCESS")
-                
-                // Endpoints pour les propriétaires de salon
                 .requestMatchers("/salon/**").hasAuthority("SALON_OWNER_ACCESS")
-                
-                // Endpoints pour les administrateurs
                 .requestMatchers("/admin/**").hasAuthority("ADMIN_ACCESS")
-                
-                // Toutes les autres requêtes nécessitent une authentification
                 .anyRequest().authenticated()
             )
-            
-            // Configuration OAuth2
             .oauth2Login(oauth2 -> oauth2
-                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .successHandler(successHandler)
                 .failureUrl("/auth/login?error=oauth2_error")
             )
-            
-            // Point d'entrée pour les erreurs d'authentification
-            .exceptionHandling(ex -> 
-                ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-            
-            // Ajouter le filtre JWT
+            .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        
+
         return http.build();
     }
-    
+
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -121,18 +108,14 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    
     @Bean
-    public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration authConfig) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
-    
+
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);
-    }
-    
+    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
@@ -141,7 +124,6 @@ public class SecurityConfig {
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setExposedHeaders(Arrays.asList("Authorization"));
-        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
