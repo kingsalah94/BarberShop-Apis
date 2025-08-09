@@ -5,14 +5,21 @@ import java.time.LocalDateTime;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
-import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
 
 // RefreshTokenRequest
+@Entity
+@Data
+@AllArgsConstructor
+@Builder
 public class RefreshToken {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,6 +35,7 @@ public class RefreshToken {
     @Column(name = "expiry_date", nullable = false)
     private LocalDateTime expiryDate;
     
+    @Builder.Default
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
     
