@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -23,7 +22,8 @@ public class PushNotificationService {
     /**
      * Envoyer une notification push à un utilisateur
      */
-    public void sendToUser(Long userId, String title, String body) {
+    public void sendToUser(Long userId, String title, String body,
+                           Map<String, String> data) {
         try {
             String deviceToken = deviceTokenService.getDeviceToken(userId);
             
@@ -128,6 +128,7 @@ public class PushNotificationService {
                 return "Notification de réservation";
         }
     }
+    
 
     /**
      * Obtenir le corps de notification selon le type de réservation

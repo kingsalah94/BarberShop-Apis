@@ -65,7 +65,7 @@ public class NotificationServiceImpl implements NotificationService {
             pushNotificationService.sendToUser(
                 booking.getUser().getId(),
                 "Réservation confirmée",
-                "Votre réservation a été confirmée avec succès"
+                "Votre réservation a été confirmée avec succès", null
             );
             
         } catch (Exception e) {
@@ -110,6 +110,7 @@ public class NotificationServiceImpl implements NotificationService {
                 "Rappel de rendez-vous",
                 "N'oubliez pas votre rendez-vous demain"
                 //createNotificationData(booking)
+, null
             );
             
         } catch (Exception e) {
@@ -191,7 +192,7 @@ public class NotificationServiceImpl implements NotificationService {
         variables.put("salonName", booking.getBarber().getSalonName());
         variables.put("serviceName", booking.getBarberService().getName());
         variables.put("appointmentDate", booking.getBookingDate().toLocalDate());
-        variables.put("appointmentTime", booking.getBookingTime().toLocalTime());
+        variables.put("appointmentTime", booking.getBookingTime());
         variables.put("duration", booking.getBarberService().getDuration());
         variables.put("price", booking.getBarberService().getPrice());
         variables.put("bookingId", booking.getId());

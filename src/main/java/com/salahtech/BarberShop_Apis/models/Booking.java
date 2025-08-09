@@ -2,7 +2,11 @@ package com.salahtech.BarberShop_Apis.models;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.chrono.ChronoLocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.google.auto.value.AutoValue.Builder;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 
 import jakarta.persistence.Column;
@@ -29,6 +33,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
+@Builder
 public class Booking {
     
     @Id
@@ -67,9 +72,21 @@ public class Booking {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
     
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime startAt;
+
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime endAt;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    private LocalTime startTime;
+
+    @JsonFormat(pattern = "HH:mm:ss")
+    private LocalTime endTime;
+
+    private LocalTime bookingTime;
+
     
-
-
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
@@ -86,10 +103,21 @@ public class Booking {
         updatedAt = LocalDateTime.now();
     }
 
-    public LocalDateTime getEndTime() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getEndTime'");
-    }
+    /**
+     * Retourne l'heure de début du créneau de réservation
+     * @return LocalDateTime
+     */
 
-}
+
+
+    public LocalDateTime getStartTime() {
+        return bookingDate;
+    }
     
+    public LocalDateTime getEndTime() {
+        return bookingDate.plusMinutes(barberService.getDuration());
+    }
+    
+    
+    
+}   

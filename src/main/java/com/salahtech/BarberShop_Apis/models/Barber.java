@@ -75,9 +75,11 @@ public class Barber {
     @DecimalMin("0.0")
     @DecimalMax("5.0")
     @Column(precision = 2, scale = 1)
+    @Builder.Default
     private BigDecimal rating = BigDecimal.ZERO;
     
     @Column(name = "reviews_count")
+    @Builder.Default
     private Integer reviewsCount = 0;
     
     @Column(columnDefinition = "TEXT")
@@ -92,6 +94,7 @@ public class Barber {
     private BigDecimal priceFrom;
     
     @Column(nullable = false)
+    @Builder.Default
     private Boolean available = true;
     
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -114,6 +117,7 @@ public class Barber {
     private String workingHours; // JSON string for working hours
 
     @Column(name = "total_reviews")
+    @Builder.Default
     private Integer totalReviews = 0;
 
      @PrePersist
