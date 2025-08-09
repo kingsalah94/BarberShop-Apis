@@ -14,6 +14,10 @@ public enum NotificationType {
     SYSTEM_ALERT,         // Alerte système
     PROMOTION,            // Offre promotionnelle
     GENERAL               // Notification générale
-, EMAIL, SMS, PUSH
+    ,
+     EMAIL, 
+     SMS,
+      PUSH,
+    IN_APP;               // Notification dans l'application
 }
 

@@ -3,12 +3,14 @@ package com.salahtech.BarberShop_Apis.Dtos;
 import java.time.LocalDateTime;
 
 import lombok.Data;
+import lombok.Getter;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class TimeSlotDto {
 
     private LocalDateTime startTime;

@@ -85,6 +85,45 @@ public class EmailService {
         }
     }
 
+    @Async
+    public void sendTemplateEmail(String to, String subject, String templateName, Map<String, Object> model) {
+        if (!emailEnabled) {
+            log.debug("Envoi d'emails désactivé");
+            return;
+        }
+        try {
+            Context ctx = new Context();
+            if (model != null && !model.isEmpty()) {
+                ctx.setVariables(model);
+            }
+            // Autorise "booking-confirmation" ou "email/booking-confirmation"
+            String tpl = (templateName != null && templateName.startsWith("email/"))
+                    ? templateName
+                    : "email/" + templateName;
+
+            String html = templateEngine.process(tpl, ctx);
+            sendEmail(to, subject, html, true);
+            log.info("Template email '{}' envoyé à {}", tpl, to);
+        } catch (Exception e) {
+            log.error("Erreur lors de l'envoi du template email à {}: {}", to, e.getMessage(), e);
+        }
+    }
+
+    public void sendSimpleEmail(String to, String subject, String text) {
+        if (!emailEnabled) {
+            log.debug("Envoi d'emails désactivé");
+            return;
+        }
+        try {
+            // envoie en texte brut
+            sendEmail(to, subject, text, false);
+            log.info("Email texte envoyé à {}", to);
+        } catch (Exception e) {
+            log.error("Erreur lors de l'envoi de l'email texte à {}: {}", to, e.getMessage(), e);
+        }
+    }
+
+    
     public void sendVerificationEmail(ApplicationUser user) {
         String subject = "Vérification de votre compte Barber Shop";
         String verificationUrl = frontendUrl + "/auth/verify-email?token=" + user.getVerificationToken();
