@@ -2,7 +2,6 @@ package com.salahtech.BarberShop_Apis.models;
 
 
 
-import com.salahtech.BarberShop_Apis.models.Permission;
 import java.util.Set;
 
 import jakarta.persistence.*;

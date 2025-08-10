@@ -47,7 +47,6 @@ public class EmailService {
     @Value("${app.name:Barber Shop}")
     private String appName;
 
-    @Autowired
     EmailService(DeviceTokenRepository deviceTokenRepository) {
         this.deviceTokenRepository = deviceTokenRepository;
     }

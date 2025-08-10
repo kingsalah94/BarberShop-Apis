@@ -3,8 +3,6 @@ package com.salahtech.BarberShop_Apis.models;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.chrono.ChronoLocalDateTime;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.google.auto.value.AutoValue.Builder;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;

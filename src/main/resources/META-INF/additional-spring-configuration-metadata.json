@@ -1,0 +1,187 @@
+{"properties": [
+  {
+    "name": "jwt.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.secret'"
+  },
+  {
+    "name": "jwt.access-token-expiration",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.access-token-expiration'"
+  },
+  {
+    "name": "jwt.refresh-token-expiration",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.refresh-token-expiration'"
+  },
+  {
+    "name": "cors.allowed-origins[0]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-origins[0]'"
+  },
+  {
+    "name": "cors.allowed-methods[0]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[0]'"
+  },
+  {
+    "name": "cors.exposed-headers[0]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[0]'"
+  },
+  {
+    "name": "cors.allowed-headers[0]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-headers[0]'"
+  },
+  {
+    "name": "cors.allow-credentials",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allow-credentials'"
+  },
+  {
+    "name": "cors.max-age",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.max-age'"
+  },
+  {
+    "name": "cors.exposed-headers[0]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[0]'"
+  },
+  {
+    "name": "cors.allowed-origins[2]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-origins[2]'"
+  },
+  {
+    "name": "cors.allowed-origins[1]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-origins[1]'"
+  },
+  {
+    "name": "cors.allowed-origins[0]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-origins[0]'"
+  },
+  {
+    "name": "cors.allowed-methods[2]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[2]'"
+  },
+  {
+    "name": "cors.allowed-methods[3]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[3]'"
+  },
+  {
+    "name": "cors.allowed-methods[3]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[3]'"
+  },
+  {
+    "name": "cors.allowed-methods[1]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[1]'"
+  },
+  {
+    "name": "cors.allowed-methods[4]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[4]'"
+  },
+  {
+    "name": "cors.allowed-methods[5]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.allowed-methods[5]'"
+  },
+  {
+    "name": "cors.exposed-headers[1]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[1]'"
+  },
+  {
+    "name": "cors.exposed-headers[3]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[3]'"
+  },
+  {
+    "name": "cors.exposed-headers[3]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[3]'"
+  },
+  {
+    "name": "cors.exposed-headers[3]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[3]'"
+  },
+  {
+    "name": "cors.exposed-headers[2]",
+    "type": "java.lang.String",
+    "description": "A description for 'cors.exposed-headers[2]'"
+  },
+  {
+    "name": "file.upload.directory",
+    "type": "java.lang.String",
+    "description": "A description for 'file.upload.directory'"
+  },
+  {
+    "name": "file.upload.allowed-types[1]",
+    "type": "java.lang.String",
+    "description": "A description for 'file.upload.allowed-types[1]'"
+  },
+  {
+    "name": "file.upload.max-size",
+    "type": "java.lang.String",
+    "description": "A description for 'file.upload.max-size'"
+  },
+  {
+    "name": "notification.email.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.email.enabled'"
+  },
+  {
+    "name": "notification.email.from",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.email.from'"
+  },
+  {
+    "name": "notification.email.templates.welcome",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.email.templates.welcome'"
+  },
+  {
+    "name": "notification.email.templates.password-reset",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.email.templates.password-reset'"
+  },
+  {
+    "name": "notification.email.templates.booking-confirmation",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.email.templates.booking-confirmation'"
+  },
+  {
+    "name": "notification.sms.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.sms.enabled'"
+  },
+  {
+    "name": "notification.sms.provider",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.sms.provider'"
+  },
+  {
+    "name": "notification.sms.account-sid",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.sms.account-sid'"
+  },
+  {
+    "name": "notification.sms.from-number",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.sms.from-number'"
+  },
+  {
+    "name": "notification.sms.auth-token",
+    "type": "java.lang.String",
+    "description": "A description for 'notification.sms.auth-token'"
+  }
+]}

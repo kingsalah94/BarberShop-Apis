@@ -2,6 +2,8 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
@@ -84,35 +86,35 @@ public class BarberServiceImpl implements BarberService {
     }
 
     @Override
-    public List<BarberDto> findByLocation(String location) {
+    public List<BarberDto> findByLocation(String location,Pageable pageable) {
         return barberRepository.findByLocationContaining(location).stream()
                 .map(BarberDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<BarberDto> findBySalonName(String salonName) {
+    public List<BarberDto> findBySalonName(String salonName,Pageable pageable) {
         return barberRepository.findBySalonNameContaining(salonName).stream()
                 .map(BarberDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<BarberDto> findByPriceRange(BigDecimal min, BigDecimal max) {
+    public List<BarberDto> findByPriceRange(BigDecimal min, BigDecimal max, Pageable pageable) {
         return barberRepository.findByPriceRange(min, max).stream()
                 .map(BarberDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<BarberDto> findByMinRating(BigDecimal minRating) {
+    public List<BarberDto> findByMinRating(BigDecimal minRating, Pageable pageable) {
         return barberRepository.findByMinRatingOrderByRatingDesc(minRating).stream()
                 .map(BarberDto::fromEntity)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public List<BarberDto> findAvailableByLocation(String location) {
+    public List<BarberDto> findAvailableByLocation(String location, Pageable pageable) {
         return barberRepository.findAvailableByLocation(location).stream()
                 .map(BarberDto::fromEntity)
                 .collect(Collectors.toList());

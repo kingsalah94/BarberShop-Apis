@@ -32,6 +32,7 @@ public class RefreshToken {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Builder.Default
     private Boolean revoked = false;
     // Constructors
     public RefreshToken() {}

@@ -1,5 +1,6 @@
 package com.salahtech.BarberShop_Apis.reppsitories;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -39,4 +40,31 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     
     @Query("SELECT COUNT(b) FROM Booking b WHERE b.barber.id = :barberId AND b.status = 'COMPLETED'")
     Long countCompletedBookingsByBarberId(@Param("barberId") Long barberId);
+
+   // BookingRepository
+    @Query("select b from Booking b where date(b.bookingDate) = :targetDate")
+    List<Booking> findAllForDate(@Param("targetDate") LocalDate targetDate);
+
+    @Query("SELECT b FROM Booking b WHERE b.bookingDate >= :startDate AND b.bookingDate < :endDate")
+    List<Booking> findAllBetweenDates(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT b FROM Booking b WHERE b.bookingDate >= :startDate AND b.bookingDate < :endDate AND b.status = :status")
+    List<Booking> findAllBetweenDatesAndStatus(@Param("startDate") LocalDateTime startDate, 
+                                               @Param("endDate") LocalDateTime endDate, 
+                                               @Param("status") BookingStatus status);
+
+    @Query("SELECT b FROM Booking b WHERE b.bookingDate >= :startDate AND b.bookingDate < :endDate AND b.user.id = :userId")
+    List<Booking> findAllBetweenDatesAndUserId(@Param("startDate") LocalDateTime startDate, 
+                                               @Param("endDate") LocalDateTime endDate, 
+                                               @Param("userId") Long userId);
+    @Query("SELECT b FROM Booking b WHERE b.bookingDate >= :startDate AND b.bookingDate < :endDate AND b.barber.id = :barberId")
+    List<Booking> findAllBetweenDatesAndBarberId(@Param("startDate") LocalDateTime startDate, 
+                                                 @Param("endDate") LocalDateTime endDate, 
+                                                 @Param("barberId") Long barberId);
+
+    @Query("SELECT b FROM Booking b WHERE b.bookingDate >= :startDate AND b.bookingDate < :endDate AND b.barberService.id = :serviceId")
+    List<Booking> findAllBetweenDatesAndServiceId(@Param("startDate") LocalDateTime startDate, 
+                                                  @Param("endDate") LocalDateTime endDate, 
+                                                  @Param("serviceId") Long serviceId);
+
 }

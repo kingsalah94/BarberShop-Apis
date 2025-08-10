@@ -58,7 +58,13 @@ public class AvailabilityDto {
         return availability;
     }
 
+    @SuppressWarnings("unchecked")
     public AvailabilityDto(Long barberId2, LocalDateTime atStartOfDay, Object object, Object object2) {
-        //TODO Auto-generated constructor stub
+        this.barberId = barberId2;
+        this.date = atStartOfDay;
+        // Assuming object and object2 are used for availableSlots and bookedSlots
+        this.availableSlots = (List<TimeSlotDto>) object;
+        this.bookedSlots = (List<TimeSlotDto>) object2;
     }
+
 }
