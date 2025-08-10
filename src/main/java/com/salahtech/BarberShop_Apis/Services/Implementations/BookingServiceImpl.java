@@ -4,8 +4,6 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
@@ -14,12 +12,18 @@ import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
+import com.salahtech.BarberShop_Apis.Services.OutboxService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
+import com.salahtech.BarberShop_Apis.domain.events.BookingCancelledEvent;
+import com.salahtech.BarberShop_Apis.domain.events.BookingConfirmedEvent;
+import com.salahtech.BarberShop_Apis.domain.events.BookingCreatedEvent;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,12 +32,34 @@ import java.util.stream.Collectors;
 public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
+    private final ApplicationEventPublisher publisher; //
+    private final OutboxService outboxService; // Service pour gérer l'outbox pattern
 
     @Override
     public BookingDto save(BookingDto dto) {
         Booking booking = BookingDto.toEntity(dto);
-        booking.setCreatedAt(LocalDateTime.now());
-        return BookingDto.fromEntity(bookingRepository.save(booking));
+        if (booking.getCreatedAt() == null) {
+            booking.setCreatedAt(LocalDateTime.now());
+        }
+        if (booking.getStatus() == null) {
+            booking.setStatus(BookingStatus.PENDING);
+        }
+        booking = bookingRepository.save(booking);
+        // après save(booking)
+        outboxService.add(
+        "BOOKING",
+        booking.getId().toString(),
+        "BOOKING_CREATED",
+        Map.of(
+            "bookingId", booking.getId(),
+            "userId", booking.getUser().getId(),
+            "barberId", booking.getBarber().getId(),
+            "eventAt", java.time.OffsetDateTime.now().toString()
+        ),
+        Map.of("corrId", java.util.UUID.randomUUID().toString())
+        );
+        publisher.publishEvent(new BookingCreatedEvent(booking.getId()));
+        return BookingDto.fromEntity(booking);
     }
 
     @Override
@@ -106,6 +132,53 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public Long countCompletedByBarber(Long barberId) {
         return bookingRepository.countCompletedBookingsByBarberId(barberId);
+    }
+
+     // =======================
+     // Nouvelles opérations domaine (confirm / cancel)
+     // =======================
+
+     public BookingDto confirm(Long bookingId) {
+        var booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new InvalideEntityException("Réservation introuvable: " + bookingId, ErrorCodes.BOOKING_NOT_FOUND));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking = bookingRepository.save(booking);
+        // après save(booking)
+        outboxService.add(
+        "BOOKING",
+        booking.getId().toString(),
+        "BOOKING_CONFIRMED",
+        Map.of(
+            "bookingId", booking.getId(),
+            "userId", booking.getUser().getId(),
+            "barberId", booking.getBarber().getId(),
+            "eventAt", java.time.OffsetDateTime.now().toString()
+        ),
+        Map.of("corrId", java.util.UUID.randomUUID().toString())
+        );
+        publisher.publishEvent(new BookingConfirmedEvent(booking.getId()));
+        return BookingDto.fromEntity(booking);
+    }
+
+     public void cancel(Long bookingId) {
+        var booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new InvalideEntityException("Réservation introuvable: " + bookingId, ErrorCodes.BOOKING_NOT_FOUND));
+        booking.setStatus(BookingStatus.CANCELLED);
+        bookingRepository.save(booking);
+        // après save(booking)
+        outboxService.add(
+        "BOOKING",
+        booking.getId().toString(),
+        "BOOKING_CANCELED",
+        Map.of(
+            "bookingId", booking.getId(),
+            "userId", booking.getUser().getId(),
+            "barberId", booking.getBarber().getId(),
+            "eventAt", java.time.OffsetDateTime.now().toString()
+        ),
+        Map.of("corrId", java.util.UUID.randomUUID().toString())
+        );
+        publisher.publishEvent(new BookingCancelledEvent(booking.getId()));
     }
 }
 

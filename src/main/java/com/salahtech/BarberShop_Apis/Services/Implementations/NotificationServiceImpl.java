@@ -5,12 +5,10 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.salahtech.BarberShop_Apis.Dtos.NotificationDto;
-import com.salahtech.BarberShop_Apis.Enums.NotificationType;
 import com.salahtech.BarberShop_Apis.Services.EmailService;
 import com.salahtech.BarberShop_Apis.Services.PushNotificationService;
 import com.salahtech.BarberShop_Apis.Services.SMSService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
-import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Booking;
 
 import lombok.RequiredArgsConstructor;
@@ -177,6 +175,7 @@ public class NotificationServiceImpl implements NotificationService {
                     notification.getMessage(),
                     notification.getData()
                 );
+                default -> throw new IllegalArgumentException("Unexpected value: " + notification.getType());
             }
         } catch (Exception e) {
             log.error("Erreur lors de l'envoi de la notification personnalisée", e);
@@ -200,6 +199,7 @@ public class NotificationServiceImpl implements NotificationService {
         return variables;
     }
     
+    @SuppressWarnings("unused")
     private Map<String, String> createNotificationData(Booking booking) {
         Map<String, String> data = new HashMap<>();
         data.put("bookingId", booking.getId().toString());

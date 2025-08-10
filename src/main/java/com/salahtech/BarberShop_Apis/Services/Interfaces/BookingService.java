@@ -15,6 +15,12 @@ public interface BookingService {
 
     void delete(Long id);
 
+    BookingDto confirm(Long bookingId);
+    
+    void cancel(Long bookingId);
+
+    
+
     List<BookingDto> findByUserId(Long userId);
 
     List<BookingDto> findByBarberId(Long barberId);

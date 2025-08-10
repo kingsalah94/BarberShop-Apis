@@ -36,7 +36,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
         body.put("message", "Accès non autorisé. Veuillez vous authentifier.");
         body.put("path", request.getServletPath());
         body.put("timestamp", LocalDateTime.now().toString());
-        
+        logger.error("Unauthorized access attempt: {}", authException.getMessage());
         final ObjectMapper mapper = new ObjectMapper();
         mapper.writeValue(response.getOutputStream(), body);
     }

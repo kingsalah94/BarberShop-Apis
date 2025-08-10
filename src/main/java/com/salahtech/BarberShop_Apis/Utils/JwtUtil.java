@@ -6,8 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-
 import javax.crypto.SecretKey;
 
 import java.nio.charset.StandardCharsets;
