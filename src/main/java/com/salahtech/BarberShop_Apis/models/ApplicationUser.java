@@ -10,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
 
 import jakarta.persistence.CascadeType;
@@ -67,6 +68,10 @@ public class ApplicationUser implements UserDetails {
     
     @Column(unique = true)
     private String phone;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "user_type", nullable = false)
+    private ApplicationUserType userType;
     
     @Column(name = "is_enabled", nullable = false)
     private Boolean isEnabled = false;

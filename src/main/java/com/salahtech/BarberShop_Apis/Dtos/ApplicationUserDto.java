@@ -1,6 +1,7 @@
 package com.salahtech.BarberShop_Apis.Dtos;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Permission;
@@ -47,6 +48,7 @@ public class ApplicationUserDto {
     private boolean credentialsNonExpired;
     private Set<String> roles;
     private Set<String> permissions;
+    private ApplicationUserType userType;
     
     // Relations
     private BarberDto barberDto;
@@ -71,6 +73,7 @@ public class ApplicationUserDto {
                 .lastName(user.getLastName())
                 .email(user.getEmail())
                 .phone(user.getPhone())
+                .userType(user.getUserType())
                 .profileImageUrl(user.getProfileImageUrl())
                 .preferences(user.getPreferences())
                 .isEnabled(user.getIsEnabled())
@@ -119,6 +122,7 @@ public class ApplicationUserDto {
         user.setLastName(dto.getLastName());
         user.setEmail(dto.getEmail());
         user.setPhone(dto.getPhone());
+        user.setUserType(dto.getUserType());
         user.setProfileImageUrl(dto.getProfileImageUrl());
         user.setPreferences(dto.getPreferences());
         user.setIsEnabled(dto.getIsEnabled());

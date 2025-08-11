@@ -17,6 +17,7 @@ import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
 import com.salahtech.BarberShop_Apis.Dtos.AuthRequestDTO;
 import com.salahtech.BarberShop_Apis.Dtos.AuthResponseDTO;
 import com.salahtech.BarberShop_Apis.Dtos.RegisterRequestDTO;
+import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.EmailService;
@@ -28,6 +29,9 @@ import com.salahtech.BarberShop_Apis.models.RefreshToken;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RefreshTokenRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+
+import jakarta.validation.constraints.NotNull;
+
 import org.springframework.stereotype.Service;
 import org.springframework.security.core.Authentication;
 import com.salahtech.BarberShop_Apis.Exceptions.BadRequestException;
@@ -63,39 +67,36 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     @Override
     public ApplicationUser findByEmailOrCreate(String email, String name, AuthProvider provider, String providerId) {
         Optional<ApplicationUser> existingUser = userRepository.findByEmail(email);
-        
+    
         if (existingUser.isPresent()) {
             ApplicationUser user = existingUser.get();
             user.setLastLogin(LocalDateTime.now());
             return userRepository.save(user);
         }
-        
-        // Créer un nouvel utilisateur OAuth2
+    
         ApplicationUser newUser = new ApplicationUser();
         newUser.setEmail(email);
-        
-        // Diviser le nom complet
+    
         String[] nameParts = name.split(" ", 2);
         newUser.setFirstName(nameParts[0]);
-        if (nameParts.length > 1) {
-            newUser.setLastName(nameParts[1]);
-        } else {
-            newUser.setLastName("");
-        }
-        
+        newUser.setLastName(nameParts.length > 1 ? nameParts[1] : "");
+    
         newUser.setProvider(provider);
         newUser.setProviderId(providerId);
         newUser.setIsEnabled(true);
-        newUser.setIsVerified(true); // Les comptes OAuth2 sont automatiquement vérifiés
-        newUser.setPassword(""); // Pas de mot de passe pour OAuth2
-        
-        // Assigner le rôle CLIENT par défaut
+        newUser.setIsVerified(true);
+        newUser.setPassword("");
+    
+        // ✅ NEW: typer par défaut les comptes OAuth2
+        newUser.setUserType(ApplicationUserType.CLIENT);
+    
         Role clientRole = roleRepository.findByName("CLIENT")
                 .orElseThrow(() -> new ResourceNotFoundException("Rôle CLIENT non trouvé"));
         newUser.setRoles(Set.of(clientRole));
-        
+    
         return userRepository.save(newUser);
     }
+    
     
     @Override
     public ApplicationUser findById(Long id) {
@@ -154,51 +155,50 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
     
     @Override
-    public AuthResponseDTO register(RegisterRequestDTO registerRequest) {
-        // Vérifier si l'utilisateur existe déjà
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new BadRequestException("Un compte avec cet email existe déjà");
-        }
-        
-        // Créer le nouvel utilisateur
-        ApplicationUser user = new ApplicationUser();
-        user.setEmail(registerRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        user.setFirstName(registerRequest.getFirstName());
-        user.setLastName(registerRequest.getLastName());
-        user.setPhone(registerRequest.getPhone());
-        user.setIsEnabled(true);
-        user.setIsVerified(false);
-        user.setVerificationToken(UUID.randomUUID().toString());
-        user.setProvider(AuthProvider.LOCAL);
-        
-        // Assigner le rôle approprié
-        Role role = getRoleByUserType(registerRequest.getUserType());
-        user.setRoles(Set.of(role));
-        
-        // Sauvegarder l'utilisateur
-        user = userRepository.save(user);
-        
-        // Envoyer l'email de vérification
-        emailService.sendVerificationEmail(user);
-        
-        // Générer les tokens (l'utilisateur peut se connecter mais doit vérifier son email)
-        String accessToken = jwtUtil.generateAccessToken(user);
-        String refreshToken = jwtUtil.generateRefreshToken(user);
-        
-        // Sauvegarder le refresh token
-        saveRefreshToken(user, refreshToken);
-        
-        // Préparer la réponse
-        ApplicationUserDto userDTO = convertToUserDTO(user);
-        
-        return new AuthResponseDTO(
-                accessToken,
-                refreshToken,
-                jwtUtil.getAccessTokenExpiration(),
-                userDTO
-        );
+public AuthResponseDTO register(RegisterRequestDTO registerRequest) {
+    if (userRepository.existsByEmail(registerRequest.getEmail())) {
+        throw new BadRequestException("Un compte avec cet email existe déjà");
     }
+
+    ApplicationUser user = new ApplicationUser();
+    user.setEmail(registerRequest.getEmail());
+    user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+    user.setFirstName(registerRequest.getFirstName());
+    user.setLastName(registerRequest.getLastName());
+    user.setPhone(registerRequest.getPhone());
+    user.setIsEnabled(true);
+    user.setIsVerified(false);
+    user.setVerificationToken(UUID.randomUUID().toString());
+    user.setProvider(AuthProvider.LOCAL);
+
+    // ✅ NEW: typer l'utilisateur (fallback CLIENT si non fourni)
+    ApplicationUserType type = registerRequest.getUserType() != null
+            ? registerRequest.getUserType()
+            : ApplicationUserType.CLIENT;
+    user.setUserType(type);
+
+    // Rôle cohérent avec le type (adapte la signature si ton getRoleByUserType prend un String)
+    Role role = getRoleByUserType(type);
+    user.setRoles(Set.of(role));
+
+    user = userRepository.save(user);
+
+    emailService.sendVerificationEmail(user);
+
+    String accessToken = jwtUtil.generateAccessToken(user);
+    String refreshToken = jwtUtil.generateRefreshToken(user);
+    saveRefreshToken(user, refreshToken);
+
+    ApplicationUserDto userDTO = convertToUserDTO(user);
+
+    return new AuthResponseDTO(
+            accessToken,
+            refreshToken,
+            jwtUtil.getAccessTokenExpiration(),
+            userDTO
+    );
+}
+
     
     @Override
     public AuthResponseDTO refreshToken(String refreshToken) {
@@ -308,17 +308,19 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         refreshTokenRepository.save(refreshToken);
     }
     
-    private Role getRoleByUserType(String userType) {
-        return switch (userType.toUpperCase()) {
-            case "CLIENT" -> roleRepository.findByName("CLIENT")
+    private Role getRoleByUserType(ApplicationUserType userType) {
+        return switch (userType) {
+            case CLIENT -> roleRepository.findByName("CLIENT")
                     .orElseThrow(() -> new ResourceNotFoundException("Rôle CLIENT non trouvé"));
-            case "BARBER" -> roleRepository.findByName("BARBER")
+            case BARBER -> roleRepository.findByName("BARBER")
                     .orElseThrow(() -> new ResourceNotFoundException("Rôle BARBER non trouvé"));
-            case "SALON_OWNER" -> roleRepository.findByName("SALON_OWNER")
+            case SALON_OWNER -> roleRepository.findByName("SALON_OWNER")
                     .orElseThrow(() -> new ResourceNotFoundException("Rôle SALON_OWNER non trouvé"));
-            default -> throw new BadRequestException("Type d'utilisateur invalide : " + userType);
+            case ADMIN -> roleRepository.findByName("ADMIN")
+                    .orElseThrow(() -> new ResourceNotFoundException("Rôle ADMIN non trouvé"));
         };
     }
+    
     
     private ApplicationUserDto convertToUserDTO(ApplicationUser user) {
         ApplicationUserDto userDTO = new ApplicationUserDto();
