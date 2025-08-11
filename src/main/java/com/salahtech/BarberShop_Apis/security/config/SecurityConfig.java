@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -60,20 +61,21 @@ public class SecurityConfig {
     }
 
     private static final String[] PUBLIC_URLS = {
-        "/auth/login",
-        "/auth/register",
-        "/auth/refresh-token",
-        "/auth/forgot-password",
-        "/auth/reset-password",
-        "/auth/verify-email",
-        "/oauth2/**",
-        "/swagger-ui/**",
+        // Auth
+        "/api/v1/auth/login", "/v1/auth/register", "/api/v1/auth/refresh-token",
+        "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
+        "/api/v1/oauth2/**",
+        
+        // springdoc (toujours sans le context-path dans les matchers)
         "/v3/api-docs/**",
-        "/swagger-resources/**",
-        "/webjars/**",
-        "/health",
-        "/actuator/**"
+        "/swagger-ui.html",
+        "/swagger-ui/**",
+    
+        // actuator de base
+        "/actuator/health/**",
+        "/actuator/info"
     };
+    
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
@@ -83,7 +85,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers(PUBLIC_URLS).permitAll()
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight
+            .requestMatchers(PUBLIC_URLS).permitAll()
                 .requestMatchers("/client/**").hasAuthority("CLIENT_ACCESS")
                 .requestMatchers("/barber/**").hasAuthority("BARBER_ACCESS")
                 .requestMatchers("/salon/**").hasAuthority("SALON_OWNER_ACCESS")

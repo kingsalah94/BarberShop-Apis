@@ -18,7 +18,6 @@ import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
 import com.salahtech.BarberShop_Apis.Dtos.AuthRequestDTO;
 import com.salahtech.BarberShop_Apis.Dtos.AuthResponseDTO;
 import com.salahtech.BarberShop_Apis.Dtos.RegisterRequestDTO;
-import com.salahtech.BarberShop_Apis.Services.Implementations.AuthService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ApplicationUserService;
 import com.salahtech.BarberShop_Apis.Utils.RateLimitUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,14 +36,12 @@ import lombok.RequiredArgsConstructor;
  * Contrôleur d'authentification et gestion du compte.
  */
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping("/v1/auth")
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Inscription, connexion, refresh token, mot de passe et vérification email")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class AuthController {
     
-    @Autowired
-    private AuthService authService;
     
     @Autowired
     private final ApplicationUserService userService;
@@ -64,7 +61,7 @@ public class AuthController {
         }
         
         try {
-            AuthResponseDTO response = authService.login(authRequest);
+            AuthResponseDTO response = userService.login(authRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -75,7 +72,7 @@ public class AuthController {
     @PostMapping("/registers")
     public ResponseEntity<?> registers(@Valid @RequestBody RegisterRequestDTO registerRequest) {
         try {
-            AuthResponseDTO response = authService.register(registerRequest);
+            AuthResponseDTO response = userService.register(registerRequest);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -92,7 +89,7 @@ public class AuthController {
                         .body(Map.of("message", "Refresh token manquant"));
             }
             
-            AuthResponseDTO response = authService.refreshToken(refreshToken);
+            AuthResponseDTO response = userService.refreshToken(refreshToken);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -104,7 +101,7 @@ public class AuthController {
     public ResponseEntity<?> logout(@RequestBody Map<String, String> request) {
         try {
             String refreshToken = request.get("refreshToken");
-            authService.logout(refreshToken);
+            userService.logout(refreshToken);
             return ResponseEntity.ok(Map.of("message", "Déconnexion réussie"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -121,7 +118,7 @@ public class AuthController {
                         .body(Map.of("message", "Email manquant"));
             }
             
-            authService.forgotPassword(email);
+            userService.forgotPassword(email);
             return ResponseEntity.ok(Map.of("message", "Email de réinitialisation envoyé"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -140,7 +137,7 @@ public class AuthController {
                         .body(Map.of("message", "Token ou mot de passe manquant"));
             }
             
-            authService.resetPassword(token, newPassword);
+            userService.resetPassword(token, newPassword);
             return ResponseEntity.ok(Map.of("message", "Mot de passe réinitialisé avec succès"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()
@@ -151,7 +148,7 @@ public class AuthController {
     @GetMapping("/verify-emails")
     public ResponseEntity<?> verifyEmails(@RequestParam String token) {
         try {
-            authService.verifyEmail(token);
+            userService.verifyEmail(token);
             return ResponseEntity.ok(Map.of("message", "Email vérifié avec succès"));
         } catch (Exception e) {
             return ResponseEntity.badRequest()

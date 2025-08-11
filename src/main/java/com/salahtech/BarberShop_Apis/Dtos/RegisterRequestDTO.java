@@ -1,7 +1,10 @@
 package com.salahtech.BarberShop_Apis.Dtos;
 
+import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
@@ -26,9 +29,8 @@ public class RegisterRequestDTO {
     
     private String phone;
     
-    @NotBlank(message = "Le type d'utilisateur est obligatoire")
-    private String userType; // CLIENT, BARBER, SALON_OWNER
-    
+    @NotNull(message = "userType est obligatoire")
+    private ApplicationUserType userType; // ou String si tu préfères le parser toi-même
   
     
     // Getters and Setters
@@ -47,6 +49,6 @@ public class RegisterRequestDTO {
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
     
-    public String getUserType() { return userType; }
-    public void setUserType(String userType) { this.userType = userType; }
+    public @NotNull(message = "userType est obligatoire") ApplicationUserType getUserType() { return userType; }
+    public void setUserType(@NotNull(message = "userType est obligatoire") ApplicationUserType userType) { this.userType = userType; }
 }
