@@ -49,13 +49,13 @@ public class ApplicationUserDto {
     private Set<String> roles;
     private Set<String> permissions;
     private ApplicationUserType userType;
-    
+
     // Relations
     private BarberDto barberDto;
-    
-    @JsonIgnore
-    private List<BookingDto> bookings;
-    
+
+    // @JsonIgnore
+    // private List<BookingDto> bookings;
+
     // Champs calculés
     private String fullName;
 
@@ -66,7 +66,7 @@ public class ApplicationUserDto {
         if (user == null) {
             return null;
         }
-        
+
         return ApplicationUserDto.builder()
                 .id(user.getId())
                 .firstName(user.getFirstName())
@@ -90,19 +90,13 @@ public class ApplicationUserDto {
                 .accountNonLocked(user.isAccountNonLocked())
                 .credentialsNonExpired(user.isCredentialsNonExpired())
                 .barberDto(user.getBarber() != null ? BarberDto.fromEntity(user.getBarber()) : null)
-                .roles(user.getRoles() != null ? 
-                       user.getRoles().stream()
-                           .map(Role::getName)
-                           .collect(Collectors.toSet()) : null)
-                .permissions(user.getRoles() != null ? 
-                            user.getRoles().stream()
-                                .flatMap(role -> role.getPermissions().stream())
-                                .map(Permission::getName)
-                                .collect(Collectors.toSet()) : null)
-                .bookings(user.getBookings() != null ?
-                         user.getBookings().stream()
-                             .map(BookingDto::fromEntity)
-                             .collect(Collectors.toList()) : null)
+                .roles(user.getRoles() != null ? user.getRoles().stream()
+                        .map(Role::getName)
+                        .collect(Collectors.toSet()) : null)
+                .permissions(user.getRoles() != null ? user.getRoles().stream()
+                        .flatMap(role -> role.getPermissions().stream())
+                        .map(Permission::getName)
+                        .collect(Collectors.toSet()) : null)
                 .fullName(user.getFullName())
                 .build();
     }
@@ -115,7 +109,7 @@ public class ApplicationUserDto {
         if (dto == null) {
             return null;
         }
-        
+
         ApplicationUser user = new ApplicationUser();
         user.setId(dto.getId());
         user.setFirstName(dto.getFirstName());
@@ -130,7 +124,7 @@ public class ApplicationUserDto {
         user.setVerificationToken(dto.getVerificationToken());
         user.setResetPasswordToken(dto.getResetPasswordToken());
         user.setResetPasswordExpires(dto.getResetPasswordExpires());
-        user.setCreatedAt(dto.getCreatedAt());
+        user.setCreatedAt(LocalDateTime.now()); // Date de création actuelle
         user.setUpdatedAt(dto.getUpdatedAt());
         user.setLastLogin(dto.getLastLogin());
         user.setProvider(dto.getProvider());
@@ -138,28 +132,29 @@ public class ApplicationUserDto {
         user.setAccountNonExpired(dto.isAccountNonExpired());
         user.setAccountNonLocked(dto.isAccountNonLocked());
         user.setCredentialsNonExpired(dto.isCredentialsNonExpired());
-        
+
         // Conversion du barber si présent
         if (dto.getBarberDto() != null) {
             user.setBarber(BarberDto.toEntity(dto.getBarberDto()));
         }
-        
+
         // Note: La conversion des rôles et permissions de String vers les entités
         // doit être gérée par un service avec accès aux repositories
         // user.setRoles(convertRoles(dto.getRoles()));
         // user.setBookings(convertBookings(dto.getBookings()));
-        
+
         return user;
     }
 
     /**
-     * Crée un DTO simplifié pour les réponses publiques (sans informations sensibles)
+     * Crée un DTO simplifié pour les réponses publiques (sans informations
+     * sensibles)
      */
     public static ApplicationUserDto createPublicDto(ApplicationUser user) {
         if (user == null) {
             return null;
         }
-        
+
         return ApplicationUserDto.builder()
                 .id(user.getId())
                 .firstName(user.getFirstName())
@@ -180,7 +175,7 @@ public class ApplicationUserDto {
         if (user == null) {
             return null;
         }
-        
+
         return ApplicationUserDto.builder()
                 .id(user.getId())
                 .firstName(user.getFirstName())
@@ -196,15 +191,13 @@ public class ApplicationUserDto {
                 .accountNonExpired(user.isAccountNonExpired())
                 .accountNonLocked(user.isAccountNonLocked())
                 .credentialsNonExpired(user.isCredentialsNonExpired())
-                .roles(user.getRoles() != null ? 
-                       user.getRoles().stream()
-                           .map(Role::getName)
-                           .collect(Collectors.toSet()) : null)
-                .permissions(user.getRoles() != null ? 
-                            user.getRoles().stream()
-                                .flatMap(role -> role.getPermissions().stream())
-                                .map(Permission::getName)
-                                .collect(Collectors.toSet()) : null)
+                .roles(user.getRoles() != null ? user.getRoles().stream()
+                        .map(Role::getName)
+                        .collect(Collectors.toSet()) : null)
+                .permissions(user.getRoles() != null ? user.getRoles().stream()
+                        .flatMap(role -> role.getPermissions().stream())
+                        .map(Permission::getName)
+                        .collect(Collectors.toSet()) : null)
                 .fullName(user.getFullName())
                 .build();
     }
@@ -216,7 +209,7 @@ public class ApplicationUserDto {
         if (user == null || dto == null) {
             return;
         }
-        
+
         // Ne met à jour que les champs modifiables
         if (dto.getFirstName() != null) {
             user.setFirstName(dto.getFirstName());
@@ -239,7 +232,7 @@ public class ApplicationUserDto {
         if (dto.getIsVerified() != null) {
             user.setIsVerified(dto.getIsVerified());
         }
-        
+
         // Met à jour automatiquement la date de modification
         user.setUpdatedAt(LocalDateTime.now());
     }
@@ -248,11 +241,11 @@ public class ApplicationUserDto {
     public boolean hasRole(String roleName) {
         return roles != null && roles.contains(roleName);
     }
-    
+
     public boolean hasPermission(String permissionName) {
         return permissions != null && permissions.contains(permissionName);
     }
-    
+
     public boolean isActive() {
         return Boolean.TRUE.equals(isEnabled) && Boolean.TRUE.equals(isVerified);
     }

@@ -128,9 +128,9 @@ public class ApplicationUser implements UserDetails {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
     private Barber barber;
 
-    // One user can have many bookings
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Booking> bookings;
+    // extrait ApplicationUser.java
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
+    private Client client;
 
     // Constructeur personnalisé
     public ApplicationUser(String email, String password, String firstName, String lastName) {

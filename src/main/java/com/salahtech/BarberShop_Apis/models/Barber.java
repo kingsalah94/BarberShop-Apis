@@ -49,11 +49,11 @@ public class Barber {
     // @Size(min = 1, message = "User ID must be provided")
 
     // ID de l'utilisateur, utilisé pour la relation avec ApplicationUser
-    private Long barberId;
+    // private Long barberId;
 
     // Relation OneToOne avec ApplicationUser
-    @OneToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true)
+    @OneToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true, nullable = false)
     private ApplicationUser user;
 
     @NotBlank

@@ -74,7 +74,7 @@ public class BookingDto {
 
         BookingDtoBuilder builder = BookingDto.builder()
                 .id(booking.getId())
-                .userId(booking.getUser() != null ? booking.getUser().getId() : null)
+                // .userId(booking.getUser() != null ? booking.getUser().getId() : null)
                 .barberId(booking.getBarber() != null ? booking.getBarber().getId() : null)
                 .serviceId(booking.getBarberService() != null ? booking.getBarberService().getId() : null)
                 .bookingDate(booking.getBookingDate())
@@ -84,25 +84,25 @@ public class BookingDto {
                 .createdAt(booking.getCreatedAt())
                 .updatedAt(booking.getUpdatedAt());
 
-        // Ajouter les DTOs complets si disponibles
-        if (booking.getUser() != null) {
-            builder.userDto(ApplicationUserDto.fromEntity(booking.getUser()))
-                   .clientFirstName(booking.getUser().getFirstName())
-                   .clientLastName(booking.getUser().getLastName());
-        }
+        // // Ajouter les DTOs complets si disponibles
+        // if (booking.getUser() != null) {
+        // builder.userDto(ApplicationUserDto.fromEntity(booking.getUser()))
+        // .clientFirstName(booking.getUser().getFirstName())
+        // .clientLastName(booking.getUser().getLastName());
+        // }
 
         if (booking.getBarber() != null) {
             builder.barberDto(BarberDto.fromEntity(booking.getBarber()))
-                   .barberName(booking.getBarber().getName())
-                   .salonName(booking.getBarber().getSalonName())
-                   .location(booking.getBarber().getLocation());
+                    .barberName(booking.getBarber().getName())
+                    .salonName(booking.getBarber().getSalonName())
+                    .location(booking.getBarber().getLocation());
         }
 
         if (booking.getBarberService() != null) {
             builder.serviceDto(ServiceDto.fromService(booking.getBarberService()))
-                   .serviceName(booking.getBarberService().getName())
-                   .serviceDuration(booking.getBarberService().getDuration())
-                   .servicePrice(booking.getBarberService().getPrice());
+                    .serviceName(booking.getBarberService().getName())
+                    .serviceDuration(booking.getBarberService().getDuration())
+                    .servicePrice(booking.getBarberService().getPrice());
         }
 
         return builder.build();
@@ -119,19 +119,19 @@ public class BookingDto {
 
         Booking booking = new Booking();
         booking.setId(dto.getId());
-        
+
         // Les entités liées seront définies par le service via les IDs
         // booking.setUser() - sera défini par le service
-        // booking.setBarber() - sera défini par le service  
+        // booking.setBarber() - sera défini par le service
         // booking.setService() - sera défini par le service
-        
+
         booking.setBookingDate(dto.getBookingDate());
         booking.setStatus(dto.getStatus());
         booking.setTotalPrice(dto.getTotalPrice());
         booking.setNotes(dto.getNotes());
         booking.setCreatedAt(dto.getCreatedAt());
         booking.setUpdatedAt(dto.getUpdatedAt());
-        
+
         return booking;
     }
 
@@ -142,7 +142,7 @@ public class BookingDto {
         if (booking == null) {
             return;
         }
-        
+
         if (this.bookingDate != null) {
             booking.setBookingDate(this.bookingDate);
         }
@@ -155,15 +155,15 @@ public class BookingDto {
         if (this.notes != null) {
             booking.setNotes(this.notes);
         }
-        
+
         booking.setUpdatedAt(LocalDateTime.now());
     }
 
     /**
      * Crée un DTO simple avec seulement les IDs (pour les requêtes)
      */
-    public static BookingDto createRequest(Long userId, Long barberId, Long serviceId, 
-                                         LocalDateTime bookingDate, String notes) {
+    public static BookingDto createRequest(Long userId, Long barberId, Long serviceId,
+            LocalDateTime bookingDate, String notes) {
         return BookingDto.builder()
                 .userId(userId)
                 .barberId(barberId)
@@ -177,8 +177,8 @@ public class BookingDto {
     /**
      * Crée un DTO de mise à jour
      */
-    public static BookingDto updateRequest(Long id, LocalDateTime bookingDate, 
-                                         BookingStatus status, String notes) {
+    public static BookingDto updateRequest(Long id, LocalDateTime bookingDate,
+            BookingStatus status, String notes) {
         return BookingDto.builder()
                 .id(id)
                 .bookingDate(bookingDate)
