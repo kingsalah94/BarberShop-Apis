@@ -1,8 +1,9 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BarberService;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -22,35 +23,44 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/barbers")
+@RequestMapping("/v1/barbers")
 @RequiredArgsConstructor
 @Validated
+@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Barbers", description = "Gestion et recherche des barbiers")
 public class BarberController {
 
     private final BarberService barberService;
+    private final BarberRepository barberRepository;
 
     // ======= CRUD =======
 
-    @Operation(summary = "Créer un barbier",
-        responses = {
-            @ApiResponse(responseCode = "201", description = "Créé",
-                content = @Content(schema = @Schema(implementation = BarberDto.class))),
+    @Operation(summary = "Créer un barbier", responses = {
+            @ApiResponse(responseCode = "201", description = "Créé", content = @Content(schema = @Schema(implementation = BarberDto.class))),
             @ApiResponse(responseCode = "400", description = "Validation invalide")
-        })
+    })
     @PostMapping
     public ResponseEntity<BarberDto> create(@Valid @RequestBody BarberDto dto) {
+        // BarberController.create (ou dans BarberServiceImpl.save avant insert)
+        if (dto.getUserId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId obligatoire");
+        }
+        if (barberRepository.existsByUserId(dto.getUserId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cet utilisateur possède déjà une fiche barbier. Utilisez PUT /api/v1/barbers/{id}");
+        }
         BarberDto saved = barberService.save(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @Operation(summary = "Mettre à jour un barbier")
-    @PutMapping("/{id}")
+    @PutMapping("/update/{id}")
     public ResponseEntity<BarberDto> update(@PathVariable Long id, @Valid @RequestBody BarberDto dto) {
         dto.setId(id);
         return ResponseEntity.ok(barberService.save(dto));
@@ -63,7 +73,7 @@ public class BarberController {
     }
 
     @Operation(summary = "Supprimer un barbier par ID", responses = {
-        @ApiResponse(responseCode = "204", description = "Supprimé")
+            @ApiResponse(responseCode = "204", description = "Supprimé")
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -73,9 +83,7 @@ public class BarberController {
 
     // ======= LECTURE LISTES (non paginées) =======
 
-    @Operation(summary = "Lister tous les barbiers",
-        responses = @ApiResponse(responseCode = "200",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = BarberDto.class)))))
+    @Operation(summary = "Lister tous les barbiers", responses = @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BarberDto.class)))))
     @GetMapping
     public ResponseEntity<List<BarberDto>> findAll() {
         return ResponseEntity.ok(barberService.findAll());
@@ -95,12 +103,9 @@ public class BarberController {
 
     // ======= RECHERCHES PAGINÉES/TRIABLES =======
 
-    @Operation(
-        summary = "Recherche paginée: par localisation (contient)",
-        description = "Exemple: /search/location?q=Niamey&page=0&size=10&sort=rating,desc",
-        parameters = {
+    @Operation(summary = "Recherche paginée: par localisation (contient)", description = "Exemple: /search/location?q=Niamey&page=0&size=10&sort=rating,desc", parameters = {
             @Parameter(name = "q", description = "Fragment de localisation (contains)", example = "Niamey")
-        })
+    })
     @GetMapping("/search/location")
     public ResponseEntity<List<BarberDto>> findByLocationPaged(
             @RequestParam @NotBlank String q,
@@ -108,9 +113,7 @@ public class BarberController {
         return ResponseEntity.ok(barberService.findByLocation(q, pageable));
     }
 
-    @Operation(
-        summary = "Recherche paginée: par nom de salon (contient)",
-        description = "Exemple: /search/salon?q=Barber&page=0&size=12&sort=salonName,asc")
+    @Operation(summary = "Recherche paginée: par nom de salon (contient)", description = "Exemple: /search/salon?q=Barber&page=0&size=12&sort=salonName,asc")
     @GetMapping("/search/salon")
     public ResponseEntity<List<BarberDto>> findBySalonNamePaged(
             @RequestParam @NotBlank String q,
@@ -118,9 +121,7 @@ public class BarberController {
         return ResponseEntity.ok(barberService.findBySalonName(q, pageable));
     }
 
-    @Operation(
-        summary = "Recherche paginée: par fourchette de prix",
-        description = "Exemple: /search/price-range?min=2000&max=8000&sort=priceFrom,asc")
+    @Operation(summary = "Recherche paginée: par fourchette de prix", description = "Exemple: /search/price-range?min=2000&max=8000&sort=priceFrom,asc")
     @GetMapping("/search/price-range")
     public ResponseEntity<List<BarberDto>> findByPriceRangePaged(
             @RequestParam @NotNull @DecimalMin("0.0") BigDecimal min,
@@ -129,9 +130,7 @@ public class BarberController {
         return ResponseEntity.ok(barberService.findByPriceRange(min, max, pageable));
     }
 
-    @Operation(
-        summary = "Recherche paginée: par note minimale",
-        description = "Exemple: /search/min-rating?minRating=4.3&sort=rating,desc")
+    @Operation(summary = "Recherche paginée: par note minimale", description = "Exemple: /search/min-rating?minRating=4.3&sort=rating,desc")
     @GetMapping("/search/min-rating")
     public ResponseEntity<List<BarberDto>> findByMinRatingPaged(
             @RequestParam @NotNull @DecimalMin("0.0") BigDecimal minRating,
@@ -139,9 +138,7 @@ public class BarberController {
         return ResponseEntity.ok(barberService.findByMinRating(minRating, pageable));
     }
 
-    @Operation(
-        summary = "Recherche paginée: barbiers disponibles par localisation",
-        description = "Exemple: /search/available-by-location?q=Plateau&sort=rating,desc")
+    @Operation(summary = "Recherche paginée: barbiers disponibles par localisation", description = "Exemple: /search/available-by-location?q=Plateau&sort=rating,desc")
     @GetMapping("/search/available-by-location")
     public ResponseEntity<List<BarberDto>> findAvailableByLocationPaged(
             @RequestParam @NotBlank String q,

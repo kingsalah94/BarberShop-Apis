@@ -1,7 +1,5 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
-
 import com.salahtech.BarberShop_Apis.Dtos.NotificationDto;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
@@ -20,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
 @Tag(name = "Notifications", description = "Test/relance des notifications (admin/ops)")
 public class NotificationsController {
@@ -62,4 +61,3 @@ public class NotificationsController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 }
-

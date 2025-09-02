@@ -47,38 +47,38 @@ public class ApplicationUser implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(unique = true, nullable = false)
     @Email(message = "Format d'email invalide")
     @NotBlank(message = "L'email est obligatoire")
     private String email;
-    
+
     @Column(nullable = false)
     @NotBlank(message = "Le mot de passe est obligatoire")
     @Size(min = 8, message = "Le mot de passe doit contenir au moins 8 caractères")
     private String password;
-    
+
     @Column(name = "first_name", nullable = false)
     @NotBlank(message = "Le prénom est obligatoire")
     private String firstName;
-    
+
     @Column(name = "last_name", nullable = false)
     @NotBlank(message = "Le nom est obligatoire")
     private String lastName;
-    
+
     @Column(unique = true)
     private String phone;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "user_type", nullable = false)
     private ApplicationUserType userType;
-    
+
     @Column(name = "is_enabled", nullable = false)
     private Boolean isEnabled = false;
-    
+
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified = false;
-    
+
     @Column(name = "verification_token")
     private String verificationToken;
 
@@ -87,45 +87,41 @@ public class ApplicationUser implements UserDetails {
 
     @Column(columnDefinition = "TEXT")
     private String preferences;
-    
+
     @Column(name = "reset_password_token")
     private String resetPasswordToken;
-    
+
     @Column(name = "reset_password_expires")
     private LocalDateTime resetPasswordExpires;
-    
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(name = "provider")
     private AuthProvider provider = AuthProvider.LOCAL;
-    
+
     @Column(name = "provider_id")
     private String providerId;
-    
+
     // Champs pour UserDetails
     @Column(name = "account_non_expired")
     private boolean accountNonExpired = true;
-    
+
     @Column(name = "account_non_locked")
     private boolean accountNonLocked = true;
-    
+
     @Column(name = "credentials_non_expired")
     private boolean credentialsNonExpired = true;
-    
+
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-        name = "user_roles",
-        joinColumns = @JoinColumn(name = "user_id"),
-        inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles;
 
     // Relation OneToOne avec Barber
@@ -135,7 +131,7 @@ public class ApplicationUser implements UserDetails {
     // One user can have many bookings
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Booking> bookings;
-    
+
     // Constructeur personnalisé
     public ApplicationUser(String email, String password, String firstName, String lastName) {
         this.email = email;
@@ -143,7 +139,7 @@ public class ApplicationUser implements UserDetails {
         this.firstName = firstName;
         this.lastName = lastName;
     }
-    
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
@@ -151,7 +147,7 @@ public class ApplicationUser implements UserDetails {
         }
         updatedAt = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
@@ -160,46 +156,52 @@ public class ApplicationUser implements UserDetails {
     // UserDetails implementation
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (roles == null || roles.isEmpty()) {
+        if (roles == null || roles.isEmpty())
             return List.of();
-        }
-        
-        return roles.stream()
-                .flatMap(role -> role.getPermissions().stream())
-                .map(permission -> new SimpleGrantedAuthority(permission.getName()))
-                .collect(Collectors.toList());
+
+        var roleAuthorities = roles.stream()
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName())) // <- pour hasRole('ADMIN')
+                .toList();
+
+        var permAuthorities = roles.stream()
+                .flatMap(r -> r.getPermissions().stream())
+                .map(p -> new SimpleGrantedAuthority(p.getName())) // ex: "users:read"
+                .toList();
+
+        return java.util.stream.Stream.concat(roleAuthorities.stream(), permAuthorities.stream())
+                .collect(java.util.stream.Collectors.toSet());
     }
-    
+
     @Override
     public String getUsername() {
         return email;
     }
-    
+
     @Override
     public String getPassword() {
         return password;
     }
-    
+
     @Override
     public boolean isAccountNonExpired() {
         return accountNonExpired;
     }
-    
+
     @Override
     public boolean isAccountNonLocked() {
         return accountNonLocked;
     }
-    
+
     @Override
     public boolean isCredentialsNonExpired() {
         return credentialsNonExpired;
     }
-    
+
     @Override
     public boolean isEnabled() {
         return isEnabled != null ? isEnabled : false;
     }
-    
+
     // Setters pour les champs UserDetails
     public void setAccountNonExpired(boolean accountNonExpired) {
         this.accountNonExpired = accountNonExpired;
@@ -212,27 +214,27 @@ public class ApplicationUser implements UserDetails {
     public void setCredentialsNonExpired(boolean credentialsNonExpired) {
         this.credentialsNonExpired = credentialsNonExpired;
     }
-    
+
     public void setIsEnabled(Boolean enabled) {
         this.isEnabled = enabled;
     }
-    
+
     // Méthodes utilitaires
     public String getFullName() {
         return firstName + " " + lastName;
     }
-    
+
     public boolean hasRole(String roleName) {
         return roles != null && roles.stream()
                 .anyMatch(role -> role.getName().equals(roleName));
     }
-    
+
     public boolean hasPermission(String permissionName) {
         return roles != null && roles.stream()
                 .flatMap(role -> role.getPermissions().stream())
                 .anyMatch(permission -> permission.getName().equals(permissionName));
     }
-    
+
     public void updateLastLogin() {
         this.lastLogin = LocalDateTime.now();
     }

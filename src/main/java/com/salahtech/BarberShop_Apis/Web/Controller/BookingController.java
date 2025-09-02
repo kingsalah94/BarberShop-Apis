@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +26,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/bookings")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
 @Tag(name = "Bookings", description = "Gestion des réservations")
 public class BookingController {
@@ -35,9 +35,7 @@ public class BookingController {
 
     // ======= CRUD =======
 
-    @Operation(summary = "Créer une réservation",
-        responses = @ApiResponse(responseCode = "201",
-            content = @Content(schema = @Schema(implementation = BookingDto.class))))
+    @Operation(summary = "Créer une réservation", responses = @ApiResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = BookingDto.class))))
     @PostMapping
     public ResponseEntity<BookingDto> create(@Valid @RequestBody BookingDto dto) {
         BookingDto saved = bookingService.save(dto);
@@ -57,8 +55,7 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.findById(id));
     }
 
-    @Operation(summary = "Supprimer une réservation par ID",
-        responses = @ApiResponse(responseCode = "204", description = "Supprimé"))
+    @Operation(summary = "Supprimer une réservation par ID", responses = @ApiResponse(responseCode = "204", description = "Supprimé"))
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         bookingService.delete(id);
@@ -67,9 +64,7 @@ public class BookingController {
 
     // ======= LISTE =======
 
-    @Operation(summary = "Lister toutes les réservations",
-        responses = @ApiResponse(responseCode = "200",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = BookingDto.class)))))
+    @Operation(summary = "Lister toutes les réservations", responses = @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BookingDto.class)))))
     @GetMapping
     public ResponseEntity<List<BookingDto>> findAll() {
         return ResponseEntity.ok(bookingService.findAll());
@@ -95,12 +90,10 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.findByServiceId(serviceId));
     }
 
-    @Operation(summary = "Réservations par statut",
-        description = "Statuts possibles: PENDING, CONFIRMED, COMPLETED, CANCELLED (selon ton enum)")
+    @Operation(summary = "Réservations par statut", description = "Statuts possibles: PENDING, CONFIRMED, COMPLETED, CANCELLED (selon ton enum)")
     @GetMapping("/status")
     public ResponseEntity<List<BookingDto>> findByStatus(
-            @RequestParam("value") @NotBlank
-            @Parameter(description = "Statut (enum BookingStatus)") String status) {
+            @RequestParam("value") @NotBlank @Parameter(description = "Statut (enum BookingStatus)") String status) {
         return ResponseEntity.ok(bookingService.findByStatus(status));
     }
 
@@ -108,12 +101,8 @@ public class BookingController {
     @GetMapping("/barber/{barberId}/between")
     public ResponseEntity<List<BookingDto>> findByBarberBetweenDates(
             @PathVariable @NotNull Long barberId,
-            @RequestParam @NotNull
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            @Parameter(description = "Début ISO, ex: 2025-08-09T09:00:00") LocalDateTime start,
-            @RequestParam @NotNull
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            @Parameter(description = "Fin ISO, ex: 2025-08-09T18:00:00") LocalDateTime end) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) @Parameter(description = "Début ISO, ex: 2025-08-09T09:00:00") LocalDateTime start,
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) @Parameter(description = "Fin ISO, ex: 2025-08-09T18:00:00") LocalDateTime end) {
         return ResponseEntity.ok(bookingService.findByBarberIdBetweenDates(barberId, start, end));
     }
 

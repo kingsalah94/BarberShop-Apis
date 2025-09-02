@@ -23,10 +23,9 @@ import lombok.NoArgsConstructor;
 public class BarberDto {
 
     private Long id;
-    private String name;        // "Ahmed Benali"
+    private String name; // "Ahmed Benali"
 
-   
-    //private Long userId;
+    private Long userId;
 
     private ApplicationUserDto userDto;
 
@@ -38,12 +37,11 @@ public class BarberDto {
     @Size(min = 2, max = 255, message = "Location must be between 2 and 255 characters")
     private String location;
 
-
     private BigDecimal latitude;
 
     private BigDecimal longitude;
 
-     private Integer experience; // en années
+    private Integer experience; // en années
 
     private BigDecimal rating;
 
@@ -73,16 +71,14 @@ public class BarberDto {
     private String userEmail;
     private String profilePicture;
 
-
     public static BarberDto fromEntity(Barber barber) {
-
-        if (barber == null) {
+        if (barber == null)
             return null;
-        }
+
+        var user = barber.getUser();
 
         return BarberDto.builder()
                 .id(barber.getId())
-                //.userDto(ApplicationUserDto.fromEntity(barber.getUser())) // Assuming User has a constructor that accepts userId
                 .salonName(barber.getSalonName())
                 .location(barber.getLocation())
                 .latitude(barber.getLatitude())
@@ -93,15 +89,24 @@ public class BarberDto {
                 .specialties(barber.getSpecialties())
                 .priceFrom(barber.getPriceFrom())
                 .available(barber.getAvailable())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now()) // Assuming updatedAt is set to current time
+                .workingHours(barber.getWorkingHours())
+                .totalReviews(barber.getTotalReviews())
+                .createdAt(barber.getCreatedAt())
+                .updatedAt(barber.getUpdatedAt())
+                // infos user pour la réponse
+                .userId(user != null ? user.getId() : null)
+                .userFirstName(user != null ? user.getFirstName() : null)
+                .userLastName(user != null ? user.getLastName() : null)
+                .userEmail(user != null ? user.getEmail() : null)
+                .profilePicture(user != null ? user.getProfileImageUrl() : null)
                 .build();
     }
 
     public static Barber toEntity(BarberDto dto) {
         Barber barber = new Barber();
         barber.setId(dto.id);
-        barber.setUser(ApplicationUserDto.toEntity(dto.getUserDto())); // Assuming User has a constructor that accepts userId
+        barber.setUser(ApplicationUserDto.toEntity(dto.getUserDto())); // Assuming User has a constructor that accepts
+                                                                       // userId
         barber.setSalonName(dto.salonName);
         barber.setLocation(dto.location);
         barber.setLatitude(dto.latitude);

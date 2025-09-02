@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
 import com.salahtech.BarberShop_Apis.reppsitories.OutboxEventRepository;
@@ -17,8 +16,9 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/outbox")
+@RequestMapping("/v1/outbox")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
 @Tag(name = "Outbox Admin", description = "Inspection et relance des messages Outbox")
 public class OutboxAdminController {
@@ -35,7 +35,8 @@ public class OutboxAdminController {
     @PostMapping("/{id}/retry")
     public ResponseEntity<Void> retryOne(@PathVariable UUID id) {
         var event = outboxRepo.findById(id).orElse(null);
-        if (event == null) return ResponseEntity.notFound().build();
+        if (event == null)
+            return ResponseEntity.notFound().build();
         event.setStatus(OutboxStatus.PENDING);
         event.setNextAttemptAt(OffsetDateTime.now());
         event.setUpdatedAt(OffsetDateTime.now());

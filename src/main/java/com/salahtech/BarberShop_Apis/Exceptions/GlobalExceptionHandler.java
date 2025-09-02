@@ -1,7 +1,6 @@
 package com.salahtech.BarberShop_Apis.Exceptions;
 
-
-
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +15,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ import java.util.Map;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
-    
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException e) {
         Map<String, Object> response = new HashMap<>();
@@ -33,16 +33,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         response.put("status", HttpStatus.UNAUTHORIZED.value());
         response.put("error", "Unauthorized");
         response.put("message", "Email ou mot de passe incorrect");
-        
+
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorizedException(
             UnauthorizedException ex, WebRequest request) {
-        
+
         log.error("Unauthorized access: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.UNAUTHORIZED.value())
@@ -53,7 +53,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
     }
-    
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException e) {
         Map<String, Object> response = new HashMap<>();
@@ -61,16 +61,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         response.put("status", HttpStatus.FORBIDDEN.value());
         response.put("error", "Forbidden");
         response.put("message", "Accès refusé. Permissions insuffisantes");
-        
+
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
     }
-    
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
             ResourceNotFoundException ex, WebRequest request) {
-        
+
         log.error("Resource not found: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.NOT_FOUND.value())
@@ -85,9 +85,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusinessException(
             BusinessException ex, WebRequest request) {
-        
+
         log.error("Business error: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.BAD_REQUEST.value())
@@ -98,14 +98,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
-    
 
     @ExceptionHandler(BookingConflictException.class)
     public ResponseEntity<ErrorResponse> handleBookingConflictException(
             BookingConflictException ex, WebRequest request) {
-        
+
         log.error("Booking conflict: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.CONFLICT.value())
@@ -124,36 +123,37 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         response.put("status", HttpStatus.BAD_REQUEST.value());
         response.put("error", "Bad Request");
         response.put("message", e.getMessage());
-        
+
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
-    
+
     // @ExceptionHandler(MethodArgumentNotValidException.class)
-    // public ResponseEntity<Map<String, Object>> handleValidationExceptions(MethodArgumentNotValidException e) {
-    //     Map<String, Object> response = new HashMap<>();
-    //     Map<String, String> errors = new HashMap<>();
-        
-    //     e.getBindingResult().getAllErrors().forEach((error) -> {
-    //         String fieldName = ((FieldError) error).getField();
-    //         String errorMessage = error.getDefaultMessage();
-    //         errors.put(fieldName, errorMessage);
-    //     });
-        
-    //     response.put("timestamp", LocalDateTime.now());
-    //     response.put("status", HttpStatus.BAD_REQUEST.value());
-    //     response.put("error", "Validation Failed");
-    //     response.put("message", "Erreurs de validation");
-    //     response.put("errors", errors);
-        
-    //     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    // public ResponseEntity<Map<String, Object>>
+    // handleValidationExceptions(MethodArgumentNotValidException e) {
+    // Map<String, Object> response = new HashMap<>();
+    // Map<String, String> errors = new HashMap<>();
+
+    // e.getBindingResult().getAllErrors().forEach((error) -> {
+    // String fieldName = ((FieldError) error).getField();
+    // String errorMessage = error.getDefaultMessage();
+    // errors.put(fieldName, errorMessage);
+    // });
+
+    // response.put("timestamp", LocalDateTime.now());
+    // response.put("status", HttpStatus.BAD_REQUEST.value());
+    // response.put("error", "Validation Failed");
+    // response.put("message", "Erreurs de validation");
+    // response.put("errors", errors);
+
+    // return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     // }
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             ValidationException ex, WebRequest request) {
-        
+
         log.error("Validation error: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
@@ -168,9 +168,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(PaymentException.class)
     public ResponseEntity<ErrorResponse> handlePaymentException(
             PaymentException ex, WebRequest request) {
-        
+
         log.error("Payment error: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.PAYMENT_REQUIRED.value())
@@ -185,9 +185,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<ErrorResponse> handleServiceUnavailableException(
             ServiceUnavailableException ex, WebRequest request) {
-        
+
         log.error("Service unavailable: {}", ex.getMessage());
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.SERVICE_UNAVAILABLE.value())
@@ -198,9 +198,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         return new ResponseEntity<>(errorResponse, HttpStatus.SERVICE_UNAVAILABLE);
     }
-    
-    //@Override
-     protected ResponseEntity<Object> handleMethodArgumentNotValid(
+
+    // @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex,
             HttpHeaders headers,
             HttpStatus status,
@@ -227,12 +227,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<?> handleConflict(ConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("code", "CONFLICT", "message", ex.getMessage(), "timestamp", Instant.now().toString()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(
             Exception ex, WebRequest request) {
-        
+
         log.error("Unexpected error occurred: ", ex);
-        
+
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
@@ -242,6 +248,27 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .build();
 
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<?> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String detail = ex.getMostSpecificCause() != null ? ex.getMostSpecificCause().getMessage() : ex.getMessage();
+
+        // Contrainte Postgres sur barbers.user_id unique
+        if (detail != null && detail.contains("barbers_user_id_key")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                    Map.of(
+                            "code", "BARBER_ALREADY_EXISTS",
+                            "message", "Cet utilisateur possède déjà un profil barbier.",
+                            "timestamp", Instant.now().toString()));
+        }
+
+        // fallback générique
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                Map.of(
+                        "code", "DATA_INTEGRITY_VIOLATION",
+                        "message", "Conflit d’intégrité des données.",
+                        "detail", detail));
     }
 
     // Classe interne pour la réponse d'erreur

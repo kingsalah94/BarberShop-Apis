@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Services;
 
-
 import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,14 +20,16 @@ public class RefreshTokenService {
     private JwtUtil jwtUtil;
 
     public void saveRefreshToken(ApplicationUser user, String tokenValue) {
-        refreshTokenRepository.findByUser(user)
-                .ifPresent(refreshTokenRepository::delete);
+        refreshTokenRepository.findByUser(user).ifPresent(refreshTokenRepository::delete);
 
-        RefreshToken refreshToken = new RefreshToken(
-                tokenValue,
-                user,
-                LocalDateTime.now().plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000)
-        );
+        var now = LocalDateTime.now();
+        var refreshToken = RefreshToken.builder()
+                .token(tokenValue)
+                .user(user)
+                .expiryDate(now.plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000))
+                .revoked(false)
+                .createdAt(now) // <= important si pas de @CreationTimestamp
+                .build();
 
         refreshTokenRepository.save(refreshToken);
     }

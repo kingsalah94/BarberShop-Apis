@@ -40,7 +40,7 @@ public class Barber {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;        // "Ahmed Benali"
+    private String name; // "Ahmed Benali"
 
     // @NotNull
     // @GeneratedValue(strategy = GenerationType.UUID)
@@ -55,51 +55,51 @@ public class Barber {
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true)
     private ApplicationUser user;
-    
+
     @NotBlank
     @Size(max = 100)
     @Column(name = "salon_name", nullable = false)
     private String salonName;
-    
+
     @NotBlank
     @Size(max = 200)
     @Column(nullable = false)
     private String location;
-    
+
     @Column(precision = 10, scale = 8)
     private BigDecimal latitude;
-    
+
     @Column(precision = 11, scale = 8)
     private BigDecimal longitude;
-    
+
     @DecimalMin("0.0")
     @DecimalMax("5.0")
     @Column(precision = 2, scale = 1)
     @Builder.Default
     private BigDecimal rating = BigDecimal.ZERO;
-    
+
     @Column(name = "reviews_count")
     @Builder.Default
     private Integer reviewsCount = 0;
-    
+
     @Column(columnDefinition = "TEXT")
     private String description;
-    
+
     @Column(columnDefinition = "TEXT")
     private String specialties; // JSON string
-    
+
     @NotNull
     @DecimalMin("0.0")
     @Column(name = "price_from", nullable = false, precision = 10, scale = 2)
     private BigDecimal priceFrom;
-    
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean available = true;
-    
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -107,12 +107,12 @@ public class Barber {
     @Builder.Default
     @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Availability> availabilities = new ArrayList<>();
-    
+
     // Relations avec BarberService et Booking
     @Builder.Default
     @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<BarberService> barberServices = new ArrayList<>();
-    
+
     @Builder.Default
     @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Booking> bookings = new ArrayList<>();
@@ -124,12 +124,16 @@ public class Barber {
     @Builder.Default
     private Integer totalReviews = 0;
 
-     @PrePersist
+    private String profileImageUrl; // URL de l'image de profil du barbier
+
+    private Integer experience; // Années d'expérience du barbier
+
+    @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();

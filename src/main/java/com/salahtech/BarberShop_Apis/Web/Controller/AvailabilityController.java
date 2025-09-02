@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
 import com.salahtech.BarberShop_Apis.Dtos.AvailabilityDto;
 import com.salahtech.BarberShop_Apis.Dtos.TimeSlotDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.AvailabilityService;
@@ -23,6 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/availabilities")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", maxAge = 3600)
 public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
@@ -57,19 +57,16 @@ public class AvailabilityController {
     public ResponseEntity<List<TimeSlotDto>> getAvailableSlots(
             @RequestParam @NotNull Long barberId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @RequestParam @NotNull @Min(1) Integer serviceDurationMinutes
-    ) {
+            @RequestParam @NotNull @Min(1) Integer serviceDurationMinutes) {
         return ResponseEntity.ok(
-                availabilityService.getAvailableSlots(barberId, date, serviceDurationMinutes)
-        );
+                availabilityService.getAvailableSlots(barberId, date, serviceDurationMinutes));
     }
 
     @GetMapping("/slot/check")
     public ResponseEntity<Map<String, Boolean>> isSlotAvailable(
             @RequestParam @NotNull Long barberId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end
-    ) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
         boolean ok = availabilityService.isSlotAvailable(barberId, start, end);
         return ResponseEntity.ok(Map.of("available", ok));
     }
@@ -93,16 +90,14 @@ public class AvailabilityController {
     @GetMapping("/weekly")
     public ResponseEntity<List<AvailabilityDto>> getWeeklyAvailability(
             @RequestParam @NotNull Long barberId,
-            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart
-    ) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
         return ResponseEntity.ok(availabilityService.getWeeklyAvailability(barberId, weekStart));
     }
 
     @PutMapping("/weekly/{barberId}")
     public ResponseEntity<Void> updateWeeklySchedule(
             @PathVariable Long barberId,
-            @Valid @RequestBody List<AvailabilityDto> weeklySchedule
-    ) {
+            @Valid @RequestBody List<AvailabilityDto> weeklySchedule) {
         availabilityService.updateWeeklySchedule(barberId, weeklySchedule);
         return ResponseEntity.noContent().build();
     }
@@ -112,16 +107,14 @@ public class AvailabilityController {
     @GetMapping("/barber/{barberId}/day")
     public ResponseEntity<AvailabilityDto> getBarberAvailabilityForDay(
             @PathVariable Long barberId,
-            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
-    ) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(availabilityService.getBarberAvailability(barberId, date));
     }
 
     @GetMapping("/barber/{barberId}/next")
     public ResponseEntity<List<TimeSlotDto>> getNextAvailableSlots(
             @PathVariable Long barberId,
-            @RequestParam(defaultValue = "5") @Min(1) int numberOfSlots
-    ) {
+            @RequestParam(defaultValue = "5") @Min(1) int numberOfSlots) {
         return ResponseEntity.ok(availabilityService.getNextAvailableSlots(barberId, numberOfSlots));
     }
 
@@ -129,23 +122,23 @@ public class AvailabilityController {
 
     @GetMapping("/day")
     public ResponseEntity<List<AvailabilityDto>> getAllBarbersAvailability(
-            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
-    ) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ResponseEntity.ok(availabilityService.getAllBarbersAvailability(date));
     }
 
     // ========= Statistiques =========
     // Remarque : ton service renvoie une classe interne AvailabilityStatsDTO.
-    // On encapsule la réponse en Map pour éviter de référencer directement la classe interne ici.
+    // On encapsule la réponse en Map pour éviter de référencer directement la
+    // classe interne ici.
     // Si tu externalises ce DTO, on pourra le mettre en type de retour fort.
     @GetMapping("/stats")
     public ResponseEntity<?> getAvailabilityStats(
             @RequestParam @NotNull Long barberId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         var stats = availabilityService.getAvailabilityStats(barberId, startDate, endDate);
-        // Tentative générique : si la classe interne a bien des getters (Lombok @Data), Jackson la sérialisera.
+        // Tentative générique : si la classe interne a bien des getters (Lombok @Data),
+        // Jackson la sérialisera.
         // Donc on peut retourner 'stats' tel quel.
         return ResponseEntity.ok(stats);
     }
@@ -154,20 +147,27 @@ public class AvailabilityController {
 
     @Data
     public static class BlockRequest {
-        @NotNull private Long barberId;
-        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        @NotNull
+        private Long barberId;
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         private LocalDateTime startTime;
-        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         private LocalDateTime endTime;
-        @NotBlank private String reason;
+        @NotBlank
+        private String reason;
     }
 
     @Data
     public static class ReleaseRequest {
-        @NotNull private Long barberId;
-        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        @NotNull
+        private Long barberId;
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         private LocalDateTime startTime;
-        @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         private LocalDateTime endTime;
     }
 }

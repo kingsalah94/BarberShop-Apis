@@ -7,6 +7,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
+import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -43,8 +46,7 @@ public class SecurityConfig {
     public SecurityConfig(
             CustomUserDetailsService userDetailsService,
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            JwtAuthenticationFilter jwtAuthenticationFilter
-    ) {
+            JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -54,53 +56,66 @@ public class SecurityConfig {
     @Bean
     public OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler(
             JwtUtil jwtUtil,
-            @Lazy ApplicationUserService userService,   // <— casse la boucle
-            RefreshTokenService refreshTokenService
-    ) {
+            @Lazy ApplicationUserService userService, // <— casse la boucle
+            RefreshTokenService refreshTokenService) {
         return new OAuth2AuthenticationSuccessHandler(jwtUtil, userService, refreshTokenService);
     }
 
     private static final String[] PUBLIC_URLS = {
-        // Auth
-        "/api/v1/auth/login", "/v1/auth/register", "/api/v1/auth/refresh-token",
-        "/api/v1/auth/forgot-password", "/api/v1/auth/reset-password", "/api/v1/auth/verify-email",
-        "/api/v1/oauth2/**",
-        
-        // springdoc (toujours sans le context-path dans les matchers)
-        "/v3/api-docs/**",
-        "/swagger-ui.html",
-        "/swagger-ui/**",
-    
-        // actuator de base
-        "/actuator/health/**",
-        "/actuator/info"
+            // Auth
+            "/v1/auth/login",
+            "/v1/users",
+            "/v1/permissions",
+            "/v1/roles",
+            "/v1/auth/register",
+            "/v1/auth/refresh-token",
+            "/v1/auth/forgot-password",
+            "/v1/auth/reset-password",
+            "/v1/auth/verify-email",
+            "/v1/oauth2/**",
+
+            // springdoc (toujours sans le context-path dans les matchers)
+            "/v3/api-docs/**",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+
+            // actuator de base
+            "/actuator/health/**",
+            "/actuator/info"
     };
-    
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           OAuth2AuthenticationSuccessHandler successHandler) throws Exception {
+            OAuth2AuthenticationSuccessHandler successHandler) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight
-            .requestMatchers(PUBLIC_URLS).permitAll()
-                .requestMatchers("/client/**").hasAuthority("CLIENT_ACCESS")
-                .requestMatchers("/barber/**").hasAuthority("BARBER_ACCESS")
-                .requestMatchers("/salon/**").hasAuthority("SALON_OWNER_ACCESS")
-                .requestMatchers("/admin/**").hasAuthority("ADMIN_ACCESS")
-                .anyRequest().authenticated()
-            )
-            .oauth2Login(oauth2 -> oauth2
-                .successHandler(successHandler)
-                .failureUrl("/auth/login?error=oauth2_error")
-            )
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight
+                        .requestMatchers(PUBLIC_URLS).permitAll()
+                        .requestMatchers("/client/**").hasAuthority("CLIENT_ACCESS")
+                        .requestMatchers("/barbers/**").hasAuthority("BARBER_ACCESS")
+                        .requestMatchers("/salon/**").hasAuthority("SALON_OWNER_ACCESS")
+                        .requestMatchers("/admin/**").hasAuthority("ADMIN_ACCESS")
+                        // Exemples par rôle
+                        .requestMatchers("/v1/users/**").hasRole("ADMIN")
+
+                        .anyRequest().authenticated())
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(successHandler)
+                        .failureUrl("/auth/login?error=oauth2_error"))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    MethodSecurityExpressionHandler methodSecurityExpressionHandler(RoleHierarchy roleHierarchy) {
+        var h = new DefaultMethodSecurityExpressionHandler();
+        h.setRoleHierarchy(roleHierarchy);
+        return h;
     }
 
     @Bean
@@ -117,12 +132,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(java.util.List.of("http://localhost:4200"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

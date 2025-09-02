@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +11,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@CrossOrigin(origins = "*", maxAge = 3600)
 @RequestMapping("/api/v1/bookings")
 @RequiredArgsConstructor
 @Validated
@@ -34,4 +34,3 @@ public class BookingLifecycleController {
         return ResponseEntity.noContent().build();
     }
 }
-

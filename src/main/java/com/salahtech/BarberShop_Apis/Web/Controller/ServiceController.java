@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
@@ -29,6 +28,7 @@ import java.util.List;
 @RequestMapping("/api/v1/services")
 @RequiredArgsConstructor
 @Validated
+@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Services", description = "Gestion des prestations proposées par les barbiers/salons")
 public class ServiceController {
 
@@ -36,9 +36,7 @@ public class ServiceController {
 
     // ======= CRUD =======
 
-    @Operation(summary = "Créer une prestation",
-        responses = @ApiResponse(responseCode = "201",
-            content = @Content(schema = @Schema(implementation = ServiceDto.class))))
+    @Operation(summary = "Créer une prestation", responses = @ApiResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = ServiceDto.class))))
     @PostMapping
     public ResponseEntity<ServiceDto> create(@Valid @RequestBody ServiceDto dto) {
         ServiceDto saved = serviceService.save(dto);
@@ -59,7 +57,7 @@ public class ServiceController {
     }
 
     @Operation(summary = "Supprimer une prestation par ID", responses = {
-        @ApiResponse(responseCode = "204", description = "Supprimé")
+            @ApiResponse(responseCode = "204", description = "Supprimé")
     })
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
@@ -69,9 +67,7 @@ public class ServiceController {
 
     // ======= LECTURE LISTES =======
 
-    @Operation(summary = "Lister toutes les prestations",
-        responses = @ApiResponse(responseCode = "200",
-            content = @Content(array = @ArraySchema(schema = @Schema(implementation = ServiceDto.class)))))
+    @Operation(summary = "Lister toutes les prestations", responses = @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = ServiceDto.class)))))
     @GetMapping
     public ResponseEntity<List<ServiceDto>> findAll() {
         return ResponseEntity.ok(serviceService.findAll());

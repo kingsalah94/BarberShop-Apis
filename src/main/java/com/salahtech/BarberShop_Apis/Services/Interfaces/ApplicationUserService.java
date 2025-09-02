@@ -1,8 +1,10 @@
 package com.salahtech.BarberShop_Apis.Services.Interfaces;
 
+import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
 import com.salahtech.BarberShop_Apis.Dtos.AuthRequestDTO;
 import com.salahtech.BarberShop_Apis.Dtos.AuthResponseDTO;
 import com.salahtech.BarberShop_Apis.Dtos.RegisterRequestDTO;
+import com.salahtech.BarberShop_Apis.Dtos.UpdateProfileRequest;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 
@@ -15,6 +17,11 @@ public interface ApplicationUserService {
     ApplicationUser findByEmail(String email);
 
     AuthResponseDTO login(AuthRequestDTO authRequest);
+
+    // AuthResponseDTO loginWithProvider(AuthRequestDTO authRequest, AuthProvider
+    // provider);
+
+    ApplicationUserDto updateMe(String email, UpdateProfileRequest req);
 
     AuthResponseDTO register(RegisterRequestDTO registerRequest);
 
