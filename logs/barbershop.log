@@ -30528,3 +30528,9 @@ ORDER BY created_at ASC
 LIMIT ?
 FOR UPDATE SKIP LOCKED
 
+2025-09-22 14:12:40 [scheduling-1] DEBUG org.hibernate.SQL - SELECT * FROM outbox_event
+WHERE status = 'PENDING' AND next_attempt_at <= ?
+ORDER BY created_at ASC
+LIMIT ?
+FOR UPDATE SKIP LOCKED
+
