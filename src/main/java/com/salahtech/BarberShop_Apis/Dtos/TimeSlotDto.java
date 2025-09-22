@@ -10,12 +10,16 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Data
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TimeSlotDto {
 
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private Boolean available;
+    private LocalDateTime startAt; // Changé de startTime à startAt
+    private LocalDateTime endAt; // Changé de endTime à endAt
+    private boolean available;
     private Long bookingId; // Si le créneau est réservé
     private String reason; // Raison de la réservation ou du blocage
 }

@@ -16,12 +16,14 @@ public interface BookingService {
     void delete(Long id);
 
     BookingDto confirm(Long bookingId);
-    
+
     void cancel(Long bookingId);
 
-    
+    /** ✅ désormais côté lecture on parle de client */
+    List<BookingDto> findByClientId(Long clientId);
 
-    List<BookingDto> findByUserId(Long userId);
+    /** ✅ pratique : via client.user.id */
+    List<BookingDto> findByClientUserId(Long userId);
 
     List<BookingDto> findByBarberId(Long barberId);
 
@@ -29,8 +31,8 @@ public interface BookingService {
 
     List<BookingDto> findByStatus(String status);
 
+    /** ✅ fenêtres temporelles basées sur startAt/endAt */
     List<BookingDto> findByBarberIdBetweenDates(Long barberId, LocalDateTime start, LocalDateTime end);
 
     Long countCompletedByBarber(Long barberId);
 }
-

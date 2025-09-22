@@ -1,6 +1,7 @@
 package com.salahtech.BarberShop_Apis.models;
 
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -25,7 +26,9 @@ import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "availabilities", indexes = {
@@ -37,6 +40,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 public class Availability {
 
     @Id
@@ -50,7 +55,7 @@ public class Availability {
 
     /** Mode 1 : créneau ponctuel (date spécifique) */
     @Column(name = "date")
-    private LocalDateTime date;
+    private LocalDate date;
 
     /** Mode 2 : créneau récurrent (jour de semaine) */
     @Enumerated(EnumType.STRING)

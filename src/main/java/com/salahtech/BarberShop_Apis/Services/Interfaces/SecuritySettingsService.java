@@ -6,4 +6,6 @@ public interface SecuritySettingsService {
     SecuritySettingsDto get();
 
     SecuritySettingsDto update(SecuritySettingsDto dto);
+
+    SecuritySettingsDto rotateKid(); // 👈 NEW
 }

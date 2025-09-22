@@ -1,6 +1,7 @@
 package com.salahtech.BarberShop_Apis.Services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
 import com.salahtech.BarberShop_Apis.reppsitories.OutboxEventRepository;
@@ -51,6 +52,21 @@ public class OutboxService {
 
     repo.save(event);
     return id;
+  }
+
+  @Transactional
+  public void enqueueRetry(Booking booking) {
+    Map<String, Object> payload = Map.of(
+        "bookingId", booking.getId(),
+        "barberId", booking.getBarber().getId(),
+        "clientId", booking.getClient().getId(),
+        "action", "RETRY_NOTIFICATION");
+
+    add("BOOKING",
+        booking.getId().toString(),
+        "NOTIFICATION_RETRY",
+        payload,
+        Map.of("attempt", 1));
   }
 
   @Transactional

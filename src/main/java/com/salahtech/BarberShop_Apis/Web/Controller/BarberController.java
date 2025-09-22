@@ -51,7 +51,7 @@ public class BarberController {
         if (dto.getUserId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "userId obligatoire");
         }
-        if (barberRepository.existsByUserId(dto.getUserId())) {
+        if (barberRepository.existsByUser_Id(dto.getUserId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Cet utilisateur possède déjà une fiche barbier. Utilisez PUT /api/v1/barbers/{id}");
         }

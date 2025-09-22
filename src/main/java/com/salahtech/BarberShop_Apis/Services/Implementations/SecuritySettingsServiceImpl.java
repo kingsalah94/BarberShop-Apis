@@ -116,4 +116,15 @@ public class SecuritySettingsServiceImpl implements SecuritySettingsService {
         repo.save(s);
         return get();
     }
+
+    @Override
+    @Transactional
+    public SecuritySettingsDto rotateKid() {
+        var s = ensure();
+        // génère un KID simple et unique; adapte si tu gères un keystore
+        String newKid = "key-" + System.currentTimeMillis();
+        s.setJwtKid(newKid);
+        repo.save(s);
+        return get();
+    }
 }

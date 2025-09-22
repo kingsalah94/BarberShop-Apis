@@ -1,21 +1,14 @@
 package com.salahtech.BarberShop_Apis.Dtos;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import com.salahtech.BarberShop_Apis.models.Barber;
+import lombok.*;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-/**
- * Data Transfer Object for Barber.
- * Used for API communication.
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -23,101 +16,93 @@ import lombok.NoArgsConstructor;
 public class BarberDto {
 
     private Long id;
-    private String name; // "Ahmed Benali"
 
-    private Long userId;
+    private Long userId; // on passe l’ID, pas l’entité
+    private ApplicationUserDto userDto; // lecture seule si tu veux renvoyer info user
 
-    private ApplicationUserDto userDto;
-
-    @NotNull(message = "Salon name is required")
-    @Size(min = 2, max = 100, message = "Salon name must be between 2 and 100 characters")
+    @NotNull
+    @Size(min = 2, max = 100)
     private String salonName;
 
-    @NotNull(message = "Location is required")
-    @Size(min = 2, max = 255, message = "Location must be between 2 and 255 characters")
+    @NotNull
+    @Size(min = 2, max = 255)
     private String location;
 
     private BigDecimal latitude;
-
     private BigDecimal longitude;
-
-    private Integer experience; // en années
-
+    private Integer experience;
     private BigDecimal rating;
-
     private Integer reviewsCount;
 
-    @Size(max = 1000, message = "Description cannot exceed 1000 characters")
+    @Size(max = 1000)
     private String description;
 
-    private String specialties; // JSON string
-
-    @DecimalMin(value = "0.0", inclusive = false, message = "Price must be positive")
+    private String specialties; // JSON
+    @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal priceFrom;
 
     private Boolean available;
-
     private String workingHours;
-
     private Integer totalReviews;
 
     private LocalDateTime createdAt;
-
     private LocalDateTime updatedAt;
 
-    // Champs pour la réponse
+    // Champs de confort
     private String userFirstName;
     private String userLastName;
     private String userEmail;
     private String profilePicture;
 
-    public static BarberDto fromEntity(Barber barber) {
-        if (barber == null)
+    public static BarberDto fromEntity(Barber b) {
+        if (b == null)
             return null;
-
-        var user = barber.getUser();
-
+        var u = b.getUser();
         return BarberDto.builder()
-                .id(barber.getId())
-                .salonName(barber.getSalonName())
-                .location(barber.getLocation())
-                .latitude(barber.getLatitude())
-                .longitude(barber.getLongitude())
-                .rating(barber.getRating())
-                .reviewsCount(barber.getReviewsCount())
-                .description(barber.getDescription())
-                .specialties(barber.getSpecialties())
-                .priceFrom(barber.getPriceFrom())
-                .available(barber.getAvailable())
-                .workingHours(barber.getWorkingHours())
-                .totalReviews(barber.getTotalReviews())
-                .createdAt(barber.getCreatedAt())
-                .updatedAt(barber.getUpdatedAt())
-                // infos user pour la réponse
-                .userId(user != null ? user.getId() : null)
-                .userFirstName(user != null ? user.getFirstName() : null)
-                .userLastName(user != null ? user.getLastName() : null)
-                .userEmail(user != null ? user.getEmail() : null)
-                .profilePicture(user != null ? user.getProfileImageUrl() : null)
+                .id(b.getId())
+                .salonName(b.getSalonName())
+                .location(b.getLocation())
+                .latitude(b.getLatitude())
+                .longitude(b.getLongitude())
+                .rating(b.getRating())
+                .reviewsCount(b.getReviewsCount())
+                .description(b.getDescription())
+                .specialties(b.getSpecialties())
+                .priceFrom(b.getPriceFrom())
+                .available(b.getAvailable())
+                .workingHours(b.getWorkingHours())
+                .totalReviews(b.getTotalReviews())
+                .createdAt(b.getCreatedAt())
+                .updatedAt(b.getUpdatedAt())
+                .userId(u != null ? u.getId() : null)
+                .userFirstName(u != null ? u.getFirstName() : null)
+                .userLastName(u != null ? u.getLastName() : null)
+                .userEmail(u != null ? u.getEmail() : null)
+                .profilePicture(u != null ? u.getProfileImageUrl() : null)
                 .build();
     }
 
+    /**
+     * ⚠️ Ne rattache pas user ici. Laisse le service charger l’ApplicationUser par
+     * userId.
+     */
     public static Barber toEntity(BarberDto dto) {
-        Barber barber = new Barber();
-        barber.setId(dto.id);
-        barber.setUser(ApplicationUserDto.toEntity(dto.getUserDto())); // Assuming User has a constructor that accepts
-                                                                       // userId
-        barber.setSalonName(dto.salonName);
-        barber.setLocation(dto.location);
-        barber.setLatitude(dto.latitude);
-        barber.setLongitude(dto.longitude);
-        barber.setRating(dto.rating);
-        barber.setReviewsCount(dto.reviewsCount);
-        barber.setDescription(dto.description);
-        barber.setSpecialties(dto.specialties);
-        barber.setPriceFrom(dto.priceFrom);
-        barber.setAvailable(dto.available);
-        barber.setCreatedAt(LocalDateTime.now()); // Assuming createdAt is set to current time
-        return barber;
+        if (dto == null)
+            return null;
+        Barber b = new Barber();
+        b.setId(dto.getId());
+        b.setSalonName(dto.getSalonName());
+        b.setLocation(dto.getLocation());
+        b.setLatitude(dto.getLatitude());
+        b.setLongitude(dto.getLongitude());
+        b.setRating(dto.getRating());
+        b.setReviewsCount(dto.getReviewsCount());
+        b.setDescription(dto.getDescription());
+        b.setSpecialties(dto.getSpecialties());
+        b.setPriceFrom(dto.getPriceFrom());
+        b.setAvailable(dto.getAvailable());
+        b.setWorkingHours(dto.getWorkingHours());
+        // user + dates gérés par service/JPA
+        return b;
     }
 }

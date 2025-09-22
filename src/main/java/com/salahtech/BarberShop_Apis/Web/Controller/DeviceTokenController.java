@@ -34,11 +34,11 @@ public class DeviceTokenController {
         return ResponseEntity.ok(service.search(userId, active, types, updatedBefore, pageable));
     }
 
-    @PostMapping("/register")
-    @PreAuthorize("hasAuthority('devicetokens:create')")
-    public ResponseEntity<DeviceTokenDto> register(@RequestBody DeviceTokenDto dto) {
-        return ResponseEntity.ok(service.register(dto));
-    }
+    // @PostMapping("/register")
+    // @PreAuthorize("hasAuthority('devicetokens:create')")
+    // public ResponseEntity<Object> register(@RequestBody DeviceTokenDto dto) {
+    // return ResponseEntity.ok(service.register(dto));
+    // }
 
     @PostMapping("/{id}/active")
     @PreAuthorize("hasAuthority('devicetokens:update')")

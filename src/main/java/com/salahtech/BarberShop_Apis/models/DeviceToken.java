@@ -41,10 +41,9 @@ public class DeviceToken {
     @Column(name = "token", nullable = false, length = 1000)
     private String token;
 
-    /** ANDROID / IOS / WEB */
     @Enumerated(EnumType.STRING)
-    @Column(name = "device_type", nullable = false, length = 20)
-    private DeviceType deviceType;
+    @Column(name = "device_type", nullable = false, length = 50)
+    private DeviceType deviceType; // ANDROID / IOS / WEB
 
     @Column(name = "active", nullable = false)
     @Builder.Default
@@ -162,7 +161,28 @@ public class DeviceToken {
                 '}';
     }
 
+    // ...
+    public void setDeviceType(DeviceType deviceType) {
+        this.deviceType = deviceType;
+    }
+
+    // Getter garde le type enum également
+    public DeviceType getDeviceType() {
+        return deviceType;
+    }
+
     public enum DeviceType {
         ANDROID, IOS, WEB
     }
+
+    public void updateLastUsed() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updateLastUsed'");
+    }
+
+    // public void setDeviceType(String deviceType2) {
+    // // TODO Auto-generated method stub
+    // throw new UnsupportedOperationException("Unimplemented method
+    // 'setDeviceType'");
+    // }
 }

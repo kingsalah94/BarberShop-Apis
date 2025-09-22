@@ -17,17 +17,17 @@ public class ServiceSearchDto {
 
     private String name;
     private ServiceCategory category;
-    
+
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
-    
+
     private Integer maxDuration;
-    
+
     @Builder.Default
     private Boolean activeOnly = true;
-    
+
     private Long barberId;
-    
+
     // Paramètres de tri
     private String sortBy; // name, price, duration, category
     private String sortDirection; // asc, desc

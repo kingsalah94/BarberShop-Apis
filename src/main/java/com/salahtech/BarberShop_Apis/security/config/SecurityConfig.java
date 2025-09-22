@@ -92,6 +92,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
+
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // CORS preflight
                         .requestMatchers(PUBLIC_URLS).permitAll()
                         .requestMatchers("/client/**").hasAuthority("CLIENT_ACCESS")
@@ -100,7 +101,13 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").hasAuthority("ADMIN_ACCESS")
                         // Exemples par rôle
                         .requestMatchers("/v1/users/**").hasRole("ADMIN")
-
+                        .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
+                        .hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
+                        // fichiers publics
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/files/**").permitAll()
+                        // upload réservé (au moins authentifié)
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/v1/files").authenticated()
+                        // Toutes les autres requêtes doivent être authentifiées
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(successHandler)
@@ -140,7 +147,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(java.util.List.of("http://localhost:4200"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setExposedHeaders(Arrays.asList("Authorization"));

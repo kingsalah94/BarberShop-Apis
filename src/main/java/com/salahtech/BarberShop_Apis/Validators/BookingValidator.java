@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
+import com.salahtech.BarberShop_Apis.models.Booking;
 
 public class BookingValidator {
 
@@ -17,7 +18,7 @@ public class BookingValidator {
         if (dto.getServiceDto() == null || dto.getServiceDto().getId() == null) {
             errors.add("Le service est obligatoire dans une réservation");
         }
-        if (dto.getUserDto() == null || dto.getUserDto().getId() == null) {
+        if (dto.getBarberDto() == null || dto.getBarberDto().getId() == null) {
             errors.add("L'utilisateur est obligatoire dans une réservation");
         }
         if (dto.getBarberDto() == null || dto.getBarberDto().getId() == null) {
@@ -25,5 +26,10 @@ public class BookingValidator {
         }
 
         return errors;
+    }
+
+    public List<String> validateBooking(Booking booking) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'validateBooking'");
     }
 }

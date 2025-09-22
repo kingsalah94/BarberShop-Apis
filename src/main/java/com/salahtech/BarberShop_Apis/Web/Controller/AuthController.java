@@ -50,144 +50,26 @@ public class AuthController {
     @Autowired
     private RateLimitUtil rateLimitUtil;
 
-    // @PostMapping("/login")
-    // public ResponseEntity<?> login(@Valid @RequestBody AuthRequestDTO
-    // authRequest,
-    // HttpServletRequest request) {
-
-    // // Vérifier le rate limiting
-    // String clientIp = getClientIpAddress(request);
-    // if (!rateLimitUtil.tryConsume(clientIp, "login")) {
-    // return ResponseEntity.status(429)
-    // .body(Map.of("message", "Trop de tentatives de connexion. Réessayez dans 5
-    // minutes."));
-    // }
-
-    // try {
-    // AuthResponseDTO response = userService.login(authRequest);
-    // return ResponseEntity.ok(response);
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // @PostMapping("/registers")
-    // public ResponseEntity<?> registers(@Valid @RequestBody RegisterRequestDTO
-    // registerRequest) {
-    // try {
-    // AuthResponseDTO response = userService.register(registerRequest);
-    // return ResponseEntity.ok(response);
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // @PostMapping("/refresh-token")
-    // public ResponseEntity<?> refreshToken(@RequestBody Map<String, String>
-    // request) {
-    // try {
-    // String refreshToken = request.get("refreshToken");
-    // if (refreshToken == null || refreshToken.isEmpty()) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", "Refresh token manquant"));
-    // }
-
-    // AuthResponseDTO response = userService.refreshToken(refreshToken);
-    // return ResponseEntity.ok(response);
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // @PostMapping("/logout")
-    // public ResponseEntity<?> logout(@RequestBody Map<String, String> request) {
-    // try {
-    // String refreshToken = request.get("refreshToken");
-    // userService.logout(refreshToken);
-    // return ResponseEntity.ok(Map.of("message", "Déconnexion réussie"));
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // @PostMapping("/forgot-password")
-    // public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String>
-    // request) {
-    // try {
-    // String email = request.get("email");
-    // if (email == null || email.isEmpty()) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", "Email manquant"));
-    // }
-
-    // userService.forgotPassword(email);
-    // return ResponseEntity.ok(Map.of("message", "Email de réinitialisation
-    // envoyé"));
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // @PostMapping("/reset-password")
-    // public ResponseEntity<?> resetPassword(@RequestBody Map<String, String>
-    // request) {
-    // try {
-    // String token = request.get("token");
-    // String newPassword = request.get("newPassword");
-
-    // if (token == null || newPassword == null) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", "Token ou mot de passe manquant"));
-    // }
-
-    // userService.resetPassword(token, newPassword);
-    // return ResponseEntity.ok(Map.of("message", "Mot de passe réinitialisé avec
-    // succès"));
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // @GetMapping("/verify-emails")
-    // public ResponseEntity<?> verifyEmails(@RequestParam String token) {
-    // try {
-    // userService.verifyEmail(token);
-    // return ResponseEntity.ok(Map.of("message", "Email vérifié avec succès"));
-    // } catch (Exception e) {
-    // return ResponseEntity.badRequest()
-    // .body(Map.of("message", e.getMessage()));
-    // }
-    // }
-
-    // private String getClientIpAddress(HttpServletRequest request) {
-    // String xForwardedForHeader = request.getHeader("X-Forwarded-For");
-    // if (xForwardedForHeader == null) {
-    // return request.getRemoteAddr();
-    // } else {
-    // return xForwardedForHeader.split(",")[0];
-    // }
-    // }
-
     // ======================
     // AUTH
     // ======================
 
+    // ======================
+    // AUTH ENDPOINTS Register
+    // ======================
     @Operation(summary = "Inscription (register)", responses = {
             @ApiResponse(responseCode = "201", description = "Compte créé", content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Requête invalide")
     })
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
-        AuthResponseDTO response = userService.register(request);
+        var response = userService.register(request); // envoie email de vérification côté service
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    // ======================
+    // AUTH ENDPOINTS Profile
+    // ======================
     @Operation(summary = "Mettre à jour le profil courant")
     @PutMapping("/me")
     public ResponseEntity<ApplicationUserDto> updateMe(@Valid @RequestBody UpdateProfileRequest req,
@@ -196,25 +78,48 @@ public class AuthController {
         return ResponseEntity.ok(dto);
     }
 
+    @Operation(summary = "Récupérer l'utilisateur courant", security = @SecurityRequirement(name = "bearerAuth"), responses = {
+            @ApiResponse(responseCode = "200", description = "Utilisateur courant", content = @Content(schema = @Schema(implementation = ApplicationUserDto.class)))
+    })
+    @GetMapping("/currentUser")
+    public ResponseEntity<ApplicationUserDto> currentUser(Authentication authentication) {
+        var user = userService.findByEmail(authentication.getName());
+        return ResponseEntity.ok(ApplicationUserDto.fromEntity(user));
+    }
+
+    // ======================
+    // AUTH ENDPOINTS Login/Refresh/Logout
+    // ======================
     @Operation(summary = "Connexion (login)", responses = {
             @ApiResponse(responseCode = "200", description = "Connecté", content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Identifiants invalides / Compte désactivé ou non vérifié")
+            @ApiResponse(responseCode = "400", description = "Identifiants invalides / Compte désactivé ou non vérifié"),
+            @ApiResponse(responseCode = "429", description = "Trop de tentatives (rate-limit)")
     })
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody AuthRequestDTO request) {
+        // Rate-limit très simple (si util présent)
+        if (rateLimitUtil != null && !rateLimitUtil.tryConsume("global", "login")) {
+            return ResponseEntity.status(429)
+                    .body(null);
+        }
         return ResponseEntity.ok(userService.login(request));
     }
 
+    // =======================
+    // AUTH ENDPOINTS Refresh/Logout
+    // ======================
     @Operation(summary = "Renouveler le token d'accès (refresh token)", responses = {
             @ApiResponse(responseCode = "200", description = "Nouveaux tokens", content = @Content(schema = @Schema(implementation = AuthResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Refresh token invalide ou expiré")
     })
-
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         return ResponseEntity.ok(userService.refreshToken(request.getRefreshToken()));
     }
 
+    // =======================
+    // AUTH ENDPOINTS Logout
+    // ======================
     @Operation(summary = "Déconnexion (révoque le refresh token)", responses = {
             @ApiResponse(responseCode = "204", description = "Déconnecté"),
             @ApiResponse(responseCode = "400", description = "Requête invalide")
@@ -235,7 +140,7 @@ public class AuthController {
     })
     @PostMapping("/forgot-password")
     public ResponseEntity<Void> forgotPassword(@Valid @RequestBody EmailRequest request) {
-        userService.forgotPassword(request.getEmail());
+        userService.forgotPassword(request.getEmail()); // envoie l'email côté service
         return ResponseEntity.noContent().build();
     }
 
@@ -245,7 +150,7 @@ public class AuthController {
     })
     @PostMapping("/reset-password")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        userService.resetPassword(request.getToken(), request.getNewPassword());
+        userService.resetPassword(request.getToken(), request.getNewPassword()); // envoie confirmation côté service
         return ResponseEntity.noContent().build();
     }
 
@@ -255,7 +160,7 @@ public class AuthController {
     })
     @GetMapping("/verify-email")
     public ResponseEntity<MessageResponse> verifyEmail(@RequestParam("token") String token) {
-        userService.verifyEmail(token);
+        userService.verifyEmail(token); // envoie email de bienvenue côté service
         return ResponseEntity.ok(new MessageResponse("Email vérifié avec succès."));
     }
 
@@ -373,4 +278,5 @@ public class AuthController {
             this.message = message;
         }
     }
+
 }

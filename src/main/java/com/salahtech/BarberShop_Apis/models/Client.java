@@ -55,8 +55,9 @@ public class Client {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = false)
+    /** Réservations du client */
     @Builder.Default
+    @OneToMany(mappedBy = "client", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, orphanRemoval = false)
     private List<Booking> bookings = new ArrayList<>();
 
     @PrePersist

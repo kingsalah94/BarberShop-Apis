@@ -3,6 +3,9 @@ package com.salahtech.BarberShop_Apis.Services.Interfaces;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
 
@@ -33,4 +36,6 @@ public interface ServiceService {
     List<ServiceDto> findByNameContaining(String name);
 
     List<ServiceCategory> getDistinctActiveCategories();
+
+    Page<ServiceDto> search(String q, String category, Boolean active, Long barberId, Pageable pageable);
 }

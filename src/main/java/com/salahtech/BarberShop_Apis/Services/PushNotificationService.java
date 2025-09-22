@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,10 +24,10 @@ public class PushNotificationService {
      * Envoyer une notification push à un utilisateur
      */
     public void sendToUser(Long userId, String title, String body,
-                           Map<String, String> data) {
+            Map<String, String> data) {
         try {
             String deviceToken = deviceTokenService.getDeviceToken(userId);
-            
+
             if (deviceToken != null && !deviceToken.isEmpty()) {
                 sendNotification(deviceToken, title, body, null);
             } else {
@@ -44,7 +45,7 @@ public class PushNotificationService {
     public void sendToUserWithData(Long userId, String title, String body, Map<String, String> data) {
         try {
             String deviceToken = deviceTokenService.getDeviceToken(userId);
-            
+
             if (deviceToken != null && !deviceToken.isEmpty()) {
                 sendNotification(deviceToken, title, body, data);
             } else {
@@ -128,7 +129,6 @@ public class PushNotificationService {
                 return "Notification de réservation";
         }
     }
-    
 
     /**
      * Obtenir le corps de notification selon le type de réservation
@@ -148,4 +148,3 @@ public class PushNotificationService {
         }
     }
 }
-

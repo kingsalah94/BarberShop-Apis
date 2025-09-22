@@ -56,7 +56,7 @@ public class BarberServiceImpl implements BarberService {
         // 3) Création vs Mise à jour + pré-check d’unicité (1 barber par userId)
         final boolean isCreate = (dto.getId() == null);
         if (isCreate) {
-            if (barberRepository.existsByUserId(resolvedUserId)) {
+            if (barberRepository.existsByUser_Id(resolvedUserId)) {
                 throw new ConflictException("Cet utilisateur possède déjà un profil barbier.");
             }
             Barber entity = new Barber();
@@ -84,7 +84,7 @@ public class BarberServiceImpl implements BarberService {
     /** Mapping centralisé des champs simples du DTO vers l'entité. */
     private void mapDtoToEntity(BarberDto dto, Barber entity) {
         // Adapte exactement aux champs de ton modèle/DTO
-        entity.setName(dto.getName());
+        entity.setName(dto.getSalonName());
         entity.setSalonName(dto.getSalonName());
         entity.setLocation(dto.getLocation());
         entity.setLatitude(dto.getLatitude());
@@ -119,7 +119,7 @@ public class BarberServiceImpl implements BarberService {
             log.error("User ID is null when looking for barber");
             return null;
         }
-        return barberRepository.findByUserId(userId)
+        return barberRepository.findByUser_Id(userId)
                 .map(BarberDto::fromEntity)
                 .orElseThrow(() -> new InvalideEntityException(
                         "No barber found with user ID " + userId, ErrorCodes.BARBER_NOT_FOUND));

@@ -1,5 +1,6 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Set;
@@ -7,6 +8,8 @@ import java.util.stream.Collectors;
 
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,9 +28,13 @@ import com.salahtech.BarberShop_Apis.Services.EmailService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ApplicationUserService;
 import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
+import com.salahtech.BarberShop_Apis.models.Barber;
+import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
 import com.salahtech.BarberShop_Apis.models.RefreshToken;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RefreshTokenRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
 
@@ -41,6 +48,7 @@ import java.util.UUID;
 @Service
 @AllArgsConstructor
 @NoArgsConstructor
+@Slf4j
 public class ApplicationUserServiceImpl implements ApplicationUserService {
 
     @Autowired
@@ -62,39 +70,47 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     private JwtUtil jwtUtil;
 
     @Autowired
+    private ClientRepository clientRepository;
+    @Autowired
+    private BarberRepository barberRepository;
+
+    @Autowired
     private EmailService emailService;
 
     @Override
     public ApplicationUser findByEmailOrCreate(String email, String name, AuthProvider provider, String providerId) {
-        Optional<ApplicationUser> existingUser = userRepository.findByEmail(email);
-
-        if (existingUser.isPresent()) {
-            ApplicationUser user = existingUser.get();
-            user.setLastLogin(LocalDateTime.now());
-            return userRepository.save(user);
+        var existing = userRepository.findByEmail(email);
+        if (existing.isPresent()) {
+            var u = existing.get();
+            u.setLastLogin(LocalDateTime.now());
+            return userRepository.save(u);
         }
 
-        ApplicationUser newUser = new ApplicationUser();
-        newUser.setEmail(email);
-
-        String[] nameParts = name.split(" ", 2);
-        newUser.setFirstName(nameParts[0]);
-        newUser.setLastName(nameParts.length > 1 ? nameParts[1] : "");
-
-        newUser.setProvider(provider);
-        newUser.setProviderId(providerId);
-        newUser.setIsEnabled(true);
-        newUser.setIsVerified(true);
-        newUser.setPassword("");
-
-        // ✅ NEW: typer par défaut les comptes OAuth2
-        newUser.setUserType(ApplicationUserType.CLIENT);
+        ApplicationUser u = new ApplicationUser();
+        u.setEmail(email);
+        var parts = name != null ? name.split(" ", 2) : new String[] { "", "" };
+        u.setFirstName(parts[0]);
+        u.setLastName(parts.length > 1 ? parts[1] : "");
+        u.setProvider(provider);
+        u.setProviderId(providerId);
+        u.setIsEnabled(true);
+        u.setIsVerified(true);
+        u.setPassword("");
+        u.setUserType(ApplicationUserType.CLIENT);
 
         Role clientRole = roleRepository.findByName("CLIENT")
                 .orElseThrow(() -> new ResourceNotFoundException("Rôle CLIENT non trouvé"));
-        newUser.setRoles(Set.of(clientRole));
+        u.setRoles(Set.of(clientRole));
 
-        return userRepository.save(newUser);
+        u = userRepository.save(u);
+
+        // ✅ Envoi de bienvenue pour les comptes créés via OAuth2
+        try {
+            emailService.sendWelcomeEmail(u);
+        } catch (Exception ignored) {
+        }
+
+        return u;
     }
 
     @Override
@@ -111,128 +127,157 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
 
     @Override
     public AuthResponseDTO login(AuthRequestDTO authRequest) {
-        // Authentifier l'utilisateur
-        Authentication authentication = authenticationManager.authenticate(
+        Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        authRequest.getEmail(),
-                        authRequest.getPassword()));
+                        authRequest.getEmail(), authRequest.getPassword()));
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        ApplicationUser user = userRepository.findByEmail(userDetails.getUsername())
+        UserDetails principal = (UserDetails) auth.getPrincipal();
+        ApplicationUser user = userRepository.findByEmail(principal.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        // Vérifier que l'utilisateur est activé et vérifié
-        if (!user.isEnabled()) {
+        if (!user.isEnabled())
             throw new BadRequestException("Compte désactivé. Contactez l'administrateur.");
-        }
-
-        if (!user.getIsVerified()) {
+        if (!Boolean.TRUE.equals(user.getIsVerified()))
             throw new BadRequestException("Email non vérifié. Vérifiez votre boîte mail.");
-        }
 
-        // Générer les tokens
-        String accessToken = jwtUtil.generateAccessToken(userDetails);
-        String refreshToken = jwtUtil.generateRefreshToken(userDetails);
+        String accessToken = jwtUtil.generateAccessToken(principal);
+        String refreshToken = jwtUtil.generateRefreshToken(principal);
 
-        // Sauvegarder le refresh token
         saveRefreshToken(user, refreshToken);
-
-        // Mettre à jour la dernière connexion
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
 
-        // Préparer la réponse
-        ApplicationUserDto userDTO = convertToUserDTO(user);
+        // (Facultatif) — notifier la connexion réussie
+        // try { emailService.sendTemplateEmail(user.getEmail(), "Connexion réussie",
+        // "login-success", Map.of("firstName", user.getFirstName())); } catch
+        // (Exception ignored) {}
 
         return new AuthResponseDTO(
                 accessToken,
                 refreshToken,
                 jwtUtil.getAccessTokenExpiration(),
-                userDTO);
+                convertToUserDTO(user));
     }
 
     @Override
-    public AuthResponseDTO register(RegisterRequestDTO registerRequest) {
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+    public AuthResponseDTO register(RegisterRequestDTO req) {
+        if (userRepository.existsByEmail(req.getEmail()))
             throw new BadRequestException("Un compte avec cet email existe déjà");
+
+        ApplicationUser u = new ApplicationUser();
+        u.setEmail(req.getEmail());
+        u.setPassword(passwordEncoder.encode(req.getPassword()));
+        u.setFirstName(req.getFirstName());
+        u.setLastName(req.getLastName());
+        u.setPhone(req.getPhone());
+        u.setCreatedAt(LocalDateTime.now());
+        u.setIsEnabled(true);
+        u.setIsVerified(false);
+        u.setVerificationToken(UUID.randomUUID().toString());
+        u.setProvider(AuthProvider.LOCAL);
+        ApplicationUserType type = req.getUserType() != null ? req.getUserType() : ApplicationUserType.CLIENT;
+        u.setUserType(type);
+        u.setRoles(Set.of(getRoleByUserType(type)));
+
+        u = userRepository.save(u);
+
+        // 2. Créer automatiquement le profil métier selon le type
+        createBusinessProfile(u);
+        // ✅ email de vérification à l’inscription
+        try {
+            emailService.sendVerificationEmail(u);
+        } catch (Exception ignored) {
         }
 
-        ApplicationUser user = new ApplicationUser();
-        user.setEmail(registerRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        user.setFirstName(registerRequest.getFirstName());
-        user.setLastName(registerRequest.getLastName());
-        user.setPhone(registerRequest.getPhone());
-        user.setCreatedAt(LocalDateTime.now());
-        user.setIsEnabled(true);
-        user.setIsVerified(false);
-        user.setVerificationToken(UUID.randomUUID().toString());
-        user.setProvider(AuthProvider.LOCAL);
-
-        // ✅ NEW: typer l'utilisateur (fallback CLIENT si non fourni)
-        ApplicationUserType type = registerRequest.getUserType() != null
-                ? registerRequest.getUserType()
-                : ApplicationUserType.CLIENT;
-        user.setUserType(type);
-
-        // Rôle cohérent avec le type (adapte la signature si ton getRoleByUserType
-        // prend un String)
-        Role role = getRoleByUserType(type);
-        user.setRoles(Set.of(role));
-
-        user = userRepository.save(user);
-
-        emailService.sendVerificationEmail(user);
-
-        String accessToken = jwtUtil.generateAccessToken(user);
-        String refreshToken = jwtUtil.generateRefreshToken(user);
-        saveRefreshToken(user, refreshToken);
-
-        ApplicationUserDto userDTO = convertToUserDTO(user);
+        String accessToken = jwtUtil.generateAccessToken(u);
+        String refreshToken = jwtUtil.generateRefreshToken(u);
+        saveRefreshToken(u, refreshToken);
 
         return new AuthResponseDTO(
                 accessToken,
                 refreshToken,
                 jwtUtil.getAccessTokenExpiration(),
-                userDTO);
+                convertToUserDTO(u));
+    }
+
+    /**
+     * Crée automatiquement le profil métier (Client ou Barber) selon le type
+     * d'utilisateur
+     */
+    private void createBusinessProfile(ApplicationUser user) {
+        switch (user.getUserType()) {
+            case CLIENT -> createClientProfile(user);
+            case BARBER -> createBarberProfile(user);
+            case SALON_OWNER -> createBarberProfile(user); // Un salon owner est aussi un barber
+            case ADMIN -> {
+                /* Pas de profil métier pour admin */ }
+        }
+    }
+
+    private void createClientProfile(ApplicationUser user) {
+        if (!clientRepository.existsByUser_Id(user.getId())) {
+            Client client = Client.builder()
+                    .user(user)
+                    .firstName(user.getFirstName())
+                    .lastName(user.getLastName())
+                    .email(user.getEmail())
+                    .phone(user.getPhone())
+                    .build();
+
+            client = clientRepository.save(client);
+            user.setClient(client); // Mise à jour bidirectionnelle
+            log.info("Client profile created for user {}", user.getId());
+        }
+    }
+
+    private void createBarberProfile(ApplicationUser user) {
+        if (!barberRepository.existsByUser_Id(user.getId())) {
+            Barber barber = Barber.builder()
+                    .user(user)
+                    .name(user.getFullName())
+                    .salonName("À définir") // Valeur par défaut
+                    .location("À définir")
+                    .available(false) // Non disponible par défaut
+                    .priceFrom(BigDecimal.ZERO)
+                    .build();
+
+            barber = barberRepository.save(barber);
+            user.setBarber(barber); // Mise à jour bidirectionnelle
+            log.info("Barber profile created for user {}", user.getId());
+        }
     }
 
     @Override
     public AuthResponseDTO refreshToken(String refreshToken) {
-        if (!jwtUtil.validateRefreshToken(refreshToken)) {
+        if (!jwtUtil.validateRefreshToken(refreshToken))
             throw new BadRequestException("Refresh token invalide ou expiré");
-        }
 
         String username = jwtUtil.extractUsername(refreshToken);
-        ApplicationUser user = userRepository.findByEmail(username)
+        ApplicationUser u = userRepository.findByEmail(username)
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
 
-        // Vérifier que le refresh token existe en base
-        RefreshToken storedRefreshToken = refreshTokenRepository.findByToken(refreshToken)
+        RefreshToken stored = refreshTokenRepository.findByToken(refreshToken)
                 .orElseThrow(() -> new BadRequestException("Refresh token non trouvé"));
-
-        if (storedRefreshToken.isExpired()) {
-            refreshTokenRepository.delete(storedRefreshToken);
+        if (stored.isExpired()) {
+            refreshTokenRepository.delete(stored);
             throw new BadRequestException("Refresh token expiré");
         }
 
-        // Générer un nouveau access token
-        String newAccessToken = jwtUtil.generateAccessToken(user);
+        String newAccess = jwtUtil.generateAccessToken(u);
+        String newRefresh = jwtUtil.generateRefreshToken(u);
 
-        // Optionnel : générer un nouveau refresh token (rotation)
-        String newRefreshToken = jwtUtil.generateRefreshToken(user);
+        refreshTokenRepository.delete(stored);
+        saveRefreshToken(u, newRefresh);
 
-        // Supprimer l'ancien refresh token et sauvegarder le nouveau
-        refreshTokenRepository.delete(storedRefreshToken);
-        saveRefreshToken(user, newRefreshToken);
-
-        ApplicationUserDto userDTO = convertToUserDTO(user);
+        // (Facultatif) — notifier la rotation de token
+        // try { emailService.sendTemplateEmail(u.getEmail(), "Sécurité du compte",
+        // "token-rotated", Map.of()); } catch (Exception ignored) {}
 
         return new AuthResponseDTO(
-                newAccessToken,
-                newRefreshToken,
+                newAccess,
+                newRefresh,
                 jwtUtil.getAccessTokenExpiration(),
-                userDTO);
+                convertToUserDTO(u));
     }
 
     @Override
@@ -245,47 +290,58 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
 
     @Override
     public void forgotPassword(String email) {
-        ApplicationUser user = userRepository.findByEmail(email)
+        ApplicationUser u = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Aucun compte trouvé avec cet email"));
 
         String resetToken = UUID.randomUUID().toString();
-        user.setResetPasswordToken(resetToken);
-        user.setResetPasswordExpires(LocalDateTime.now().plusHours(1)); // 1 heure
+        u.setResetPasswordToken(resetToken);
+        u.setResetPasswordExpires(LocalDateTime.now().plusHours(1));
+        userRepository.save(u);
 
-        userRepository.save(user);
-
-        // Envoyer l'email de reset
-        emailService.sendPasswordResetEmail(user, resetToken);
+        // ✅ email reset password (lien/code)
+        try {
+            emailService.sendPasswordResetEmail(u, resetToken);
+        } catch (Exception ignored) {
+        }
     }
 
     @Override
     public void resetPassword(String token, String newPassword) {
-        ApplicationUser user = userRepository.findByResetPasswordToken(token)
+        ApplicationUser u = userRepository.findByResetPasswordToken(token)
                 .orElseThrow(() -> new BadRequestException("Token de reset invalide"));
 
-        if (user.getResetPasswordExpires().isBefore(LocalDateTime.now())) {
+        if (u.getResetPasswordExpires() == null || u.getResetPasswordExpires().isBefore(LocalDateTime.now()))
             throw new BadRequestException("Token de reset expiré");
+
+        u.setPassword(passwordEncoder.encode(newPassword));
+        u.setResetPasswordToken(null);
+        u.setResetPasswordExpires(null);
+        userRepository.save(u);
+
+        // Invalider les refresh tokens existants
+        refreshTokenRepository.deleteByUser(u);
+
+        // ✅ email de confirmation de changement de mot de passe
+        try {
+            emailService.sendPasswordChangedConfirmation(u);
+        } catch (Exception ignored) {
         }
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setResetPasswordToken(null);
-        user.setResetPasswordExpires(null);
-
-        userRepository.save(user);
-
-        // Invalider tous les refresh tokens existants
-        refreshTokenRepository.deleteByUser(user);
     }
 
     @Override
     public void verifyEmail(String token) {
-        ApplicationUser user = userRepository.findByVerificationToken(token)
+        ApplicationUser u = userRepository.findByVerificationToken(token)
                 .orElseThrow(() -> new BadRequestException("Token de vérification invalide"));
 
-        user.setIsVerified(true);
-        user.setVerificationToken(null);
+        u.setIsVerified(true);
+        u.setVerificationToken(null);
+        userRepository.save(u);
 
-        userRepository.save(user);
+        // ✅ email de bienvenue après activation
+        try {
+            emailService.sendWelcomeEmail(u);
+        } catch (Exception ignored) {
+        }
     }
 
     // ApplicationUserServiceImpl
@@ -365,11 +421,4 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         return userDTO;
     }
 
-    // @Override
-    // public AuthResponseDTO loginWithProvider(AuthRequestDTO authRequest,
-    // AuthProvider provider) {
-    // // TODO Auto-generated method stub
-    // throw new UnsupportedOperationException("Unimplemented method
-    // 'loginWithProvider'");
-    // }
 }

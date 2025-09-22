@@ -1,7 +1,11 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
+import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
+import com.salahtech.BarberShop_Apis.models.Booking;
+import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -13,18 +17,22 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/bookings")
+@RequestMapping("/v1/bookings")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
@@ -32,6 +40,7 @@ import java.util.Map;
 public class BookingController {
 
     private final BookingService bookingService;
+    private final BookingRepository bookingRepository;
 
     // ======= CRUD =======
 
@@ -64,18 +73,12 @@ public class BookingController {
 
     // ======= LISTE =======
 
-    @Operation(summary = "Lister toutes les réservations", responses = @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = BookingDto.class)))))
-    @GetMapping
-    public ResponseEntity<List<BookingDto>> findAll() {
-        return ResponseEntity.ok(bookingService.findAll());
-    }
-
     // ======= RECHERCHES =======
 
     @Operation(summary = "Réservations d'un utilisateur")
     @GetMapping("/by-user/{userId}")
     public ResponseEntity<List<BookingDto>> findByUserId(@PathVariable @NotNull Long userId) {
-        return ResponseEntity.ok(bookingService.findByUserId(userId));
+        return ResponseEntity.ok(bookingService.findByClientId(userId));
     }
 
     @Operation(summary = "Réservations d'un barbier")
@@ -88,6 +91,43 @@ public class BookingController {
     @GetMapping("/by-service/{serviceId}")
     public ResponseEntity<List<BookingDto>> findByServiceId(@PathVariable @NotNull Long serviceId) {
         return ResponseEntity.ok(bookingService.findByServiceId(serviceId));
+    }
+
+    @GetMapping(value = "", params = { "page", "size" })
+    public Page<BookingDto> search(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long barberId,
+            @RequestParam(required = false) Long clientId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            Pageable pageable) {
+        BookingStatus st = (status == null || status.isBlank())
+                ? null
+                : BookingStatus.valueOf(status.toUpperCase());
+
+        // bornes par défaut : [1970-01-01, 9999-12-31)
+        LocalDateTime from = (dateFrom != null)
+                ? dateFrom.atStartOfDay()
+                : LocalDateTime.of(1970, 1, 1, 0, 0);
+
+        // borne haute EXCLUSIVE : +1 jour à minuit
+        LocalDateTime to = (dateTo != null)
+                ? dateTo.plusDays(1).atStartOfDay()
+                : LocalDateTime.of(9999, 12, 31, 23, 59, 59);
+
+        String qEff = (q == null || q.isBlank()) ? null : q.trim();
+
+        return bookingRepository.searchWithFilters(qEff, st, barberId, clientId, from, to, pageable)
+                .map(BookingDto::fromEntity);
+    }
+
+    // (optionnel) si vous tenez à findAll(), mettez un autre path pour éviter le
+    // conflit :
+    @GetMapping("/all")
+    public List<BookingDto> findAll() {
+        return bookingRepository.findAll()
+                .stream().map(BookingDto::fromEntity).toList();
     }
 
     @Operation(summary = "Réservations par statut", description = "Statuts possibles: PENDING, CONFIRMED, COMPLETED, CANCELLED (selon ton enum)")

@@ -5,13 +5,20 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.salahtech.BarberShop_Apis.models.BarberService;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
+import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberServiceRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -23,11 +30,44 @@ import lombok.extern.slf4j.Slf4j;
 public class BarberServiceServiceImpl implements ServiceService {
 
     private final BarberServiceRepository serviceRepository;
+    private final BarberRepository barberRepo;
 
     @Override
     public ServiceDto save(ServiceDto dto) {
-        BarberService entity = ServiceDto.toEntity(dto);
-        return ServiceDto.fromService(serviceRepository.save(entity));
+        var barber = barberRepo.findById(dto.getBarberId())
+                .orElseThrow(() -> new ResourceNotFoundException("Barber not found: " + dto.getBarberId()));
+
+        // 2) mapper DTO -> entity (ton toEntity ne set pas barber)
+        var entity = ServiceDto.toEntity(dto);
+        // BarberService entity = ServiceDto.toEntity(dto);
+        // 3) ATTACHER le barbier (clé étrangère barber_id)
+        entity.setBarber(barber);
+        var saved = serviceRepository.save(entity);
+        return ServiceDto.fromService(saved);
+    }
+
+    // src/main/java/.../Services/Implementations/BarberServiceServiceImpl.java
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ServiceDto> search(String q, String category, Boolean active, Long barberId, Pageable pageable) {
+        Specification<BarberService> spec = Specification.where(null);
+
+        if (q != null && !q.isBlank()) {
+            spec = spec.and((root, cq, cb) -> cb.or(
+                    cb.like(cb.lower(root.get("name")), "%" + q.toLowerCase() + "%"),
+                    cb.like(cb.lower(root.get("description")), "%" + q.toLowerCase() + "%")));
+        }
+        if (category != null && !category.isBlank()) {
+            spec = spec.and((root, cq, cb) -> cb.equal(root.get("category"), category));
+        }
+        if (active != null) {
+            spec = spec.and((root, cq, cb) -> cb.equal(root.get("active"), active));
+        }
+        if (barberId != null) {
+            spec = spec.and((root, cq, cb) -> cb.equal(root.get("barber").get("id"), barberId));
+        }
+
+        return serviceRepository.findAll(spec, pageable).map(ServiceDto::fromService);
     }
 
     @Override
@@ -36,8 +76,7 @@ public class BarberServiceServiceImpl implements ServiceService {
                 .map(ServiceDto::fromService)
                 .orElseThrow(() -> new InvalideEntityException(
                         "Aucun service trouvé avec l'ID " + id,
-                        ErrorCodes.SERVICE_NOT_FOUND
-                ));
+                        ErrorCodes.SERVICE_NOT_FOUND));
     }
 
     @Override

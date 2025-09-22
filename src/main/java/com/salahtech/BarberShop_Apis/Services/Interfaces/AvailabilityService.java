@@ -9,37 +9,39 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface AvailabilityService extends BaseService<AvailabilityDto, Long> {
-    
+
     /*
      * Obtenir les créneaux horaires disponibles pour un barbier
      * pour une date donnée, en tenant compte de la durée du service
      */
     List<TimeSlotDto> getAvailableSlots(Long barberId, LocalDate date, Integer serviceDuration);
-    
+
     /*
      * Vérifier si un créneau horaire est disponible pour un barbier
      * entre deux dates (startTime et endTime).
      */
     boolean isSlotAvailable(Long barberId, LocalDateTime startTime, LocalDateTime endTime);
-    
+
     /*
      * Bloquer ou libérer un créneau horaire pour un barbier
-     * avec une raison optionnelle (par exemple, pour des vacances ou un événement spécial).
+     * avec une raison optionnelle (par exemple, pour des vacances ou un événement
+     * spécial).
      */
     void blockTimeSlot(Long barberId, LocalDateTime startTime, LocalDateTime endTime, String reason);
-    
+
     /*
      * Libérer un créneau horaire précédemment bloqué
-     * (par exemple, si le barbier revient de vacances ou si l'événement est annulé).
+     * (par exemple, si le barbier revient de vacances ou si l'événement est
+     * annulé).
      */
     void releaseTimeSlot(Long barberId, LocalDateTime startTime, LocalDateTime endTime);
-    
+
     /*
      * Obtenir la disponibilité hebdomadaire d'un barbier
      * pour une semaine donnée, en renvoyant une liste de créneaux horaires.
      */
     List<AvailabilityDto> getWeeklyAvailability(Long barberId, LocalDate weekStart);
-    
+
     /*
      * Mettre à jour la disponibilité hebdomadaire d'un barbier
      * en fournissant une liste de créneaux horaires pour chaque jour de la semaine.
@@ -75,4 +77,6 @@ public interface AvailabilityService extends BaseService<AvailabilityDto, Long> 
      * Vérifier si un créneau est disponible
      */
     boolean isTimeSlotAvailable(Long barberId, LocalDateTime startTime, LocalDateTime endTime);
+
+    List<AvailabilityDto> getByBarber(Long barberId);
 }

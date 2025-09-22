@@ -37,56 +37,58 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Data
 public class BarberService {
- @Id
+    @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @NotBlank
     @Size(max = 100)
     @Column(nullable = false)
     private String name;
-    
+
     @Column(columnDefinition = "TEXT")
     private String description;
-    
+
     @NotNull
     @DecimalMin("0.0")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
-    
+
     @NotNull
     @Min(1)
     @Column(nullable = false)
     private Integer duration; // en minutes
-    
+
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ServiceCategory category;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "barber_id", nullable = false)
     private Barber barber;
-    
+
     @Column(nullable = false)
     private Boolean active = true;
-    
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
     @OneToMany(mappedBy = "barberService", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Booking> bookings = new ArrayList<>();
-    
-    
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }
-    
+
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();

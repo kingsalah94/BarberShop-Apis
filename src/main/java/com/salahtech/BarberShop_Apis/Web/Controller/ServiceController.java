@@ -2,6 +2,7 @@ package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
+import com.salahtech.BarberShop_Apis.Services.Implementations.BarberServiceServiceImpl;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -16,6 +17,11 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -25,14 +31,14 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/services")
+@RequestMapping("/v1/services")
 @RequiredArgsConstructor
 @Validated
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Services", description = "Gestion des prestations proposées par les barbiers/salons")
 public class ServiceController {
 
-    private final ServiceService serviceService;
+    private final BarberServiceServiceImpl serviceService;
 
     // ======= CRUD =======
 
@@ -41,6 +47,16 @@ public class ServiceController {
     public ResponseEntity<ServiceDto> create(@Valid @RequestBody ServiceDto dto) {
         ServiceDto saved = serviceService.save(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<ServiceDto>> search(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Long barberId,
+            @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(serviceService.search(q, category, active, barberId, pageable));
     }
 
     @Operation(summary = "Mettre à jour une prestation par ID")
@@ -67,11 +83,13 @@ public class ServiceController {
 
     // ======= LECTURE LISTES =======
 
-    @Operation(summary = "Lister toutes les prestations", responses = @ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = ServiceDto.class)))))
-    @GetMapping
-    public ResponseEntity<List<ServiceDto>> findAll() {
-        return ResponseEntity.ok(serviceService.findAll());
-    }
+    // @Operation(summary = "Lister toutes les prestations", responses =
+    // @ApiResponse(responseCode = "200", content = @Content(array =
+    // @ArraySchema(schema = @Schema(implementation = ServiceDto.class)))))
+    // @GetMapping
+    // public ResponseEntity<List<ServiceDto>> findAll() {
+    // return ResponseEntity.ok(serviceService.findAll());
+    // }
 
     @Operation(summary = "Lister les prestations d'un barbier")
     @GetMapping("/by-barber/{barberId}")

@@ -105,16 +105,16 @@ public class Barber {
 
     // Nouvelle relation inverse avec Availability
     @Builder.Default
-    @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "barber", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.LAZY)
     private List<Availability> availabilities = new ArrayList<>();
 
     // Relations avec BarberService et Booking
     @Builder.Default
-    @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "barber", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.LAZY)
     private List<BarberService> barberServices = new ArrayList<>();
 
+    @OneToMany(mappedBy = "barber", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.LAZY)
     @Builder.Default
-    @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Booking> bookings = new ArrayList<>();
 
     @Column(name = "working_hours")
