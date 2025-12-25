@@ -5,14 +5,15 @@ public enum BookingStatus {
     CONFIRMED("Confirmé"),
     COMPLETED("Terminé"),
     CANCELLED("Annulé"),
-    NO_SHOW("Absent");
-    
+    NO_SHOW("Absent"),
+    BOOKED("Réservé");
+
     private final String displayName;
-    
+
     BookingStatus(String displayName) {
         this.displayName = displayName;
     }
-    
+
     public String getDisplayName() {
         return displayName;
     }

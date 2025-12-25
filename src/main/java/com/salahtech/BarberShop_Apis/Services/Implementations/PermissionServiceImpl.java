@@ -27,6 +27,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Transactional
     public PermissionDto create(PermissionDto dto) {
         if (repo.existsByName(dto.getName())) {
             throw new IllegalArgumentException("Permission name already exists");
@@ -36,6 +37,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Transactional
     public PermissionDto update(Long id, PermissionDto dto) {
         Permission p = repo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Permission not found"));
         if (dto.getName() != null)
@@ -46,6 +48,7 @@ public class PermissionServiceImpl implements PermissionService {
     }
 
     @Override
+    @Transactional
     public void delete(Long id) {
         if (!repo.existsById(id))
             throw new ResourceNotFoundException("Permission not found");

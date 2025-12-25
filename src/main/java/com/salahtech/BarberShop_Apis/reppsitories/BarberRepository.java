@@ -62,4 +62,19 @@ public interface BarberRepository extends JpaRepository<Barber, Long>, JpaSpecif
 
         // @EntityGraph(attributePaths = { "user", "barberServices" })
         // List<Barber> findAllWithDetails();
+
+        // Formule Haversine (6371 = rayon de la terre en km)
+        // Retourne les barbiers triés par distance
+        @Query(value = """
+                        SELECT *,
+                        (6371 * acos(cos(radians(:userLat)) * cos(radians(latitude)) * cos(radians(longitude) - radians(:userLng)) + sin(radians(:userLat)) * sin(radians(latitude)))) AS distance
+                        FROM users
+                        WHERE dtype = 'Barber'
+                        HAVING distance < :radiusKm
+                        ORDER BY distance ASC
+                        """, nativeQuery = true)
+        List<Barber> findBarbersNearby(@Param("userLat") double userLat,
+                        @Param("userLng") double userLng,
+                        @Param("radiusKm") double radiusKm);
+
 }

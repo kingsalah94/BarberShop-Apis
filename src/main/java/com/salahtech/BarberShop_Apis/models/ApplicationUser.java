@@ -10,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
 
@@ -36,11 +37,13 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Builder
 @Table(name = "application_users")
 public class ApplicationUser implements UserDetails {
 
@@ -71,6 +74,7 @@ public class ApplicationUser implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "user_type", nullable = false)
+    @JsonProperty("userType")
     private ApplicationUserType userType;
 
     @Column(name = "is_enabled", nullable = false)
@@ -102,6 +106,9 @@ public class ApplicationUser implements UserDetails {
 
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
+
+    @Column(name = "fcm_token")
+    private String fcmToken; // Le jeton unique du téléphone pour Firebase
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider")

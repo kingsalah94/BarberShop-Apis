@@ -1,10 +1,7 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Dtos.NotificationDto;
-import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
-import com.salahtech.BarberShop_Apis.models.Booking;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -12,52 +9,52 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/notifications")
+@RequestMapping("/v1/notifications")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
-@Tag(name = "Notifications", description = "Test/relance des notifications (admin/ops)")
+@Tag(name = "Notifications", description = "Outils de test et relance de notifications")
 public class NotificationsController {
 
     private final NotificationService notificationService;
-    private final BookingRepository bookingRepository;
+    // ❌ REMOVED: BookingRepository (Clean Architecture Violation)
 
-    @Operation(summary = "Envoyer une notification personnalisée (email/sms/push)")
+    @Operation(summary = "Envoyer une notification manuelle")
     @PostMapping("/custom")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> sendCustom(@Valid @RequestBody NotificationDto notification) {
-        // Asynchrone -> 202 Accepted
         notificationService.sendCustomNotification(notification);
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
-    @Operation(summary = "Renvoyer la confirmation d'une réservation")
+    @Operation(summary = "Renvoyer la confirmation (Trigger)")
     @PostMapping("/booking/{bookingId}/confirm")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> resendConfirmation(@PathVariable @NotNull Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + bookingId));
-        notificationService.sendBookingConfirmation(booking);
+        // Le service doit avoir une méthode : void resendBookingConfirmation(Long id);
+        // Si elle n'existe pas, il faut la créer dans NotificationService
+        notificationService.resendBookingConfirmation(bookingId); 
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
-    @Operation(summary = "Envoyer un rappel pour une réservation")
+    @Operation(summary = "Envoyer un rappel (Trigger)")
     @PostMapping("/booking/{bookingId}/reminder")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> sendReminder(@PathVariable @NotNull Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + bookingId));
-        notificationService.sendBookingReminder(booking);
+        notificationService.resendBookingReminder(bookingId);
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
-    @Operation(summary = "Notifier l'annulation d'une réservation")
+    @Operation(summary = "Notifier l'annulation (Trigger)")
     @PostMapping("/booking/{bookingId}/cancel")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> sendCancellation(@PathVariable @NotNull Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + bookingId));
-        notificationService.sendBookingCancellation(booking);
+        notificationService.resendBookingCancellation(bookingId);
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 }

@@ -22,4 +22,5 @@ public class TimeSlotDto {
     private boolean available;
     private Long bookingId; // Si le créneau est réservé
     private String reason; // Raison de la réservation ou du blocage
+
 }

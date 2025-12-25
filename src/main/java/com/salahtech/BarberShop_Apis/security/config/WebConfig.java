@@ -12,10 +12,8 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Permet de servir http://host:port/files/... depuis le dossier local
-        String location = "file:" + (uploadDir.endsWith("/") ? uploadDir : uploadDir + "/");
-        registry.addResourceHandler("/files/**")
-                .addResourceLocations(location)
-                .setCachePeriod(3600);
+        // Mappe l'URL http://localhost:8080/uploads/** vers le dossier physique
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations("file:uploads/user/"); // Assurez-vous que ça matche votre FileStorageProperties
     }
 }

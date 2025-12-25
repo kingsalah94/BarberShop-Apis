@@ -1,14 +1,19 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.salahtech.BarberShop_Apis.Dtos.NotificationDto;
+import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.EmailService;
-import com.salahtech.BarberShop_Apis.Services.OutboxService;
-import com.salahtech.BarberShop_Apis.Services.PushNotificationService;
 import com.salahtech.BarberShop_Apis.Services.SMSService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
+import com.salahtech.BarberShop_Apis.Services.Interfaces.OutboxService;
 import com.salahtech.BarberShop_Apis.models.AuditEvent;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.reppsitories.AuditEventRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.Message;
+import com.google.firebase.messaging.Notification;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +21,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +36,11 @@ public class NotificationServiceImpl implements NotificationService {
     private final PushNotificationService pushNotificationService;
     private final AuditEventRepository auditEventRepository;
     private final OutboxService outboxService;
+    private final BookingRepository bookingRepository;
+    private final PushNotificationService pushService;
+
+    // Formatter pour les dates dans les messages
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM à HH:mm");
 
     @Override
     @Async
@@ -365,5 +376,71 @@ public class NotificationServiceImpl implements NotificationService {
         data.put("status", booking.getStatus() != null ? booking.getStatus().toString() : "");
         data.put("startAt", booking.getStartAt() != null ? booking.getStartAt().toString() : "");
         return data;
+    }
+
+    @Override
+    public void sendNotification(String targetToken, String title, String body, Map<String, String> data) {
+        if (targetToken == null || targetToken.isEmpty()) {
+            log.warn("Tentative d'envoi de notif sans token FCM.");
+            return;
+        }
+
+        try {
+            Notification notification = Notification.builder()
+                    .setTitle(title)
+                    .setBody(body)
+                    .build();
+
+            Message message = Message.builder()
+                    .setToken(targetToken)
+                    .setNotification(notification)
+                    .putAllData(data != null ? data : new HashMap<>()) // Données invisibles (ex: id du rdv pour cliquer
+                                                                       // dessus)
+                    .build();
+
+            String response = FirebaseMessaging.getInstance().send(message);
+            log.info("Notification envoyée avec succès: " + response);
+
+        } catch (Exception e) {
+            log.error("Erreur lors de l'envoi de la notification FCM", e);
+            // On ne lance pas d'exception pour ne pas bloquer le processus de réservation
+        }
+    }
+
+    @Override
+    public void sendBookingNotification(String targetToken, String title, String body, Long bookingId) {
+        Map<String, String> data = new HashMap<>();
+        data.put("bookingId", String.valueOf(bookingId));
+        data.put("type", "BOOKING_UPDATE");
+
+        sendNotification(targetToken, title, body, data);
+    }
+
+    // ==========================================
+    // ✅ MÉTHODES "RESEND" (Trigger par ID)
+    // ==========================================
+
+    @Override
+    public void resendBookingConfirmation(Long bookingId) {
+        Booking booking = getBookingOrThrow(bookingId);
+        sendBookingConfirmation(booking);
+    }
+
+    @Override
+    public void resendBookingReminder(Long bookingId) {
+        Booking booking = getBookingOrThrow(bookingId);
+        sendBookingReminder(booking);
+    }
+
+    @Override
+    public void resendBookingCancellation(Long bookingId) {
+        Booking booking = getBookingOrThrow(bookingId);
+        sendBookingCancellation(booking);
+    }
+
+    // --- Helper ---
+    private Booking getBookingOrThrow(Long id) {
+        return bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking introuvable ID: " + id));
     }
 }

@@ -7,6 +7,8 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+import com.salahtech.BarberShop_Apis.Enums.PaymentMethod;
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -24,4 +26,6 @@ public class BookingCreateDto {
 
     @Size(max = 500, message = "Notes cannot exceed 500 characters")
     private String notes;
+
+    private PaymentMethod paymentMethod;
 }

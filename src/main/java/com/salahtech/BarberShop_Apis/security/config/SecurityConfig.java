@@ -64,15 +64,18 @@ public class SecurityConfig {
     private static final String[] PUBLIC_URLS = {
             // Auth
             "/v1/auth/login",
+            "/v1/auth/logout",
+            // "/v1/auth/me",
             "/v1/users",
             "/v1/permissions",
             "/v1/roles",
-            "/v1/auth/register",
+            "/v1/auth/register/**",
             "/v1/auth/refresh-token",
             "/v1/auth/forgot-password",
             "/v1/auth/reset-password",
             "/v1/auth/verify-email",
             "/v1/oauth2/**",
+            "/v1/files/**",
 
             // springdoc (toujours sans le context-path dans les matchers)
             "/v3/api-docs/**",

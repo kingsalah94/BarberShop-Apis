@@ -1,9 +1,12 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.BarberService;
 
 import org.springframework.data.domain.Page;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
+import com.salahtech.BarberShop_Apis.Dtos.ServiceStatsDto;
 import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
@@ -44,6 +48,45 @@ public class BarberServiceServiceImpl implements ServiceService {
         entity.setBarber(barber);
         var saved = serviceRepository.save(entity);
         return ServiceDto.fromService(saved);
+    }
+
+    @Override
+    public ServiceDto create(Long barberId, ServiceDto dto, String imageUrl) {
+        // 1. Vérifier le barbier
+        Barber barber = barberRepo.findById(barberId)
+                .orElseThrow(() -> new ResourceNotFoundException("Barbier introuvable"));
+
+        // 2. Créer l'entité (Mapping DTO -> Entity)
+        // Attention : BarberService est le nom de votre entité (pas le service Spring)
+        com.salahtech.BarberShop_Apis.models.BarberService serviceEntity = new com.salahtech.BarberShop_Apis.models.BarberService();
+
+        serviceEntity.setName(dto.getName());
+        serviceEntity.setDescription(dto.getDescription());
+        serviceEntity.setPrice(dto.getPrice());
+        serviceEntity.setDuration(dto.getDuration()); // en minutes
+        serviceEntity.setBarber(barber);
+
+        // ✅ 3. L'ajout de l'image
+        if (imageUrl != null) {
+            serviceEntity.setImageUrl(imageUrl);
+        }
+
+        // 4. Sauvegarde
+        var saved = serviceRepository.save(serviceEntity);
+
+        // 5. Retour DTO
+        return mapToDto(saved);
+    }
+
+    // Helper mapping
+    private ServiceDto mapToDto(com.salahtech.BarberShop_Apis.models.BarberService s) {
+        return ServiceDto.builder()
+                .id(s.getId())
+                .name(s.getName())
+                .price(s.getPrice())
+                .duration(s.getDuration())
+                .imageUrl(s.getImageUrl()) // ✅ On renvoie l'URL au front
+                .build();
     }
 
     // src/main/java/.../Services/Implementations/BarberServiceServiceImpl.java
@@ -154,5 +197,148 @@ public class BarberServiceServiceImpl implements ServiceService {
     @Override
     public List<ServiceCategory> getDistinctActiveCategories() {
         return serviceRepository.findDistinctActiveCategories();
+    }
+
+    // ===== NOUVELLES MÉTHODES =====
+
+    /**
+     * Enrichit un ServiceDto avec ses statistiques
+     */
+    private ServiceDto enrichWithStats(ServiceDto dto) {
+        if (dto == null || dto.getId() == null) {
+            return dto;
+        }
+
+        try {
+            // Récupération des stats depuis la base
+            Long bookingsCount = serviceRepository.countBookingsByServiceId(dto.getId());
+            BigDecimal revenue = serviceRepository.calculateServiceRevenue(dto.getId());
+            Double rating = serviceRepository.calculateServiceRating(dto.getId());
+
+            // Enrichissement du DTO
+            dto.setBookingsCount(bookingsCount != null ? bookingsCount : 0L);
+            dto.setRevenue(revenue != null ? revenue : BigDecimal.ZERO);
+            dto.setRating(rating != null ? rating : 0.0);
+
+        } catch (Exception e) {
+            // Log l'erreur mais ne fait pas échouer la requête
+            System.err
+                    .println("Erreur lors du calcul des stats pour le service " + dto.getId() + ": " + e.getMessage());
+        }
+
+        return dto;
+    }
+
+    /**
+     * Override de findById pour inclure les stats
+     */
+    // @Override
+    // @Transactional(readOnly = true)
+    // public ServiceDto findById(Long id) {
+    // BarberService service = serviceRepository.findById(id)
+    // .orElseThrow(() -> new RuntimeException("Service non trouvé avec l'ID: " +
+    // id));
+    // ServiceDto dto = ServiceDto.fromService(service);
+    // return enrichWithStats(dto);
+    // }
+
+    /**
+     * Override de search pour inclure les stats sur chaque service
+     */
+    // @Override
+    // @Transactional(readOnly = true)
+    // public Page<ServiceDto> search(String q, String category, Boolean active,
+    // Long barberId, Pageable pageable) {
+    // // Ta logique de recherche existante...
+    // // Puis enrichir chaque résultat
+    // Page<BarberService> services = /* ta requête existante */;
+    // return services.map(s -> enrichWithStats(ServiceDto.fromService(s)));
+    // }
+
+    /**
+     * Toggle le statut actif/inactif d'un service
+     */
+    @Override
+    @Transactional
+    public ServiceDto toggleServiceStatus(Long id, Boolean active) {
+        BarberService service = serviceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Service non trouvé avec l'ID: " + id));
+
+        service.setActive(active);
+        service.setUpdatedAt(LocalDateTime.now());
+
+        BarberService updated = serviceRepository.save(service);
+        return enrichWithStats(ServiceDto.fromService(updated));
+    }
+
+    /**
+     * Duplique un service existant
+     */
+    @Override
+    @Transactional
+    public ServiceDto duplicateService(Long id) {
+        BarberService original = serviceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Service non trouvé avec l'ID: " + id));
+
+        // Création de la copie
+        BarberService duplicate = new BarberService();
+        duplicate.setName(original.getName() + " (Copie)");
+        duplicate.setDescription(original.getDescription());
+        duplicate.setPrice(original.getPrice());
+        duplicate.setDuration(original.getDuration());
+        duplicate.setCategory(original.getCategory());
+        duplicate.setActive(true); // Actif par défaut
+        duplicate.setImageUrl(original.getImageUrl());
+        duplicate.setBarber(original.getBarber());
+        duplicate.setCreatedAt(LocalDateTime.now());
+        duplicate.setUpdatedAt(LocalDateTime.now());
+
+        BarberService saved = serviceRepository.save(duplicate);
+        return enrichWithStats(ServiceDto.fromService(saved));
+    }
+
+    /**
+     * Récupère les statistiques détaillées d'un service
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public ServiceStatsDto getServiceStats(Long id) {
+        BarberService service = serviceRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Service non trouvé avec l'ID: " + id));
+
+        // Stats globales
+        Long bookingsCount = serviceRepository.countBookingsByServiceId(id);
+        BigDecimal revenue = serviceRepository.calculateServiceRevenue(id);
+        Double rating = serviceRepository.calculateServiceRating(id);
+
+        // Calculs de tendances (optionnel)
+        LocalDateTime now = LocalDateTime.now();
+        YearMonth currentMonth = YearMonth.from(now);
+        YearMonth lastMonth = currentMonth.minusMonths(1);
+
+        LocalDateTime startOfMonth = currentMonth.atDay(1).atStartOfDay();
+        LocalDateTime endOfMonth = currentMonth.atEndOfMonth().atTime(23, 59, 59);
+        LocalDateTime startOfLastMonth = lastMonth.atDay(1).atStartOfDay();
+        LocalDateTime endOfLastMonth = lastMonth.atEndOfMonth().atTime(23, 59, 59);
+
+        // TODO: Ajouter des méthodes dans BookingRepository pour ces calculs
+        // Pour l'instant, on retourne null
+        Integer bookingsThisMonth = null;
+        Integer bookingsLastMonth = null;
+        BigDecimal revenueThisMonth = null;
+        BigDecimal revenueLastMonth = null;
+
+        return ServiceStatsDto.builder()
+                .serviceId(id)
+                .serviceName(service.getName())
+                .bookingsCount(bookingsCount != null ? bookingsCount : 0L)
+                .revenue(revenue != null ? revenue : BigDecimal.ZERO)
+                .rating(rating != null ? rating : 0.0)
+                .lastBooking(null) // TODO: Ajouter une méthode pour récupérer la dernière réservation
+                .bookingsThisMonth(bookingsThisMonth)
+                .bookingsLastMonth(bookingsLastMonth)
+                .revenueThisMonth(revenueThisMonth)
+                .revenueLastMonth(revenueLastMonth)
+                .build();
     }
 }

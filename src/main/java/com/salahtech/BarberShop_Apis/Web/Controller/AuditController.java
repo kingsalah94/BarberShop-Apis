@@ -1,45 +1,41 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
-import com.salahtech.BarberShop_Apis.reppsitories.AuditEventRepository;
-import org.springframework.data.domain.*;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.format.annotation.DateTimeFormat;
+import com.salahtech.BarberShop_Apis.Dtos.AuditEventDto;
+import com.salahtech.BarberShop_Apis.Services.Interfaces.AuditService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.salahtech.BarberShop_Apis.Dtos.AuditEventDto;
-
 import java.time.OffsetDateTime;
-import com.salahtech.BarberShop_Apis.models.AuditEvent;
-
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/v1/audit")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:4200", maxAge = 3600)
+@CrossOrigin(origins = "*", maxAge = 3600) // On utilise * pour être cohérent avec les autres
+@Tag(name = "Audit", description = "Logs et Traçabilité")
 public class AuditController {
 
-    private final AuditEventRepository repo;
+    private final AuditService auditService; // On passe par un service, pas le repo direct
 
+    @Operation(summary = "Rechercher dans les logs")
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Sécurisé Admin only
     public ResponseEntity<Page<AuditEventDto>> search(
             @RequestParam(required = false) String action,
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to,
             @PageableDefault(size = 20, sort = "ts", direction = Sort.Direction.DESC) Pageable pageable) {
-        Specification<AuditEvent> spec = Specification.where(null);
-        if (action != null && !action.isBlank())
-            spec = spec.and((r, q, cb) -> cb.equal(r.get("action"), action));
-        if (userId != null)
-            spec = spec.and((r, q, cb) -> cb.equal(r.get("userId"), userId));
-        if (from != null)
-            spec = spec.and((r, q, cb) -> cb.greaterThanOrEqualTo(r.get("ts"), from));
-        if (to != null)
-            spec = spec.and((r, q, cb) -> cb.lessThanOrEqualTo(r.get("ts"), to));
 
-        return ResponseEntity.ok(repo.findAll(spec, pageable).map(AuditEventDto::from));
+        return ResponseEntity.ok(auditService.search(action, userId, from, to, pageable));
     }
 }

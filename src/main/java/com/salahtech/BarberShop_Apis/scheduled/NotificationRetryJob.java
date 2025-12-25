@@ -1,7 +1,7 @@
 package com.salahtech.BarberShop_Apis.scheduled;
 
-import com.salahtech.BarberShop_Apis.Services.OutboxService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
+import com.salahtech.BarberShop_Apis.Services.Interfaces.OutboxService;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;

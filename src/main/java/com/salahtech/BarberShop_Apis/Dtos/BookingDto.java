@@ -1,6 +1,8 @@
 package com.salahtech.BarberShop_Apis.Dtos;
 
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
+import com.salahtech.BarberShop_Apis.Enums.PaymentMethod;
+import com.salahtech.BarberShop_Apis.Enums.PaymentStatus;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import lombok.*;
 
@@ -38,6 +40,10 @@ public class BookingDto {
     private BookingStatus status;
     private BigDecimal totalPrice;
     private String notes;
+
+    // ...
+    private PaymentMethod paymentMethod;
+    private PaymentStatus paymentStatus;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

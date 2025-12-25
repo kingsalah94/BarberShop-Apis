@@ -1,12 +1,17 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
+import com.salahtech.BarberShop_Apis.Config.CurrentUser;
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
+import com.salahtech.BarberShop_Apis.Dtos.ServiceStatsDto;
+import com.salahtech.BarberShop_Apis.Dtos.StatusUpdateRequest;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
 import com.salahtech.BarberShop_Apis.Services.Implementations.BarberServiceServiceImpl;
+import com.salahtech.BarberShop_Apis.Services.Implementations.FileStorageService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
+import com.salahtech.BarberShop_Apis.models.ApplicationUser;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -23,22 +28,26 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
-@RequestMapping("/v1/services")
+@RequestMapping("/v1/services") // ✅ CHANGEMENT ICI : /v1/services → /api/v1/services
 @RequiredArgsConstructor
 @Validated
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Services", description = "Gestion des prestations proposées par les barbiers/salons")
 public class ServiceController {
 
-    private final BarberServiceServiceImpl serviceService;
+    private final ServiceService serviceService;
+    private final FileStorageService fileStorageService;
 
     // ======= CRUD =======
 
@@ -47,6 +56,33 @@ public class ServiceController {
     public ResponseEntity<ServiceDto> create(@Valid @RequestBody ServiceDto dto) {
         ServiceDto saved = serviceService.save(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    /**
+     * Créer une prestation avec image.
+     * IMPORTANT : Dans Postman, choisir Body -> form-data
+     * Clé "service" (Type Text/JSON) : { "name": "Coupe", "price": 10, "duration":
+     * 30 }
+     * Clé "file" (Type File) : Choisir l'image
+     */
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('ROLE_BARBER')")
+    public ResponseEntity<ServiceDto> createService(
+            @CurrentUser ApplicationUser user,
+            @RequestPart("service") @Valid ServiceDto serviceDto, // Le JSON
+            @RequestPart(value = "file", required = false) MultipartFile file // L'image
+    ) {
+        String imageUrl = null;
+
+        // 1. Upload de l'image (si présente)
+        if (file != null && !file.isEmpty()) {
+            imageUrl = fileStorageService.storeFile(file);
+        }
+
+        // 2. Appel du service métier avec l'URL générée
+        ServiceDto created = serviceService.create(user.getId(), serviceDto, imageUrl);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @GetMapping
@@ -82,14 +118,6 @@ public class ServiceController {
     }
 
     // ======= LECTURE LISTES =======
-
-    // @Operation(summary = "Lister toutes les prestations", responses =
-    // @ApiResponse(responseCode = "200", content = @Content(array =
-    // @ArraySchema(schema = @Schema(implementation = ServiceDto.class)))))
-    // @GetMapping
-    // public ResponseEntity<List<ServiceDto>> findAll() {
-    // return ResponseEntity.ok(serviceService.findAll());
-    // }
 
     @Operation(summary = "Lister les prestations d'un barbier")
     @GetMapping("/by-barber/{barberId}")
@@ -154,4 +182,34 @@ public class ServiceController {
     public ResponseEntity<List<ServiceCategory>> getDistinctActiveCategories() {
         return ResponseEntity.ok(serviceService.getDistinctActiveCategories());
     }
+
+    // ======= OPÉRATIONS SPÉCIALES =======
+
+    @Operation(summary = "Activer/désactiver un service", responses = {
+            @ApiResponse(responseCode = "200", description = "Statut modifié avec succès", content = @Content(schema = @Schema(implementation = ServiceDto.class)))
+    })
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ServiceDto> toggleStatus(
+            @PathVariable Long id,
+            @RequestBody @Valid StatusUpdateRequest request) {
+        ServiceDto updated = serviceService.toggleServiceStatus(id, request.getActive());
+        return ResponseEntity.ok(updated);
+    }
+
+    @Operation(summary = "Dupliquer un service existant", responses = {
+            @ApiResponse(responseCode = "201", description = "Service dupliqué avec succès", content = @Content(schema = @Schema(implementation = ServiceDto.class)))
+    })
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<ServiceDto> duplicate(@PathVariable Long id) {
+        ServiceDto duplicated = serviceService.duplicateService(id);
+        return ResponseEntity.status(HttpStatus.CREATED).body(duplicated);
+    }
+
+    @Operation(summary = "Obtenir les statistiques détaillées d'un service")
+    @GetMapping("/{id}/stats")
+    public ResponseEntity<ServiceStatsDto> getServiceStats(@PathVariable Long id) {
+        ServiceStatsDto stats = serviceService.getServiceStats(id);
+        return ResponseEntity.ok(stats);
+    }
+
 }

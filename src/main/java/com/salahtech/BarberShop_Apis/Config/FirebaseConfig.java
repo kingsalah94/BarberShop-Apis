@@ -22,17 +22,28 @@ public class FirebaseConfig {
     @PostConstruct
     public void initialize() {
         try {
+            // Vérifie si Firebase est déjà initialisé pour éviter les erreurs au
+            // redémarrage à chaud
             if (FirebaseApp.getApps().isEmpty()) {
-                InputStream serviceAccount = new ClassPathResource(firebaseConfigPath).getInputStream();
-                
-                FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
-                
-                FirebaseApp.initializeApp(options);
+                // Charge le fichier depuis le dossier resources/
+                ClassPathResource resource = new ClassPathResource(firebaseConfigPath);
+
+                if (!resource.exists()) {
+                    System.err.println("⚠️ ATTENTION : Le fichier firebase-service-account.json est introuvable !");
+                    return;
+                }
+
+                try (InputStream serviceAccount = resource.getInputStream()) {
+                    FirebaseOptions options = FirebaseOptions.builder()
+                            .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                            .build();
+
+                    FirebaseApp.initializeApp(options);
+                    System.out.println("✅ Firebase Application Initialized");
+                }
             }
         } catch (IOException e) {
-            throw new RuntimeException("Failed to initialize Firebase", e);
+            e.printStackTrace();
         }
     }
 

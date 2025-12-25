@@ -3,31 +3,50 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
+import com.salahtech.BarberShop_Apis.Exceptions.NotAnImageFileException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.EmailService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.UserAdminService;
 import com.salahtech.BarberShop_Apis.Utils.PasswordGenerator;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
+import com.salahtech.BarberShop_Apis.models.Barber;
+import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
+import static com.salahtech.BarberShop_Apis.Utils.Constants.USER_FOLDER;
+import static org.springframework.http.MediaType.*;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
 import com.salahtech.BarberShop_Apis.specs.UserSpecifications;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.*;
 import org.springframework.util.StringUtils;
-import jakarta.persistence.criteria.JoinType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import static com.salahtech.BarberShop_Apis.Utils.Constants.*;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -43,6 +62,12 @@ public class UserAdminServiceImpl implements UserAdminService {
     private final RoleRepository roleRepo;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+
+    private Logger LOGGER = LoggerFactory.getLogger(getClass());
+    @Autowired
+    private ClientRepository clientRepository;
+    @Autowired
+    private BarberRepository barberRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -169,6 +194,7 @@ public class UserAdminServiceImpl implements UserAdminService {
 
         // Persist
         user = userRepo.save(user);
+        createBusinessProfile(user);
 
         // Emails : identifiants + (si non vérifié) lien de vérification
         try {
@@ -185,6 +211,90 @@ public class UserAdminServiceImpl implements UserAdminService {
         }
 
         return ApplicationUserDto.fromEntity(user);
+    }
+
+    /**
+     * Crée automatiquement le profil métier (Client ou Barber) selon le type
+     * d'utilisateur
+     */
+    private void createBusinessProfile(ApplicationUser user) {
+        switch (user.getUserType()) {
+            case CLIENT -> createClientProfile(user);
+            case BARBER -> createBarberProfile(user);
+            case SALON_OWNER -> createBarberProfile(user); // Un salon owner est aussi un barber
+            case ADMIN -> {
+                /* Pas de profil métier pour admin */ }
+        }
+    }
+
+    private void createClientProfile(ApplicationUser user) {
+        if (!clientRepository.existsByUser_Id(user.getId())) {
+            Client client = Client.builder()
+                    .user(user)
+                    .firstName(user.getFirstName())
+                    .profileImageUrl(getTemporaryProfileImageUrl(user.getUsername()))
+                    .lastName(user.getLastName())
+                    .email(user.getEmail())
+                    .phone(user.getPhone())
+                    .build();
+
+            client = clientRepository.save(client);
+            user.setClient(client); // Mise à jour bidirectionnelle
+            log.info("Client profile created for user {}", user.getId());
+        }
+    }
+
+    private void createBarberProfile(ApplicationUser user) {
+        if (!barberRepository.existsByUser_Id(user.getId())) {
+            Barber barber = Barber.builder()
+                    .user(user)
+                    .name(user.getFullName())
+                    .profileImageUrl(getTemporaryProfileImageUrl(user.getUsername()))
+                    .salonName("À définir") // Valeur par défaut
+                    .location("À définir")
+                    .available(false) // Non disponible par défaut
+                    .priceFrom(BigDecimal.ZERO)
+                    .build();
+
+            barber = barberRepository.save(barber);
+            user.setBarber(barber); // Mise à jour bidirectionnelle
+            log.info("Barber profile created for user {}", user.getId());
+        }
+    }
+
+    private String getTemporaryProfileImageUrl(String username) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path(DEFAULT_USER_IMAGE_PATH + username)
+                .toUriString();
+    }
+
+    private void saveProfileImageUrl(ApplicationUser applicationUser,
+            MultipartFile profileImage)
+            throws NotAnImageFileException, IOException {
+        if (profileImage != null) {
+            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE)
+                    .contains(profileImage.getContentType())) {
+                throw new NotAnImageFileException(
+                        profileImage.getOriginalFilename() + "It is not an Image file. Please uplaodean image");
+            }
+            Path userFolder = Paths.get(USER_FOLDER +
+                    applicationUser.getUsername()).toAbsolutePath().normalize();
+            if (!Files.exists(userFolder)) {
+                Files.createDirectories(userFolder);
+                LOGGER.info(DIRECTORY_CREATED);
+            }
+            Files.deleteIfExists(Paths.get(userFolder + applicationUser.getUsername() +
+                    DOT + JPG_EXTENSION));
+            Files.copy(profileImage.getInputStream(),
+                    userFolder.resolve(applicationUser.getUsername() + DOT + JPG_EXTENSION), REPLACE_EXISTING);
+            applicationUser.setProfileImageUrl(setProfileImageUrl(applicationUser.getUsername()));
+            userRepo.save(applicationUser);
+            LOGGER.info(FILE_SAVED_IN_FILE_SYSTEME + profileImage.getOriginalFilename());
+        }
+    }
+
+    private String setProfileImageUrl(String username) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
     }
 
     @Override

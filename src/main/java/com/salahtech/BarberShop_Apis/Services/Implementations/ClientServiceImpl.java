@@ -1,9 +1,15 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.salahtech.BarberShop_Apis.Dtos.ClientDto;
+import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Exceptions.ConflictException;
+import com.salahtech.BarberShop_Apis.Dtos.ClientProfileDto;
+import com.salahtech.BarberShop_Apis.Dtos.UpdateClientDto;
+import com.salahtech.BarberShop_Apis.Dtos.ClientDashboardStatsDto;
+import com.salahtech.BarberShop_Apis.models.ClientFavorite;
+import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ClientService;
@@ -11,24 +17,26 @@ import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.ClientFavoriteRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.ReviewRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +48,9 @@ public class ClientServiceImpl implements ClientService {
     private final ClientRepository clientRepository;
     private final ApplicationUserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final ClientFavoriteRepository clientFavoriteRepository;
+    private final BarberRepository barberRepository;
+    private final ReviewRepository reviewRepository;
 
     @Override
     @Transactional
@@ -64,7 +75,9 @@ public class ClientServiceImpl implements ClientService {
                 throw new ConflictException("Ce numéro de téléphone est déjà utilisé");
             }
         }
-
+        // TODO doi creer le compte du client au lieu de chercher le user
+        // ApplicationUser userAccount = userServiceImpl.register(RegisterRequestDTO
+        // req)
         // Charger l'utilisateur
         ApplicationUser user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé"));
@@ -333,4 +346,248 @@ public class ClientServiceImpl implements ClientService {
     public boolean existsByUserId(Long userId) {
         return clientRepository.existsByUserId(userId);
     }
+
+    /**
+     * Get client profile with all information
+     */
+    @Override
+    public ClientProfileDto getClientProfile(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client non trouvé"));
+
+        ApplicationUser user = client.getUser();
+
+        return ClientProfileDto.builder()
+                .id(client.getId())
+                .userId(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .profilePictureUrl(user.getProfileImageUrl())
+                .phoneNumber(client.getPhone())
+                .address(client.getAddress())
+                .city(client.getCity())
+                .postalCode(client.getPostalCode())
+                .birthDate(client.getBirthDate())
+                .preferences(client.getPreferences())
+                .loyaltyPoints(client.getLoyaltyPoints())
+                .completedBookingsCount(client.getCompletedBookingsCount())
+                .upcomingBookingsCount(client.getUpcomingBookingsCount())
+                .favoritesCount(clientFavoriteRepository.countByClientId(clientId).intValue())
+                .reviewsCount(reviewRepository.countByClientId(clientId).intValue())
+                .memberSince(client.getCreatedAt())
+                .lastUpdated(client.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * Update client profile
+     */
+    @Override
+    public ClientProfileDto updateClientProfile(Long clientId, UpdateClientDto updateDto) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client non trouvé"));
+
+        ApplicationUser user = client.getUser();
+
+        // Update user information
+        if (updateDto.getFirstName() != null) {
+            user.setFirstName(updateDto.getFirstName());
+        }
+        if (updateDto.getLastName() != null) {
+            user.setLastName(updateDto.getLastName());
+        }
+        if (updateDto.getEmail() != null && !updateDto.getEmail().equals(user.getEmail())) {
+            // Check if email is already taken
+            if (userRepository.existsByEmail(updateDto.getEmail())) {
+                throw new RuntimeException("Cet email est déjà utilisé");
+            }
+            user.setEmail(updateDto.getEmail());
+        }
+        if (updateDto.getProfilePicture() != null) {
+            user.setProfileImageUrl(updateDto.getProfilePicture());
+        }
+
+        // Update client information
+        if (updateDto.getPhoneNumber() != null) {
+            client.setPhone(updateDto.getPhoneNumber());
+        }
+        if (updateDto.getAddress() != null) {
+            client.setAddress(updateDto.getAddress());
+        }
+        if (updateDto.getCity() != null) {
+            client.setCity(updateDto.getCity());
+        }
+        if (updateDto.getPostalCode() != null) {
+            client.setPostalCode(updateDto.getPostalCode());
+        }
+        if (updateDto.getBirthDate() != null) {
+            client.setBirthDate(updateDto.getBirthDate());
+        }
+        if (updateDto.getPreferences() != null) {
+            client.setPreferences(updateDto.getPreferences());
+        }
+
+        userRepository.save(user);
+        clientRepository.save(client);
+
+        log.info("Client profile updated: {}", clientId);
+        return getClientProfile(clientId);
+    }
+
+    /**
+     * Get client dashboard statistics
+     */
+    @Override
+    public ClientDashboardStatsDto getDashboardStats(Long clientId) {
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client non trouvé"));
+
+        // Count bookings by status
+        long upcomingCount = bookingRepository.countByClientIdAndStatusIn(
+                clientId, List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING));
+        long completedCount = bookingRepository.countByClientIdAndStatus(
+                clientId, BookingStatus.COMPLETED);
+        long cancelledCount = bookingRepository.countByClientIdAndStatus(
+                clientId, BookingStatus.CANCELLED);
+        long totalCount = bookingRepository.countByClientId(clientId);
+
+        // Favorites and reviews
+        int favoritesCount = clientFavoriteRepository.countByClientId(clientId).intValue();
+        int reviewsCount = reviewRepository.countByClientId(clientId).intValue();
+
+        // Loyalty tier calculation
+        int loyaltyPoints = client.getLoyaltyPoints();
+        String loyaltyTier = calculateLoyaltyTier(loyaltyPoints);
+        int pointsToNextTier = calculatePointsToNextTier(loyaltyPoints);
+
+        // Most visited barber
+        ClientFavorite topFavorite = clientFavoriteRepository.findTopFavoritesByClientId(clientId)
+                .stream()
+                .findFirst()
+                .orElse(null);
+
+        String mostVisitedBarberName = null;
+        Long mostVisitedBarberVisitCount = 0L;
+        if (topFavorite != null) {
+            Barber barber = topFavorite.getBarber();
+            mostVisitedBarberName = barber.getUser().getFirstName() + " " + barber.getUser().getLastName();
+            mostVisitedBarberVisitCount = topFavorite.getVisitCount().longValue();
+        }
+
+        // Calculate total spent
+        Double totalSpent = bookingRepository.getTotalSpentByClient(clientId);
+        Double averagePrice = totalSpent != null && completedCount > 0
+                ? totalSpent / completedCount
+                : 0.0;
+
+        return ClientDashboardStatsDto.builder()
+                .upcomingBookingsCount(upcomingCount)
+                .completedBookingsCount(completedCount)
+                .cancelledBookingsCount(cancelledCount)
+                .totalBookingsCount(totalCount)
+                .favoriteBarbersCount(favoritesCount)
+                .reviewsLeftCount(reviewsCount)
+                .loyaltyPoints(loyaltyPoints)
+                .loyaltyTier(loyaltyTier)
+                .pointsToNextTier(pointsToNextTier)
+                .mostVisitedBarberName(mostVisitedBarberName)
+                .mostVisitedBarberVisitCount(mostVisitedBarberVisitCount)
+                .totalSpent(totalSpent != null ? totalSpent : 0.0)
+                .averageBookingPrice(averagePrice)
+                .build();
+    }
+
+    /**
+     * Add barber to favorites
+     */
+    @Override
+    @Transactional
+    public void addFavorite(Long clientId, Long barberId) {
+        // Check if already favorited
+        if (clientFavoriteRepository.existsByClientIdAndBarberId(clientId, barberId)) {
+            throw new RuntimeException("Ce barbier est déjà dans vos favoris");
+        }
+
+        Client client = clientRepository.findById(clientId)
+                .orElseThrow(() -> new RuntimeException("Client non trouvé"));
+        Barber barber = barberRepository.findById(barberId)
+                .orElseThrow(() -> new RuntimeException("Barbier non trouvé"));
+
+        ClientFavorite favorite = ClientFavorite.builder()
+                .client(client)
+                .barber(barber)
+                .visitCount(0)
+                .build();
+
+        clientFavoriteRepository.save(favorite);
+        log.info("Barber {} added to favorites for client {}", barberId, clientId);
+    }
+
+    /**
+     * Remove barber from favorites
+     */
+    @Override
+    @Transactional
+    public void removeFavorite(Long clientId, Long barberId) {
+        if (!clientRepository.existsById(clientId)) {
+            throw new ResourceNotFoundException("Client non trouvé: " + clientId);
+        }
+
+        if (!barberRepository.existsById(barberId)) {
+            throw new ResourceNotFoundException("Barbier non trouvé: " + barberId);
+        }
+        clientFavoriteRepository.deleteByClientIdAndBarberId(clientId, barberId);
+        log.info("Barber {} removed from favorites for client {}", barberId, clientId);
+    }
+
+    /**
+     * Check if barber is favorited
+     */
+    @Override
+    public boolean isFavorite(Long clientId, Long barberId) {
+        return clientFavoriteRepository.existsByClientIdAndBarberId(clientId, barberId);
+    }
+
+    // Helper methods for loyalty tier calculation
+    private String calculateLoyaltyTier(int points) {
+        if (points >= 1000)
+            return "Platinum";
+        if (points >= 500)
+            return "Gold";
+        if (points >= 250)
+            return "Silver";
+        return "Bronze";
+    }
+
+    private int calculatePointsToNextTier(int points) {
+        if (points >= 1000)
+            return 0; // Already at max tier
+        if (points >= 500)
+            return 1000 - points;
+        if (points >= 250)
+            return 500 - points;
+        return 250 - points;
+    }
+
+    @Override
+    public List<BarberDto> getFavoriteBarbers(Long clientId) {
+
+        // 1️⃣ Vérifier que le client existe
+        if (!clientRepository.existsById(clientId)) {
+            throw new ResourceNotFoundException(
+                    "Client non trouvé avec l'ID: " + clientId);
+        }
+
+        // 2️⃣ Récupérer les favoris (avec JOIN FETCH barber recommandé côté repository)
+        List<ClientFavorite> favorites = clientFavoriteRepository.findByClientId(clientId);
+
+        // 3️⃣ Mapping manuel via BarberDto.fromEntity
+        return favorites.stream()
+                .map(ClientFavorite::getBarber) // récupérer l’entité Barber
+                .filter(Objects::nonNull) // sécurité
+                .map(BarberDto::fromEntity) // mapping manuel
+                .collect(Collectors.toList());
+    }
+
 }

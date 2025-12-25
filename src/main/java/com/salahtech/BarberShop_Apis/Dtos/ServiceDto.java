@@ -45,9 +45,39 @@ public class ServiceDto {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // lecture
+    // Lecture
     private String barberName;
     private String salonName;
+
+    // ===== NOUVELLES STATISTIQUES =====
+    @Builder.Default
+    private Long bookingsCount = 0L;
+
+    @Builder.Default
+    private BigDecimal revenue = BigDecimal.ZERO;
+
+    @Builder.Default
+    private Double rating = 0.0;
+
+    /**
+     * Retourne l'URL complète de l'image
+     * Ex: http://localhost:8080/api/files/services/image123.jpg
+     */
+    public String getFullImageUrl() {
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            return null;
+        }
+
+        // Si c'est déjà une URL complète (commence par http), la retourner telle quelle
+        if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+            return imageUrl;
+        }
+
+        // Sinon, construire l'URL complète
+        // TODO: Récupérer le baseUrl depuis la config (application.properties)
+        String baseUrl = "http://localhost:8080";
+        return baseUrl + "/api/files/services/" + imageUrl;
+    }
 
     public static ServiceDto fromService(BarberService s) {
         if (s == null)
@@ -63,12 +93,14 @@ public class ServiceDto {
                 .createdAt(s.getCreatedAt())
                 .updatedAt(s.getUpdatedAt())
                 .imageUrl(s.getImageUrl())
-
+                // Stats initialisées par défaut (seront enrichies par le service)
+                .bookingsCount(0L)
+                .revenue(BigDecimal.ZERO)
+                .rating(0.0)
                 .build();
 
         if (s.getBarber() != null) {
             dto.setBarberId(s.getBarber().getId());
-            // ← Ajoute ces 2 lignes qui manquaient
             dto.setBarberName(s.getBarber().getName());
             dto.setSalonName(s.getBarber().getSalonName());
         }

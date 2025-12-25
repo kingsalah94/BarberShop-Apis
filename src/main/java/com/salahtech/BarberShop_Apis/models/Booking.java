@@ -2,7 +2,11 @@ package com.salahtech.BarberShop_Apis.models;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
+import com.salahtech.BarberShop_Apis.Enums.PaymentMethod;
+import com.salahtech.BarberShop_Apis.Enums.PaymentStatus;
+
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -39,6 +43,21 @@ public class Booking {
     @JoinColumn(name = "service_id", nullable = false)
     private BarberService barberService;
 
+    // ... champs existants ...
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'CASH'")
+    private PaymentMethod paymentMethod;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'PENDING'")
+    private PaymentStatus paymentStatus;
+    // ...
+
+    /*
+     * BookingNumber
+     */
+
     /** ➜ garde si nécessaire pour compat (sinon supprime-le) */
     @Column(name = "booking_date")
     private LocalDateTime bookingDate;
@@ -56,6 +75,14 @@ public class Booking {
 
     @Column(columnDefinition = "TEXT")
     private String notes;
+
+    @Column(name = "rating")
+    @DecimalMin("0.0")
+    @DecimalMax("5.0")
+    private Double rating;
+
+    @Column(name = "review", columnDefinition = "TEXT")
+    private String review;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

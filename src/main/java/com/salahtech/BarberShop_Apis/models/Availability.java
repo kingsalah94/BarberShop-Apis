@@ -34,7 +34,8 @@ import lombok.Setter;
 @Table(name = "availabilities", indexes = {
         @Index(name = "idx_avail_barber", columnList = "barber_id"),
         @Index(name = "idx_avail_dayofweek", columnList = "day_of_week"),
-        @Index(name = "idx_avail_date", columnList = "date")
+        @Index(name = "idx_avail_date", columnList = "date"),
+        @Index(name = "idx_avail_exception_type", columnList = "exception_type") // NOUVEAU
 })
 @Data
 @Builder
@@ -62,12 +63,12 @@ public class Availability {
     @Column(name = "day_of_week")
     private DayOfWeek dayOfWeek;
 
-    /** Heure de début/fin du créneau (obligatoires) */
-    @Column(name = "start_time", nullable = false)
-    private LocalTime startTime;
+    /** Heure de début/fin du créneau (optionnels pour exceptions CLOSED) */
+    @Column(name = "start_at")
+    private LocalTime startAt;
 
-    @Column(name = "end_time", nullable = false)
-    private LocalTime endTime;
+    @Column(name = "end_at")
+    private LocalTime endAt;
 
     @Column(name = "is_available", nullable = false)
     @Builder.Default
@@ -76,7 +77,26 @@ public class Availability {
     @Column(name = "note")
     private String note;
 
-    /** Slots calculés/stockés si tu en as l’usage (sinon tu peux les retirer) */
+    // ========== NOUVEAUX CHAMPS POUR LES EXCEPTIONS ==========
+
+    /**
+     * Type d'exception : CLOSED (fermé toute la journée) ou CUSTOM (horaires
+     * modifiés)
+     * Utilisé uniquement quand date != null (exception ponctuelle)
+     */
+    @Column(name = "exception_type", length = 20)
+    private String exceptionType;
+
+    /**
+     * Raison de l'exception (congé, formation, événement spécial, etc.)
+     * Utilisé uniquement quand date != null (exception ponctuelle)
+     */
+    @Column(name = "reason", length = 255)
+    private String reason;
+
+    // ========== FIN NOUVEAUX CHAMPS ==========
+
+    /** Slots calculés/stockés si tu en as l'usage (sinon tu peux les retirer) */
     @ElementCollection
     @CollectionTable(name = "availability_available_slots", joinColumns = @JoinColumn(name = "availability_id"))
     @Column(name = "slot")
@@ -100,24 +120,69 @@ public class Availability {
                     "Availability invalide: définir soit 'date' (ponctuel), soit 'dayOfWeek' (récurrent), mais pas les deux.");
         }
 
-        // 2) Hours required and consistent
-        if (startTime == null || endTime == null) {
-            throw new IllegalArgumentException("Availability invalide: 'startTime' et 'endTime' sont requis.");
-        }
-        if (!endTime.isAfter(startTime)) {
-            throw new IllegalArgumentException("Availability invalide: 'endTime' doit être après 'startTime'.");
+        // 2) Validation spécifique pour les exceptions
+        if (hasDate) {
+            // C'est une exception ponctuelle
+            if (exceptionType != null) {
+                // Valider le type d'exception
+                if (!"CLOSED".equalsIgnoreCase(exceptionType) && !"CUSTOM".equalsIgnoreCase(exceptionType)) {
+                    throw new IllegalArgumentException(
+                            "Availability invalide: 'exceptionType' doit être 'CLOSED' ou 'CUSTOM'.");
+                }
+
+                // Pour CLOSED : pas besoin de startTime/endTime, isAvailable doit être false
+                if ("CLOSED".equalsIgnoreCase(exceptionType)) {
+                    this.isAvailable = false;
+                    // startTime et endTime peuvent être null pour CLOSED
+                }
+                // Pour CUSTOM : startTime/endTime requis, isAvailable doit être true
+                else if ("CUSTOM".equalsIgnoreCase(exceptionType)) {
+                    if (startAt == null || endAt == null) {
+                        throw new IllegalArgumentException(
+                                "Availability invalide: pour exceptionType='CUSTOM', 'startTime' et 'endTime' sont requis.");
+                    }
+                    this.isAvailable = true;
+                }
+            } else {
+                // Exception ponctuelle sans type défini : valider les heures normalement
+                if (startAt == null || endAt == null) {
+                    throw new IllegalArgumentException(
+                            "Availability invalide: 'startTime' et 'endTime' sont requis.");
+                }
+            }
+        } else {
+            // Créneau récurrent : les heures sont toujours requises
+            if (startAt == null || endAt == null) {
+                throw new IllegalArgumentException(
+                        "Availability invalide: 'startTime' et 'endTime' sont requis pour les créneaux récurrents.");
+            }
+            // Les champs exception ne doivent pas être utilisés pour les créneaux
+            // récurrents
+            if (exceptionType != null || reason != null) {
+                throw new IllegalArgumentException(
+                        "Availability invalide: 'exceptionType' et 'reason' sont réservés aux exceptions ponctuelles (date != null).");
+            }
         }
 
-        // 3) Defaults
+        // 3) Validation des heures si présentes
+        if (startAt != null && endAt != null && !endAt.isAfter(startAt)) {
+            throw new IllegalArgumentException(
+                    "Availability invalide: 'endTime' doit être après 'startTime'.");
+        }
+
+        // 4) Defaults
         if (isAvailable == null) {
             isAvailable = true;
         }
 
-        // 4) Normalize: keep only the active mode field
+        // 5) Normalize: keep only the active mode field
         if (hasDate) {
             this.dayOfWeek = null;
         } else {
             this.date = null;
+            // Nettoyer les champs exception pour les créneaux récurrents
+            this.exceptionType = null;
+            this.reason = null;
         }
     }
 
@@ -131,5 +196,22 @@ public class Availability {
     /** true si créneau ponctuel (date spécifique) */
     public boolean isOneOff() {
         return date != null && dayOfWeek == null;
+    }
+
+    /**
+     * true si c'est une exception (créneau ponctuel avec type d'exception défini)
+     */
+    public boolean isException() {
+        return isOneOff() && exceptionType != null;
+    }
+
+    /** true si exception de type CLOSED (fermé toute la journée) */
+    public boolean isClosedException() {
+        return isException() && "CLOSED".equalsIgnoreCase(exceptionType);
+    }
+
+    /** true si exception de type CUSTOM (horaires modifiés) */
+    public boolean isCustomException() {
+        return isException() && "CUSTOM".equalsIgnoreCase(exceptionType);
     }
 }

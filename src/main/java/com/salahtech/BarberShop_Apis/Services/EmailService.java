@@ -54,7 +54,7 @@ public class EmailService {
         return true;
     }
 
-    private void sendSimpleMessage(String to, String subject, String text) {
+    public void sendSimpleMessage(String to, String subject, String text) {
         try {
             if (to == null || to.isBlank()) {
                 log.warn("Skip simple email: 'to' is null/blank");

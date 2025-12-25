@@ -1,5 +1,6 @@
 package com.salahtech.BarberShop_Apis.models;
 
+import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -41,6 +42,18 @@ public class Client {
 
     @Column(unique = true)
     private String phone;
+    @Column
+    private String address;
+
+    @Column
+    private String city;
+
+    @Column
+    private String postalCode;
+
+    @Column
+    private LocalDateTime birthDate;
+
 
     /** préférences (json), notes internes, etc. */
     @Column(columnDefinition = "TEXT")
@@ -55,10 +68,35 @@ public class Client {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "avatar_url")
+    private String profileImageUrl;
+
+    // ⭐ NOUVELLES RELATIONS - FAVORIS & REVIEWS
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ClientFavorite> favorites = new ArrayList<>();
+
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL)
+    @Builder.Default
+    private List<Review> reviews = new ArrayList<>();
+
+
+    // ⭐ NOUVEAU - Loyalty Points System
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer loyaltyPoints = 0;
+
     /** Réservations du client */
     @Builder.Default
     @OneToMany(mappedBy = "client", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, orphanRemoval = false)
     private List<Booking> bookings = new ArrayList<>();
+
+    // Timestamps
+//    @Column(nullable = false, updatable = false)
+//    private LocalDateTime createdAt;
+//
+//    @Column
+//    private LocalDateTime updatedAt;
 
     @PrePersist
     void onCreate() {
@@ -78,5 +116,40 @@ public class Client {
 
     public String getFullName() {
         return (firstName + " " + lastName).trim();
+    }
+
+    // ⭐ HELPER METHODS
+    public void addLoyaltyPoints(Integer points) {
+        this.loyaltyPoints += points;
+    }
+
+    public void addFavorite(ClientFavorite favorite) {
+        this.favorites.add(favorite);
+        favorite.setClient(this);
+    }
+
+    public void removeFavorite(ClientFavorite favorite) {
+        this.favorites.remove(favorite);
+        favorite.setClient(null);
+    }
+
+    public boolean isFavorite(Long barberId) {
+        return favorites.stream()
+                .anyMatch(fav -> fav.getBarber().getId().equals(barberId));
+    }
+
+    // Get count of completed bookings
+    public long getCompletedBookingsCount() {
+        return bookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
+                .count();
+    }
+
+    // Get count of upcoming bookings
+    public long getUpcomingBookingsCount() {
+        return bookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.CONFIRMED ||
+                        b.getStatus() == BookingStatus.PENDING)
+                .count();
     }
 }

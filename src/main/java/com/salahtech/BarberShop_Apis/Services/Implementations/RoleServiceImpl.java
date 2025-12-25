@@ -49,6 +49,7 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
+    @Transactional
     public RoleDto update(Long id, RoleDto dto) {
         Role r = roleRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Role not found"));
         if (dto.getName() != null)

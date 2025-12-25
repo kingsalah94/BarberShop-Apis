@@ -2,9 +2,12 @@ package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Dtos.DeviceTokenDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -18,13 +21,14 @@ import java.util.Set;
 @RequestMapping("/v1/device-tokens")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", maxAge = 3600)
-@Tag(name = "Device Tokens", description = "CRUD & Search des tokens push")
+@Tag(name = "Device Tokens", description = "Gestion des tokens Push Notification (Admin)")
 public class DeviceTokenController {
 
     private final DeviceTokenService service;
 
+    @Operation(summary = "Rechercher des tokens")
     @GetMapping
-    @PreAuthorize("hasAuthority('devicetokens:read')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<DeviceTokenDto>> search(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) Boolean active,
@@ -34,27 +38,22 @@ public class DeviceTokenController {
         return ResponseEntity.ok(service.search(userId, active, types, updatedBefore, pageable));
     }
 
-    // @PostMapping("/register")
-    // @PreAuthorize("hasAuthority('devicetokens:create')")
-    // public ResponseEntity<Object> register(@RequestBody DeviceTokenDto dto) {
-    // return ResponseEntity.ok(service.register(dto));
-    // }
-
+    @Operation(summary = "Activer/Désactiver un token")
     @PostMapping("/{id}/active")
-    @PreAuthorize("hasAuthority('devicetokens:update')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DeviceTokenDto> activate(@PathVariable Long id, @RequestParam boolean value) {
         return ResponseEntity.ok(service.activate(id, value));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('devicetokens:delete')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('devicetokens:read')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<DeviceTokenDto> get(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
     }

@@ -46,4 +46,29 @@ public interface BarberServiceRepository extends JpaRepository<BarberService, Lo
     List<ServiceCategory> findDistinctActiveCategories();
 
     Page<BarberService> findAll(Specification<BarberService> spec, Pageable pageable);
+
+    // ===== NOUVELLES MÉTHODES POUR LES STATISTIQUES =====
+
+    /**
+     * Compte le nombre total de réservations pour un service donné
+     */
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.barberService.id = :serviceId")
+    Long countBookingsByServiceId(@Param("serviceId") Long serviceId);
+
+    /**
+     * Calcule le revenu total généré par un service (réservations complétées
+     * uniquement)
+     */
+    @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b " +
+            "WHERE b.barberService.id = :serviceId " +
+            "AND b.status = com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED")
+    BigDecimal calculateServiceRevenue(@Param("serviceId") Long serviceId);
+
+    /**
+     * Calcule la note moyenne d'un service basée sur les avis des réservations
+     */
+    @Query("SELECT COALESCE(AVG(b.rating), 0.0) FROM Booking b " +
+            "WHERE b.barberService.id = :serviceId " +
+            "AND b.rating IS NOT NULL")
+    Double calculateServiceRating(@Param("serviceId") Long serviceId);
 }

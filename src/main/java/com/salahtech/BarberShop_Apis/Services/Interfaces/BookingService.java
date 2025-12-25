@@ -1,13 +1,15 @@
 package com.salahtech.BarberShop_Apis.Services.Interfaces;
 
+import com.salahtech.BarberShop_Apis.Dtos.BookingCreateDto;
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
+import com.salahtech.BarberShop_Apis.Dtos.BookingRequestDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface BookingService {
 
-    BookingDto save(BookingDto dto);
+    // BookingDto save(BookingDto dto);
 
     BookingDto findById(Long id);
 
@@ -15,7 +17,15 @@ public interface BookingService {
 
     void delete(Long id);
 
-    BookingDto confirm(Long bookingId);
+    // BookingDto confirm(Long bookingId);
+
+    BookingDto pendBooking(Long bookingId);
+
+    // BookingDto completeBooking(Long bookingId);
+
+    BookingDto confirmBooking(Long bookingId, Long barberId);
+
+    BookingDto cancelBooking(Long bookingId, Long userId);
 
     void cancel(Long bookingId);
 
@@ -35,4 +45,10 @@ public interface BookingService {
     List<BookingDto> findByBarberIdBetweenDates(Long barberId, LocalDateTime start, LocalDateTime end);
 
     Long countCompletedByBarber(Long barberId);
+
+    BookingDto createBooking(BookingCreateDto dto);
+
+    BookingDto completeBooking(Long bookingId, Long barberId);
+
+    // BookingDto createBooking(BookingRequestDto bookingRequestDto);
 }

@@ -2,6 +2,8 @@ package com.salahtech.BarberShop_Apis.outbox;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -32,6 +34,7 @@ public class OutboxEvent {
   // @Type(org.hibernate.type.JsonType.class) // si tu utilises hibernate-types,
   // sinon @Lob String
   @Column(columnDefinition = "jsonb", nullable = false)
+  @JdbcTypeCode(SqlTypes.JSON)
   private String payload;
 
   private OffsetDateTime processedAt;

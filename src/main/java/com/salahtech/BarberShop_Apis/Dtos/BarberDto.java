@@ -30,6 +30,8 @@ public class BarberDto {
 
     private BigDecimal latitude;
     private BigDecimal longitude;
+    private Double distance; // La distance en km par rapport au client
+
     private Integer experience;
     private BigDecimal rating;
     private Integer reviewsCount;
@@ -63,6 +65,7 @@ public class BarberDto {
                 .salonName(b.getSalonName())
                 .location(b.getLocation())
                 .latitude(b.getLatitude())
+                .distance(b.getDistance())
                 .longitude(b.getLongitude())
                 .rating(b.getRating())
                 .reviewsCount(b.getReviewsCount())
@@ -94,6 +97,7 @@ public class BarberDto {
         b.setSalonName(dto.getSalonName());
         b.setLocation(dto.getLocation());
         b.setLatitude(dto.getLatitude());
+        b.setDistance(dto.distance);
         b.setLongitude(dto.getLongitude());
         b.setRating(dto.getRating());
         b.setReviewsCount(dto.getReviewsCount());
