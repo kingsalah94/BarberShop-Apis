@@ -100,7 +100,7 @@ public class SecurityConfig {
                         .requestMatchers("/salon/**").hasAuthority("SALON_OWNER_ACCESS")
                         .requestMatchers("/admin/**").hasAuthority("ADMIN_ACCESS")
                         // Exemples par rôle
-                        .requestMatchers("/v1/users/**").hasRole("ADMIN")
+                        .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
                         .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
                         .hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
                         // fichiers publics
