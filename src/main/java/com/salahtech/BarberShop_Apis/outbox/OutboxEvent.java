@@ -20,6 +20,7 @@ import org.hibernate.type.SqlTypes;
 public class OutboxEvent {
 
   @Id
+  @GeneratedValue(strategy = GenerationType.UUID) // Pour Hibernate 6+
   private UUID id;
 
   @Column(name = "aggregate_type", nullable = false)

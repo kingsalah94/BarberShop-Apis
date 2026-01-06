@@ -9,12 +9,15 @@ import org.springframework.data.domain.Pageable;
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Dtos.ServiceStatsDto;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
+import com.salahtech.BarberShop_Apis.models.ApplicationUser;
+
+import jakarta.validation.Valid;
 
 public interface ServiceService {
 
     ServiceDto save(ServiceDto dto);
 
-    ServiceDto create(Long barberId, ServiceDto serviceDto, String imageUrl);
+    // ServiceDto create(Long barberId, ServiceDto serviceDto, String imageUrl);
 
     ServiceDto findById(Long id);
 
@@ -56,4 +59,8 @@ public interface ServiceService {
      * Récupère les statistiques détaillées d'un service
      */
     ServiceStatsDto getServiceStats(Long id);
+
+    ServiceDto update(Long id, Long id2, ServiceDto dto, String newImageUrl);
+
+    ServiceDto create(ServiceDto dto, String imageUrl, ApplicationUser connectedUser);
 }

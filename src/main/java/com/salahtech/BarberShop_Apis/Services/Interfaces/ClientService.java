@@ -9,6 +9,7 @@ import com.salahtech.BarberShop_Apis.Dtos.ClientDashboardStatsDto;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -114,5 +115,9 @@ public interface ClientService {
          * @return Liste des barbiers favoris
          */
         List<BarberDto> getFavoriteBarbers(Long clientId);
+
+        ClientDto create(ClientDto clientDto, MultipartFile file);
+
+        ClientDto update(Long id, ClientDto clientDto, MultipartFile file);
 
 }

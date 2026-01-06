@@ -50,5 +50,9 @@ public interface BookingService {
 
     BookingDto completeBooking(Long bookingId, Long barberId);
 
+    // BookingDto updateBooking(Long id, BookingDto dto);
+
+    BookingDto updateBooking(Long id, BookingDto dto);
+
     // BookingDto createBooking(BookingRequestDto bookingRequestDto);
 }

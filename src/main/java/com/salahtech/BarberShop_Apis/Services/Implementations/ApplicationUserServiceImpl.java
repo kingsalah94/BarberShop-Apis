@@ -32,7 +32,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor // Remplace @AllArgsConstructor + @Autowired sur chaque champ
+@RequiredArgsConstructor
 @Slf4j
 @Transactional
 public class ApplicationUserServiceImpl implements ApplicationUserService {
@@ -47,7 +47,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     private final BarberRepository barberRepository;
     private final EmailService emailService;
 
-    // Constantes pour image temporaire
     private static final String TEMP_PROFILE_IMAGE_BASE_URL = "/user/image/profile/temp/";
 
     // ========================================================================
@@ -68,6 +67,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         String accessToken = jwtUtil.generateAccessToken(principal);
         String refreshToken = jwtUtil.generateRefreshToken(principal);
 
+        // ✅ FIX: Supprimer l'ancien token AVANT de sauvegarder le nouveau
         saveRefreshToken(user, refreshToken);
 
         user.setLastLogin(LocalDateTime.now());
@@ -77,7 +77,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                 accessToken,
                 refreshToken,
                 jwtUtil.getAccessTokenExpiration(),
-                convertToUserDTO(user));
+                convertToUserDTO(user),
+                user.isMustChangePassword());
     }
 
     @Override
@@ -94,7 +95,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         u.setPhone(req.getPhone());
         u.setCreatedAt(LocalDateTime.now());
         u.setIsEnabled(true);
-        u.setIsVerified(false); // Doit valider email
+        u.setIsVerified(false);
         u.setVerificationToken(UUID.randomUUID().toString());
         u.setProvider(AuthProvider.LOCAL);
 
@@ -105,14 +106,12 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
 
         u = userRepository.save(u);
 
-        // Création profils métiers
         createBusinessProfile(u);
 
-        // Email Verification
         try {
             emailService.sendVerificationEmail(u);
-        } catch (Exception ignored) {
-            log.warn("Erreur envoi email verif: {}", ignored.getMessage());
+        } catch (Exception e) {
+            log.warn("Erreur envoi email verif: {}", e.getMessage());
         }
 
         // Auto-login après register
@@ -124,7 +123,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                 accessToken,
                 refreshToken,
                 jwtUtil.getAccessTokenExpiration(),
-                convertToUserDTO(u));
+                convertToUserDTO(u),
+                false);
     }
 
     @Override
@@ -144,8 +144,9 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             throw new BadRequestException("Refresh token expiré");
         }
 
-        // Rotation du token
+        // ✅ Rotation du token: supprimer l'ancien
         refreshTokenRepository.delete(stored);
+
         String newAccess = jwtUtil.generateAccessToken(u);
         String newRefresh = jwtUtil.generateRefreshToken(u);
         saveRefreshToken(u, newRefresh);
@@ -154,7 +155,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                 newAccess,
                 newRefresh,
                 jwtUtil.getAccessTokenExpiration(),
-                convertToUserDTO(u));
+                convertToUserDTO(u),
+                u.isMustChangePassword());
     }
 
     @Override
@@ -179,10 +181,13 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             user.setLastName(req.getLastName());
         if (req.getPhone() != null)
             user.setPhone(req.getPhone());
-        if (req.getProfileImageUrl() != null)
-            user.setProfileImageUrl(req.getProfileImageUrl());
         if (req.getPreferences() != null)
             user.setPreferences(req.getPreferences());
+
+        // ✅ MISE A JOUR AVEC SYNCHRONISATION
+        if (req.getProfileImageUrl() != null) {
+            updateProfileImageAcrossEntities(user, req.getProfileImageUrl());
+        }
 
         user = userRepository.save(user);
         return convertToUserDTO(user);
@@ -191,9 +196,33 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     @Override
     public ApplicationUserDto updateAvatar(Long userId, String fileUrl) {
         ApplicationUser user = getUserByIdOrThrow(userId);
-        user.setProfileImageUrl(fileUrl);
+
+        // ✅ MISE A JOUR AVEC SYNCHRONISATION
+        updateProfileImageAcrossEntities(user, fileUrl);
+
         ApplicationUser saved = userRepository.save(user);
         return convertToUserDTO(saved);
+    }
+
+    /**
+     * 🛠️ Helper pour synchroniser l'image entre User, Client et Barber
+     */
+    private void updateProfileImageAcrossEntities(ApplicationUser user, String imageUrl) {
+        // 1. Update User
+        user.setProfileImageUrl(imageUrl);
+
+        // 2. Update Client (si existe)
+        if (user.getClient() != null) {
+            user.getClient().setProfileImageUrl(imageUrl);
+            // clientRepository.save(user.getClient()); // Optionnel grâce au Cascade, mais
+            // plus sûr
+        }
+
+        // 3. Update Barber (si existe)
+        if (user.getBarber() != null) {
+            user.getBarber().setProfileImageUrl(imageUrl);
+            // barberRepository.save(user.getBarber()); // Optionnel grâce au Cascade
+        }
     }
 
     @Override
@@ -209,9 +238,10 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         }
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setMustChangePassword(false);
         userRepository.save(user);
 
-        // Sécurité : On déconnecte tous les appareils (optionnel)
+        // ✅ Sécurité : déconnexion de tous les appareils
         refreshTokenRepository.deleteByUser(user);
     }
 
@@ -226,7 +256,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
 
         try {
             emailService.sendPasswordResetEmail(u, resetToken);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Erreur envoi email reset: {}", e.getMessage());
         }
     }
 
@@ -242,9 +273,11 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         u.setPassword(passwordEncoder.encode(newPassword));
         u.setResetPasswordToken(null);
         u.setResetPasswordExpires(null);
+        u.setMustChangePassword(false);
         userRepository.save(u);
 
-        refreshTokenRepository.deleteByUser(u); // Force login
+        // ✅ Force reconnexion
+        refreshTokenRepository.deleteByUser(u);
     }
 
     @Override
@@ -265,7 +298,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
 
         try {
             emailService.sendWelcomeEmail(u);
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            log.warn("Erreur envoi email welcome: {}", e.getMessage());
         }
     }
 
@@ -312,12 +346,12 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         u.setProvider(provider);
         u.setProviderId(providerId);
         u.setIsEnabled(true);
-        u.setIsVerified(true); // OAuth2 est déjà vérifié par Google/Facebook
+        u.setIsVerified(true);
         u.setUserType(ApplicationUserType.CLIENT);
         u.setRoles(Set.of(getRoleByUserType(ApplicationUserType.CLIENT)));
 
         u = userRepository.save(u);
-        createClientProfile(u); // Un social login est toujours un client par défaut
+        createClientProfile(u);
 
         return u;
     }
@@ -340,19 +374,44 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         if (!user.isEnabled()) {
             throw new BadRequestException("Compte désactivé.");
         }
-        // Optionnel: Bloquer le login si non vérifié ?
-        // if (!Boolean.TRUE.equals(user.getIsVerified())) throw new
-        // BadRequestException("Email non vérifié.");
     }
 
-    private void saveRefreshToken(ApplicationUser user, String tokenValue) {
-        refreshTokenRepository.findByUser(user).ifPresent(refreshTokenRepository::delete);
+    /**
+     * ✅ FIX: Supprime l'ancien refresh token avant d'en créer un nouveau
+     * Cela évite l'erreur: duplicate key value violates unique constraint
+     * "refresh_tokens_user_id_key"
+     */
+    // private void saveRefreshToken(ApplicationUser user, String tokenValue) {
+    // // Supprimer l'ancien token s'il existe
+    // refreshTokenRepository.findByUser(user).ifPresent(oldToken -> {
+    // log.debug("Suppression de l'ancien refresh token pour user_id={}",
+    // user.getId());
+    // refreshTokenRepository.delete(oldToken);
+    // });
 
-        RefreshToken rt = new RefreshToken(
-                tokenValue,
-                user,
-                LocalDateTime.now().plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000));
-        refreshTokenRepository.save(rt);
+    // // Créer et sauvegarder le nouveau token
+    // RefreshToken rt = new RefreshToken(
+    // tokenValue,
+    // user,
+    // LocalDateTime.now().plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000));
+    // refreshTokenRepository.save(rt);
+
+    // log.debug("Nouveau refresh token créé pour user_id={}", user.getId());
+    // }
+    private void saveRefreshToken(ApplicationUser user, String tokenValue) {
+        // 1. Chercher si un token existe déjà pour cet utilisateur
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
+                .orElseGet(RefreshToken::new); // Si non, on crée une instance vide
+
+        // 2. Mettre à jour les données (que ce soit un nouveau ou un ancien)
+        refreshToken.setToken(tokenValue);
+        refreshToken.setUser(user);
+        refreshToken.setExpiryDate(LocalDateTime.now().plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000));
+
+        // 3. Sauvegarder (JPA fera un UPDATE si l'ID existe, sinon un INSERT)
+        refreshTokenRepository.save(refreshToken);
+
+        log.debug("Refresh token mis à jour pour user_id={}", user.getId());
     }
 
     private Role getRoleByUserType(ApplicationUserType userType) {
@@ -383,6 +442,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                     .lastName(user.getLastName())
                     .email(user.getEmail())
                     .phone(user.getPhone())
+                    // ✅ CORRECTION : On prend l'image du USER (pas une nouvelle génération)
+                    .profileImageUrl(user.getProfileImageUrl())
                     .build();
             clientRepository.save(client);
             user.setClient(client);
@@ -397,6 +458,8 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                     .salonName("À configurer")
                     .available(false)
                     .priceFrom(BigDecimal.ZERO)
+                    // ✅ CORRECTION : On prend l'image du USER
+                    .profileImageUrl(user.getProfileImageUrl())
                     .build();
             barberRepository.save(barber);
             user.setBarber(barber);
@@ -404,11 +467,10 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     private ApplicationUserDto convertToUserDTO(ApplicationUser user) {
-        return ApplicationUserDto.fromEntity(user); // Utilisez la méthode statique du DTO si elle existe
+        return ApplicationUserDto.fromEntity(user);
     }
 
     private String getTemporaryProfileImageUrl(String username) {
-        // En prod, utilisez une vraie URL ou null
         return ServletUriComponentsBuilder.fromCurrentContextPath()
                 .path(TEMP_PROFILE_IMAGE_BASE_URL + (username != null ? username : "default"))
                 .toUriString();

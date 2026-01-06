@@ -4,8 +4,6 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
-
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -26,7 +24,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -72,14 +69,21 @@ public class ApplicationUser implements UserDetails {
     @Column(unique = true)
     private String phone;
 
+    // Par défaut false, mais true pour le premier admin
+    @Builder.Default
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "user_type", nullable = false)
     @JsonProperty("userType")
     private ApplicationUserType userType;
 
+    @Builder.Default
     @Column(name = "is_enabled", nullable = false)
     private Boolean isEnabled = false;
 
+    @Builder.Default
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified = false;
 
@@ -112,18 +116,22 @@ public class ApplicationUser implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "provider")
+    @Builder.Default
     private AuthProvider provider = AuthProvider.LOCAL;
 
     @Column(name = "provider_id")
     private String providerId;
 
     // Champs pour UserDetails
+    @Builder.Default
     @Column(name = "account_non_expired")
     private boolean accountNonExpired = true;
 
+    @Builder.Default
     @Column(name = "account_non_locked")
     private boolean accountNonLocked = true;
 
+    @Builder.Default
     @Column(name = "credentials_non_expired")
     private boolean credentialsNonExpired = true;
 
@@ -182,6 +190,11 @@ public class ApplicationUser implements UserDetails {
     @Override
     public String getUsername() {
         return email;
+    }
+
+    public String getName() {
+        return this.email;
+        // OU si tu préfères : return this.firstName + " " + this.lastName;
     }
 
     @Override

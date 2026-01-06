@@ -30,6 +30,7 @@ public class ApplicationUserDto {
     private LocalDateTime updatedAt;
     private LocalDateTime lastLogin;
     private AuthProvider provider;
+    private boolean mustChangePassword;
     private String providerId;
     private boolean accountNonExpired;
     private boolean accountNonLocked;
@@ -62,6 +63,7 @@ public class ApplicationUserDto {
                 .lastLogin(user.getLastLogin())
                 .provider(user.getProvider())
                 .providerId(user.getProviderId())
+                .mustChangePassword(user.isMustChangePassword())
                 .accountNonExpired(user.isAccountNonExpired())
                 .accountNonLocked(user.isAccountNonLocked())
                 .credentialsNonExpired(user.isCredentialsNonExpired())
@@ -94,6 +96,7 @@ public class ApplicationUserDto {
         user.setIsVerified(dto.getIsVerified());
         user.setProvider(dto.getProvider());
         user.setProviderId(dto.getProviderId());
+        user.setMustChangePassword(dto.isMustChangePassword());
         user.setAccountNonExpired(dto.isAccountNonExpired());
         user.setAccountNonLocked(dto.isAccountNonLocked());
         user.setCredentialsNonExpired(dto.isCredentialsNonExpired());

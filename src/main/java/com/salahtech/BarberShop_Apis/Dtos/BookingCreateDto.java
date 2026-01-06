@@ -20,9 +20,13 @@ public class BookingCreateDto {
     @NotNull(message = "Service ID is required")
     private Long serviceId;
 
+    private Long clientId;
+
     @NotNull(message = "Start time is required")
     @Future(message = "Start time must be in the future")
     private LocalDateTime startAt;
+
+    private LocalDateTime endAt;
 
     @Size(max = 500, message = "Notes cannot exceed 500 characters")
     private String notes;

@@ -1,8 +1,6 @@
 package com.salahtech.BarberShop_Apis.security.config;
 
 import java.util.Arrays;
-import java.util.List;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
@@ -76,6 +74,8 @@ public class SecurityConfig {
             "/v1/auth/verify-email",
             "/v1/oauth2/**",
             "/v1/files/**",
+            "/v1/settings/**",
+            "/api/uploads/**",
 
             // springdoc (toujours sans le context-path dans les matchers)
             "/v3/api-docs/**",
@@ -102,6 +102,9 @@ public class SecurityConfig {
                         .requestMatchers("/barbers/**").hasAuthority("BARBER_ACCESS")
                         .requestMatchers("/salon/**").hasAuthority("SALON_OWNER_ACCESS")
                         .requestMatchers("/admin/**").hasAuthority("ADMIN_ACCESS")
+                        .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/v1/auth/**").permitAll() // Tes autres routes publiques
+                        .requestMatchers("/v1/settings/**").permitAll() // La config qu'on a faite avant
                         // Exemples par rôle
                         .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
                         .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")

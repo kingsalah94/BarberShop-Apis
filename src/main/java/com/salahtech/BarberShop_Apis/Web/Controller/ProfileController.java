@@ -39,7 +39,7 @@ public class ProfileController {
 
     @Operation(summary = "Mettre à jour mon profil")
     @PutMapping("/me")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("isAuthenticated() and hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> updateMe(
             @CurrentUser ApplicationUser user,
             @Valid @RequestBody UpdateProfileRequest req) {
@@ -74,7 +74,7 @@ public class ProfileController {
 
     @Operation(summary = "Voir un utilisateur par ID (Admin ou Soi-même)")
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN_ACCESS') or #id == authentication.principal.id")
+    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     public ResponseEntity<ApplicationUserDto> getUserById(@PathVariable Long id) {
         ApplicationUser user = userService.findById(id);
         return ResponseEntity.ok(ApplicationUserDto.fromEntity(user));

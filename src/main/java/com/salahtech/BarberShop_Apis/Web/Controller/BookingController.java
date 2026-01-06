@@ -22,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,12 +46,95 @@ public class BookingController {
 
     @Operation(summary = "Créer une réservation (Client)")
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')") // Sécurisé
-    public ResponseEntity<BookingDto> create(@Valid @RequestBody BookingCreateDto dto) {
+    @PreAuthorize("hasRole('CLIENT') or hasRole('ADMIN')") // Sécurisé
+    public ResponseEntity<BookingDto> create(@Valid @RequestBody BookingCreateDto dto,
+            @CurrentUser ApplicationUser user) {
         // Le service récupère l'utilisateur connecté via SecurityContext,
         // ou vous pouvez passer user.getId() si vous modifiez le service.
+        // 1. Vérifier le rôle de celui qui fait la demande
+        boolean isStaff = user.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN")
+                        || r.getName().equals("BARBER")
+                        || r.getName().equals("SALON_OWNER"));
+
+        if (isStaff) {
+            // 👮‍♂️ Cas ADMIN / STAFF :
+            // On fait confiance à l'ID envoyé dans le DTO
+            if (dto.getClientId() == null) {
+                // Si l'admin a oublié de choisir un client
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "L'ID du client est obligatoire pour une réservation Admin.");
+            }
+            // On laisse le DTO tel quel, le service utilisera dto.getClientId()
+
+        } else {
+            // 👤 Cas CLIENT LAMBDA :
+            // On ignore ce qu'il a envoyé et on FORCE son propre ID (Sécurité)
+            if (user.getClient() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cet utilisateur n'a pas de profil Client associé.");
+            }
+            dto.setClientId(user.getClient().getId());
+        }
         BookingDto saved = bookingService.createBooking(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+    }
+
+    // ========================================================================
+    // ✏️ MISE À JOUR (UPDATE)
+    // ========================================================================
+
+    @Operation(summary = "Mettre à jour une réservation")
+    @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()") // ✅ CORRECTION : On laisse entrer tout le monde, le code filtre après
+    public ResponseEntity<BookingDto> update(
+            @PathVariable Long id,
+            @Valid @RequestBody BookingDto dto,
+            @CurrentUser ApplicationUser user) {
+
+        // Vérification du rôle
+        boolean isStaff = user.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN")
+                        || r.getName().equals("BARBER")
+                        || r.getName().equals("SALON_OWNER"));
+
+        if (isStaff) {
+            // 👮‍♂️ Cas ADMIN / STAFF :
+            // On fait confiance à l'ID envoyé dans le DTO pour changer le client
+            if (dto.getClientId() == null) {
+                // On pourrait laisser passer si on ne veut pas changer le client,
+                // mais si c'est une création déguisée ou un changement obligatoire :
+                // throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "L'ID du client est
+                // requis.");
+            }
+            // On ne touche à rien, le Service utilisera dto.getClientId() tel quel.
+
+        } else {
+            // 👤 Cas CLIENT LAMBDA :
+            // SÉCURITÉ : On vérifie d'abord que le RDV lui appartient déjà (Anti-Vol)
+            // (Idéalement cette vérif se fait ici ou dans le service via @PreAuthorize plus
+            // fin)
+
+            if (user.getClient() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cet utilisateur n'a pas de profil Client associé.");
+            }
+
+            // On FORCE l'ID du client connecté pour empêcher qu'il ne modifie le RDV de
+            // quelqu'un d'autre
+            // ou qu'il ne s'attribue le RDV d'un autre.
+            dto.setClientId(user.getClient().getId());
+
+            // Note: Le service devra vérifier que le booking 'id' appartient bien à ce
+            // 'clientId'
+            // avant de faire l'update, sinon un client pourrait modifier le RDV d'un autre
+            // en devinant l'ID.
+        }
+
+        // Appel du service (qui contient maintenant la logique de changement de client)
+        BookingDto updated = bookingService.updateBooking(id, dto);
+
+        return ResponseEntity.ok(updated);
     }
 
     @Operation(summary = "Trouver une réservation par ID")
@@ -66,7 +150,7 @@ public class BookingController {
 
     @Operation(summary = "Mes réservations (Client connecté)")
     @GetMapping("/my-bookings")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
+    @PreAuthorize("hasRole('CLIENT') or hasRole('ADMIN')")
     public ResponseEntity<List<BookingDto>> getMyBookings(@CurrentUser ApplicationUser user) {
         if (user.getClient() == null)
             return ResponseEntity.ok(List.of());
@@ -75,7 +159,7 @@ public class BookingController {
 
     @Operation(summary = "Réservations d'un barbier (Barbier connecté ou Admin)")
     @GetMapping("/barber/my-bookings")
-    @PreAuthorize("hasAuthority('ROLE_BARBER')")
+    @PreAuthorize("hasRole('BARBER') or hasRole('ADMIN')")
     public ResponseEntity<List<BookingDto>> getBarberBookings(@CurrentUser ApplicationUser user) {
         // Supposons que le Barber est lié au User.
         // Note: Il faudrait idéalement une méthode findByBarberUserId dans le service
@@ -136,22 +220,22 @@ public class BookingController {
     // ⚙️ ACTIONS MÉTIER (CHANGEMENT D'ÉTAT)
     // ========================================================================
 
-    @PatchMapping("/{id}/complete")
-    @PreAuthorize("hasAuthority('ROLE_BARBER')")
+    @PostMapping("/{id}/complete")
+    @PreAuthorize("hasRole('BARBER') or hasRole('ADMIN')")
     @Operation(summary = "Terminer le RDV et Encaisser (Cash)")
     public ResponseEntity<BookingDto> complete(@PathVariable Long id, @CurrentUser ApplicationUser user) {
         // user.getId() permet de vérifier que c'est bien CE barbier qui termine SON rdv
         return ResponseEntity.ok(bookingService.completeBooking(id, user.getId()));
     }
 
-    @PatchMapping("/{id}/confirm")
-    @PreAuthorize("hasAuthority('ROLE_BARBER')")
+    @PostMapping("/{id}/confirm")
+    @PreAuthorize("hasRole('BARBER') or hasRole('ADMIN')")
     @Operation(summary = "Confirmer un rendez-vous (Barbier)")
     public ResponseEntity<BookingDto> confirm(@PathVariable Long id, @CurrentUser ApplicationUser user) {
         return ResponseEntity.ok(bookingService.confirmBooking(id, user.getId()));
     }
 
-    @PatchMapping("/{id}/cancel")
+    @PostMapping("/{id}/cancel")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Annuler un rendez-vous (Client ou Barbier)")
     public ResponseEntity<BookingDto> cancel(@PathVariable Long id, @CurrentUser ApplicationUser user) {

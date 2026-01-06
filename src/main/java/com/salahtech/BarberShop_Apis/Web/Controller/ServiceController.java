@@ -65,24 +65,49 @@ public class ServiceController {
      * 30 }
      * Clé "file" (Type File) : Choisir l'image
      */
+    /**
+     * Créer une prestation avec image (Support Multipart).
+     */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAuthority('ROLE_BARBER')")
+    @PreAuthorize("hasAnyRole('BARBER', 'ADMIN', 'SALON_OWNER')")
     public ResponseEntity<ServiceDto> createService(
             @CurrentUser ApplicationUser user,
-            @RequestPart("service") @Valid ServiceDto serviceDto, // Le JSON
-            @RequestPart(value = "file", required = false) MultipartFile file // L'image
-    ) {
-        String imageUrl = null;
+            @RequestPart("service") @Valid ServiceDto dto,
+            @RequestPart(value = "file", required = false) MultipartFile file) {
 
-        // 1. Upload de l'image (si présente)
+        // Gestion de l'image
+        String imageUrl = null;
         if (file != null && !file.isEmpty()) {
             imageUrl = fileStorageService.storeFile(file);
         }
 
-        // 2. Appel du service métier avec l'URL générée
-        ServiceDto created = serviceService.create(user.getId(), serviceDto, imageUrl);
+        // ✅ CORRECTION : On ne calcule pas l'ID ici.
+        // On passe 'user' et 'dto' au service. Il se débrouillera.
+        ServiceDto created = serviceService.create(dto, imageUrl, user);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @Operation(summary = "Mettre à jour une prestation par ID")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('BARBER') or hasRole('ADMIN')")
+    public ResponseEntity<ServiceDto> update(
+            @CurrentUser ApplicationUser user,
+            @PathVariable Long id,
+            @RequestPart("service") @Valid ServiceDto dto,
+            @RequestPart(value = "file", required = false) MultipartFile file) {
+        String newImageUrl = null;
+
+        // 1. Upload de la NOUVELLE image (si présente)
+        if (file != null && !file.isEmpty()) {
+            newImageUrl = fileStorageService.storeFile(file);
+        }
+
+        // 2. Appel du service métier update
+        // On passe l'ID de la prestation, le DTO, et la potentielle nouvelle URL
+        ServiceDto updated = serviceService.update(id, user.getId(), dto, newImageUrl);
+
+        return ResponseEntity.ok(updated);
     }
 
     @GetMapping
@@ -93,13 +118,6 @@ public class ServiceController {
             @RequestParam(required = false) Long barberId,
             @PageableDefault(size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
         return ResponseEntity.ok(serviceService.search(q, category, active, barberId, pageable));
-    }
-
-    @Operation(summary = "Mettre à jour une prestation par ID")
-    @PutMapping("/{id}")
-    public ResponseEntity<ServiceDto> update(@PathVariable Long id, @Valid @RequestBody ServiceDto dto) {
-        dto.setId(id);
-        return ResponseEntity.ok(serviceService.save(dto));
     }
 
     @Operation(summary = "Trouver une prestation par ID")

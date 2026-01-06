@@ -12,7 +12,7 @@ import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
-import static com.salahtech.BarberShop_Apis.Utils.Constants.USER_FOLDER;
+
 import static org.springframework.http.MediaType.*;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
@@ -163,6 +163,13 @@ public class UserAdminServiceImpl implements UserAdminService {
         ApplicationUserType userType = dto.getUserType() != null ? dto.getUserType() : ApplicationUserType.CLIENT;
         user.setUserType(userType);
 
+        if (dto.getProfileImageUrl() != null) {
+            user.setProfileImageUrl(dto.getProfileImageUrl());
+        } else {
+            // Génère une image par défaut basée sur le nom (ou username)
+            user.setProfileImageUrl(getTemporaryProfileImageUrl(dto.getFirstName()));
+        }
+
         boolean enabled = Boolean.TRUE.equals(dto.getIsEnabled());
         boolean verified = Boolean.TRUE.equals(dto.getIsVerified());
         user.setIsEnabled(enabled);
@@ -236,6 +243,7 @@ public class UserAdminServiceImpl implements UserAdminService {
                     .lastName(user.getLastName())
                     .email(user.getEmail())
                     .phone(user.getPhone())
+                    .profileImageUrl(user.getProfileImageUrl())
                     .build();
 
             client = clientRepository.save(client);
@@ -249,7 +257,7 @@ public class UserAdminServiceImpl implements UserAdminService {
             Barber barber = Barber.builder()
                     .user(user)
                     .name(user.getFullName())
-                    .profileImageUrl(getTemporaryProfileImageUrl(user.getUsername()))
+                    .profileImageUrl(user.getProfileImageUrl())
                     .salonName("À définir") // Valeur par défaut
                     .location("À définir")
                     .available(false) // Non disponible par défaut
@@ -267,35 +275,38 @@ public class UserAdminServiceImpl implements UserAdminService {
                 .toUriString();
     }
 
-    private void saveProfileImageUrl(ApplicationUser applicationUser,
-            MultipartFile profileImage)
-            throws NotAnImageFileException, IOException {
-        if (profileImage != null) {
-            if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE)
-                    .contains(profileImage.getContentType())) {
-                throw new NotAnImageFileException(
-                        profileImage.getOriginalFilename() + "It is not an Image file. Please uplaodean image");
-            }
-            Path userFolder = Paths.get(USER_FOLDER +
-                    applicationUser.getUsername()).toAbsolutePath().normalize();
-            if (!Files.exists(userFolder)) {
-                Files.createDirectories(userFolder);
-                LOGGER.info(DIRECTORY_CREATED);
-            }
-            Files.deleteIfExists(Paths.get(userFolder + applicationUser.getUsername() +
-                    DOT + JPG_EXTENSION));
-            Files.copy(profileImage.getInputStream(),
-                    userFolder.resolve(applicationUser.getUsername() + DOT + JPG_EXTENSION), REPLACE_EXISTING);
-            applicationUser.setProfileImageUrl(setProfileImageUrl(applicationUser.getUsername()));
-            userRepo.save(applicationUser);
-            LOGGER.info(FILE_SAVED_IN_FILE_SYSTEME + profileImage.getOriginalFilename());
-        }
-    }
+    // private void saveProfileImageUrl(ApplicationUser applicationUser,
+    // MultipartFile profileImage)
+    // throws NotAnImageFileException, IOException {
+    // if (profileImage != null) {
+    // if (!Arrays.asList(IMAGE_JPEG_VALUE, IMAGE_PNG_VALUE, IMAGE_GIF_VALUE)
+    // .contains(profileImage.getContentType())) {
+    // throw new NotAnImageFileException(
+    // profileImage.getOriginalFilename() + "It is not an Image file. Please
+    // uplaodean image");
+    // }
+    // Path userFolder = Paths.get(USER_FOLDER +
+    // applicationUser.getUsername()).toAbsolutePath().normalize();
+    // if (!Files.exists(userFolder)) {
+    // Files.createDirectories(userFolder);
+    // LOGGER.info(DIRECTORY_CREATED);
+    // }
+    // Files.deleteIfExists(Paths.get(userFolder + applicationUser.getUsername() +
+    // DOT + JPG_EXTENSION));
+    // Files.copy(profileImage.getInputStream(),
+    // userFolder.resolve(applicationUser.getUsername() + DOT + JPG_EXTENSION),
+    // REPLACE_EXISTING);
+    // applicationUser.setProfileImageUrl(setProfileImageUrl(applicationUser.getUsername()));
+    // userRepo.save(applicationUser);
+    // LOGGER.info(FILE_SAVED_IN_FILE_SYSTEME + profileImage.getOriginalFilename());
+    // }
+    // }
 
-    private String setProfileImageUrl(String username) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT + JPG_EXTENSION).toUriString();
-    }
+    // private String setProfileImageUrl(String username) {
+    // return ServletUriComponentsBuilder.fromCurrentContextPath()
+    // .path(USER_IMAGE_PATH + username + FORWARD_SLASH + username + DOT +
+    // JPG_EXTENSION).toUriString();
+    // }
 
     @Override
     public ApplicationUserDto update(Long id, ApplicationUserDto dto) {

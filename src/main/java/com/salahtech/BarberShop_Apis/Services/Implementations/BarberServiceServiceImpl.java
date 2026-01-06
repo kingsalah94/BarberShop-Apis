@@ -6,6 +6,7 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.BarberService;
 
@@ -19,9 +20,11 @@ import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Dtos.ServiceStatsDto;
 import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
 import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
+import com.salahtech.BarberShop_Apis.Exceptions.AccessDeniedException;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
+import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberServiceRepository;
 
@@ -35,6 +38,7 @@ public class BarberServiceServiceImpl implements ServiceService {
 
     private final BarberServiceRepository serviceRepository;
     private final BarberRepository barberRepo;
+    private final ApplicationUserRepository userRepo;
 
     @Override
     public ServiceDto save(ServiceDto dto) {
@@ -51,31 +55,118 @@ public class BarberServiceServiceImpl implements ServiceService {
     }
 
     @Override
-    public ServiceDto create(Long barberId, ServiceDto dto, String imageUrl) {
-        // 1. Vérifier le barbier
-        Barber barber = barberRepo.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("Barbier introuvable"));
+    @Transactional
+    public ServiceDto create(ServiceDto dto, String imageUrl, ApplicationUser connectedUser) {
 
-        // 2. Créer l'entité (Mapping DTO -> Entity)
-        // Attention : BarberService est le nom de votre entité (pas le service Spring)
+        Barber barber;
+
+        // On vérifie d'abord si c'est un membre du staff admin
+        boolean isAdmin = connectedUser.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ADMIN") || r.getName().equals("SALON_OWNER"));
+
+        // =========================================================================
+        // 🧠 LOGIQUE INTELLIGENTE CORRIGÉE
+        // =========================================================================
+
+        // 1. CAS ADMIN AVEC SÉLECTION : L'Admin a choisi un barbier spécifique (ID > 0)
+        if (isAdmin && dto.getBarberId() != null && dto.getBarberId() > 0) {
+            barber = barberRepo.findById(dto.getBarberId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Barbier cible introuvable (ID: " + dto.getBarberId() + ")"));
+        }
+        // 2. CAS BARBIER CONNECTÉ (ou Admin qui a oublié de sélectionner)
+        else {
+            // On cherche le profil barbier lié à l'utilisateur connecté
+            // ⚠️ ATTENTION : On utilise findByUserId, pas findById !
+            barber = barberRepo.findById(connectedUser.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            isAdmin
+                                    ? "Veuillez sélectionner un barbier dans la liste (Votre compte Admin n'est pas un barbier)."
+                                    : "Aucun profil Barbier trouvé pour cet utilisateur."));
+        }
+
+        // =========================================================================
+        // 🏗️ CRÉATION DE L'ENTITÉ
+        // =========================================================================
+
         com.salahtech.BarberShop_Apis.models.BarberService serviceEntity = new com.salahtech.BarberShop_Apis.models.BarberService();
 
         serviceEntity.setName(dto.getName());
         serviceEntity.setDescription(dto.getDescription());
         serviceEntity.setPrice(dto.getPrice());
-        serviceEntity.setDuration(dto.getDuration()); // en minutes
-        serviceEntity.setBarber(barber);
+        serviceEntity.setDuration(dto.getDuration());
+        serviceEntity.setBarber(barber); // ✅ Le bon barbier est assigné
+        serviceEntity.setActive(true);
 
-        // ✅ 3. L'ajout de l'image
+        // Catégorie
+        if (dto.getCategory() != null) {
+            serviceEntity.setCategory(dto.getCategory());
+        } else {
+            serviceEntity.setCategory(ServiceCategory.OTHER);
+        }
+
+        // Image
         if (imageUrl != null) {
             serviceEntity.setImageUrl(imageUrl);
         }
 
-        // 4. Sauvegarde
+        // Sauvegarde
         var saved = serviceRepository.save(serviceEntity);
 
-        // 5. Retour DTO
         return mapToDto(saved);
+    }
+
+    @Override
+    public ServiceDto update(Long serviceId, Long userId, ServiceDto dto, String newImageUrl) {
+
+        // 1. Récupérer le service existant en base
+        var serviceEntity = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Service introuvable avec l'ID : " + serviceId));
+
+        // 2. Récupérer l'utilisateur connecté pour vérifier ses rôles
+        var currentUser = userRepo.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur introuvable"));
+
+        boolean isAdmin = currentUser.getAuthorities().stream()
+                .anyMatch(role -> role.getAuthority().equals("ROLE_ADMIN"));
+        // 3. (Optionnel) Vérification de sécurité
+        // Vérifier que l'utilisateur qui modifie est bien le propriétaire du service
+        // (ou un Admin)
+        Long ownerId = serviceEntity.getBarber().getUser().getId();
+        if (!ownerId.equals(userId) && !isAdmin) {
+            throw new AccessDeniedException("Vous n'avez pas le droit de modifier ce service");
+        }
+
+        // 4. Mise à jour des champs standards (Texte, Prix, Durée...)
+        serviceEntity.setName(dto.getName());
+        serviceEntity.setDescription(dto.getDescription());
+        serviceEntity.setPrice(dto.getPrice());
+        serviceEntity.setDuration(dto.getDuration());
+
+        // Important : Mettre à jour le statut Actif/Inactif
+        serviceEntity.setActive(dto.getActive());
+
+        // 4. Mise à jour de la Catégorie
+        if (dto.getCategory() != null) {
+            serviceEntity.setCategory(dto.getCategory());
+        }
+
+        // ✅ 5. LOGIQUE CRITIQUE POUR L'IMAGE
+        // Si newImageUrl n'est pas null, cela signifie qu'un nouveau fichier a été
+        // uploadé.
+        // On remplace l'ancienne URL.
+        if (newImageUrl != null && !newImageUrl.isEmpty()) {
+            serviceEntity.setImageUrl(newImageUrl);
+        }
+        // SINON (si newImageUrl est null), on ne fait RIEN.
+        // L'entité garde l'URL qu'elle avait déjà en base de données via le findById au
+        // début.
+
+        // 6. Sauvegarder les modifications
+        var savedEntity = serviceRepository.save(serviceEntity);
+
+        // 7. Retourner le DTO mis à jour
+        return mapToDto(savedEntity);
     }
 
     // Helper mapping
@@ -85,6 +176,7 @@ public class BarberServiceServiceImpl implements ServiceService {
                 .name(s.getName())
                 .price(s.getPrice())
                 .duration(s.getDuration())
+                .category(s.getCategory())
                 .imageUrl(s.getImageUrl()) // ✅ On renvoie l'URL au front
                 .build();
     }
@@ -341,4 +433,5 @@ public class BarberServiceServiceImpl implements ServiceService {
                 .revenueLastMonth(revenueLastMonth)
                 .build();
     }
+
 }

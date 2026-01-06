@@ -7,14 +7,17 @@ import com.salahtech.BarberShop_Apis.Exceptions.*;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
 import com.salahtech.BarberShop_Apis.models.*;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
+import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
 import com.salahtech.BarberShop_Apis.reppsitories.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -45,9 +48,37 @@ public class BookingServiceImpl implements BookingService {
     @CacheEvict(value = "barbers", key = "#dto.barberId")
     public BookingDto createBooking(BookingCreateDto dto) {
 
-        // 1. Identification de l'utilisateur connecté
-        ApplicationUser user = getCurrentUser();
-        Client client = getOrCreateClientProfile(user);
+        // =================================================================
+        // 🚨 CORRECTION : CHOIX DU CLIENT (Admin vs Client connecté)
+        // =================================================================
+
+        Client client;
+
+        // 1. Si un ID Client est fourni (Cas Admin qui réserve pour "Jean Dupont")
+        if (dto.getClientId() != null) {
+            Long receivedId = dto.getClientId(); // ex: 3 (User ID)
+
+            // On essaie d'abord de trouver par User ID (Le cas le plus probable ici)
+            client = clientRepository.findByUserId(receivedId)
+                    // Si pas trouvé, on essaie par Client ID (Fallback)
+                    .or(() -> clientRepository.findById(receivedId))
+                    // Si toujours rien, erreur
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Client introuvable (ni par UserID, ni par ClientID : " + receivedId + ")"));
+
+        }
+        // 2. Sinon, on utilise l'utilisateur connecté (Cas Client qui réserve pour
+        // lui-même)
+        else {
+            ApplicationUser user = getCurrentUser();
+            // Petite sécurité : Si c'est un Admin qui a oublié de choisir un client, on
+            // bloque
+            if (user.getUserType() == ApplicationUserType.ADMIN) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "En tant qu'Admin, vous devez sélectionner un client.");
+            }
+            client = getOrCreateClientProfile(user);
+        }
 
         // 2. Validation des Entrées (Barbier & Service)
         Barber barber = barberRepository.findById(dto.getBarberId())
@@ -58,7 +89,14 @@ public class BookingServiceImpl implements BookingService {
 
         // 3. Calcul des horaires
         LocalDateTime startAt = dto.getStartAt();
-        LocalDateTime endAt = startAt.plusMinutes(service.getDuration());
+        // CORRECTION MINEURE : Si endAt est fourni dans le DTO, on l'utilise, sinon on
+        // calcule
+        LocalDateTime endAt;
+        if (dto.getEndAt() != null) {
+            endAt = dto.getEndAt();
+        } else {
+            endAt = startAt.plusMinutes(service.getDuration());
+        }
 
         // 4. 🔒 VÉRIFICATION ANTI-DOUBLON (Lock Pessimiste en DB recommandé ici)
         Long conflicts = bookingRepository.countConflictingBookingsWithLock(barber.getId(), startAt, endAt);
@@ -90,6 +128,150 @@ public class BookingServiceImpl implements BookingService {
                 "Nouvelle demande de " + client.getFirstName());
 
         return mapToDto(saved);
+    }
+
+    @Override
+    @Transactional
+    @CacheEvict(value = "barbers", key = "#result.barberId") // On vide le cache du barbier concerné
+    public BookingDto updateBooking(Long id, BookingDto dto) {
+
+        // 1. Charger la réservation existante
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Réservation introuvable avec l'ID : " + id));
+
+        // On garde l'ancien état pour comparer (pour les notifs)
+        LocalDateTime oldStart = booking.getStartAt();
+        BookingStatus oldStatus = booking.getStatus();
+
+        boolean isRescheduled = false;
+
+        // =================================================================
+        // 1. CHANGEMENT DE CLIENT (Admin uniquement)
+        // =================================================================
+        // Si un clientId est fourni ET qu'il est différent de l'actuel
+        if (dto.getClientId() != null) {
+            // On vérifie si l'ID reçu correspond au User ID du client actuel
+            boolean isSameUser = booking.getClient() != null &&
+                    booking.getClient().getUser().getId().equals(dto.getClientId());
+
+            // Si c'est différent, on cherche le nouveau client
+            if (!isSameUser) {
+                Long receivedId = dto.getClientId();
+                Client newClient = clientRepository.findByUserId(receivedId)
+                        .or(() -> clientRepository.findById(receivedId))
+                        .orElseThrow(() -> new ResourceNotFoundException("Client introuvable ID: " + receivedId));
+
+                booking.setClient(newClient);
+            }
+        }
+
+        // =================================================================
+        // 2. CHANGEMENT DE BARBIER
+        // =================================================================
+        if (dto.getBarberId() != null && !booking.getBarber().getId().equals(dto.getBarberId())) {
+            Barber newBarber = barberRepository.findById(dto.getBarberId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Barbier introuvable ID: " + dto.getBarberId()));
+            booking.setBarber(newBarber);
+            isRescheduled = true; // Changer de barbier = changement majeur
+        }
+
+        // =================================================================
+        // 3. CHANGEMENT DE DATE (Avec exclusion de soi-même)
+        // =================================================================
+        if (dto.getStartAt() != null && !booking.getStartAt().equals(dto.getStartAt())) {
+
+            LocalDateTime newStart = dto.getStartAt();
+            LocalDateTime newEnd;
+
+            // Recalcul de la fin
+            if (dto.getEndAt() != null) {
+                newEnd = dto.getEndAt();
+            } else {
+                // On garde la durée actuelle du service (ou on recharge le service pour être
+                // sûr)
+                int duration = booking.getBarberService().getDuration();
+                newEnd = newStart.plusMinutes(duration);
+            }
+
+            // VÉRIFICATION DE CONFLIT (EXCLURE L'ID ACTUEL)
+            Long conflicts = bookingRepository.countConflictingBookingsExcludeId(
+                    booking.getBarber().getId(),
+                    newStart,
+                    newEnd,
+                    id // ID exclu
+            );
+
+            if (conflicts > 0) {
+                throw new BookingConflictException("Ce créneau est déjà réservé pour ce barbier.");
+            }
+
+            booking.setStartAt(newStart);
+            booking.setEndAt(newEnd);
+            booking.setBookingDate(newStart); // Mise à jour index date
+            isRescheduled = true;
+        }
+
+        // =================================================================
+        // 📝 4. AUTRES CHAMPS
+        // =================================================================
+        if (dto.getNotes() != null)
+            booking.setNotes(dto.getNotes());
+
+        if (dto.getStatus() != null) {
+            booking.setStatus(dto.getStatus());
+        }
+
+        if (dto.getTotalPrice() != null)
+            booking.setTotalPrice(dto.getTotalPrice());
+
+        if (dto.getPaymentMethod() != null)
+            booking.setPaymentMethod(dto.getPaymentMethod());
+        if (dto.getPaymentStatus() != null)
+            booking.setPaymentStatus(dto.getPaymentStatus());
+
+        // 5. Sauvegarde
+        Booking saved = bookingRepository.save(booking);
+
+        // =================================================================
+        // 🔔 6. NOTIFICATION & OUTBOX
+        // =================================================================
+        // On détecte quel type d'événement générer
+
+        if (isRescheduled) {
+            // Cas : Déplacement du RDV
+            // ✅ CORRECTION : On utilise 'oldStart' pour donner plus de détails
+            String messageDetails = String.format("Votre rendez-vous du %s a été déplacé au %s.",
+                    oldStart.toString(), // Ancienne date (variable utilisée !)
+                    saved.getStartAt().toString() // Nouvelle date
+            );
+
+            notifyChange(saved, "BOOKING_RESCHEDULED", "Rendez-vous déplacé", messageDetails);
+
+        } else if (saved.getStatus() != oldStatus) {
+            // Cas : Changement de statut
+            String eventType = switch (saved.getStatus()) {
+                case CONFIRMED -> "BOOKING_CONFIRMED";
+                case CANCELLED -> "BOOKING_CANCELLED";
+                case COMPLETED -> "BOOKING_COMPLETED";
+                default -> "BOOKING_UPDATED";
+            };
+
+            String message = switch (saved.getStatus()) {
+                case CONFIRMED -> "Votre rendez-vous est confirmé.";
+                case CANCELLED -> "Votre rendez-vous a été annulé.";
+                case COMPLETED -> "Merci de votre visite !";
+                default -> "Le statut de votre rendez-vous a changé.";
+            };
+
+            notifyChange(saved, eventType, "Mise à jour RDV", message);
+
+        } else {
+            // Mise à jour mineure (Notes, Prix...) -> Pas forcément de notif push,
+            // mais on peut logger l'event pour l'audit.
+            // notifyChange(saved, "BOOKING_UPDATED", "Mise à jour", "Détails mis à jour");
+        }
+
+        return BookingDto.fromEntity(saved);
     }
 
     // ========================================================================
@@ -314,6 +496,10 @@ public class BookingServiceImpl implements BookingService {
                     .eventType(eventType)
                     .payload(payload)
                     .createdAt(OffsetDateTime.now())
+                    .status(OutboxStatus.PENDING)
+                    .attempts(0)
+                    .nextAttemptAt(OffsetDateTime.now().plusMinutes(1))
+                    .updatedAt(OffsetDateTime.now())
                     .build();
 
             outboxEventRepository.save(event);

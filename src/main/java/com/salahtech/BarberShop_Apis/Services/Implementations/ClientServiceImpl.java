@@ -3,12 +3,14 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 import com.salahtech.BarberShop_Apis.Dtos.ClientDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
+import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Exceptions.ConflictException;
 import com.salahtech.BarberShop_Apis.Dtos.ClientProfileDto;
 import com.salahtech.BarberShop_Apis.Dtos.UpdateClientDto;
 import com.salahtech.BarberShop_Apis.Dtos.ClientDashboardStatsDto;
 import com.salahtech.BarberShop_Apis.models.ClientFavorite;
+import com.salahtech.BarberShop_Apis.models.Role;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
@@ -22,27 +24,32 @@ import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.ClientFavoriteRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.ReviewRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 public class ClientServiceImpl implements ClientService {
 
     private final ClientRepository clientRepository;
@@ -51,6 +58,10 @@ public class ClientServiceImpl implements ClientService {
     private final ClientFavoriteRepository clientFavoriteRepository;
     private final BarberRepository barberRepository;
     private final ReviewRepository reviewRepository;
+    private final RoleRepository roleRepository;
+
+    private final PasswordEncoder passwordEncoder;
+    private final FileStorageService fileStorageService;
 
     @Override
     @Transactional
@@ -98,6 +109,127 @@ public class ClientServiceImpl implements ClientService {
         log.info("Client saved with id: {}", client.getId());
 
         return ClientDto.fromEntity(client);
+    }
+
+    // ==========================================
+    // 🟢 CRÉATION
+    // ==========================================
+    @Override
+    public ClientDto create(ClientDto dto, MultipartFile file) {
+        // 1. Vérifier si l'email existe déjà
+        if (userRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Cet email est déjà utilisé.");
+        }
+
+        // 2. Créer l'User (Authentification)
+        ApplicationUser user = new ApplicationUser();
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+        user.setEmail(dto.getEmail());
+        user.setPhone(dto.getPhone());
+
+        // Mot de passe (soit fourni, soit par défaut)
+        String rawPassword = (dto.getPassword() != null && !dto.getPassword().isEmpty())
+                ? dto.getPassword()
+                : "Client123!"; // Mot de passe par défaut
+        user.setPassword(passwordEncoder.encode(rawPassword));
+
+        ApplicationUserType type = user.getUserType() != null ? user.getUserType() : ApplicationUserType.CLIENT;
+        user.setUserType(type);
+        user.setRoles(Set.of(getRoleByUserType(type)));
+        // Rôles
+        // user.setRoles(Collections.singletonList("ROLE_CLIENT")); // Adapte selon ta
+        // gestion des rôles (Enum ou String)
+
+        // 3. Gestion de l'Image
+        if (file != null && !file.isEmpty()) {
+            String imageUrl = fileStorageService.storeFile(file); // Méthode qui sauvegarde et renvoie l'URL
+            user.setProfileImageUrl(imageUrl);
+        }
+
+        // 4. Créer l'entité Client (Métier)
+        Client client = new Client();
+        client.setUser(user); // Lien User <-> Client
+        client.setNotes(dto.getNotes());
+        // client.setActive(true); // Si tu as un champ active
+
+        // Lier dans l'autre sens si nécessaire (Bidirectionnel)
+        user.setClient(client);
+
+        // 5. Sauvegarder (Cascade devrait sauver les deux, sinon sauve user puis
+        // client)
+        userRepository.save(user);
+        // clientRepository.save(client); // Normalement géré par le cascade de User
+
+        // 6. Retourner le DTO
+        return mapToDto(client);
+    }
+
+    private Role getRoleByUserType(ApplicationUserType userType) {
+        String roleName = switch (userType) {
+            case CLIENT -> "CLIENT";
+            case BARBER -> "BARBER";
+            case SALON_OWNER -> "SALON_OWNER";
+            case ADMIN -> "ADMIN";
+        };
+        return roleRepository.findByName(roleName)
+                .orElseThrow(() -> new ResourceNotFoundException("Rôle " + roleName + " non trouvé en base"));
+    }
+
+    // ==========================================
+    // 🟠 MISE À JOUR
+    // ==========================================
+    @Override
+    public ClientDto update(Long id, ClientDto dto, MultipartFile file) {
+        // 1. Récupérer le Client
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Client introuvable"));
+
+        ApplicationUser user = client.getUser();
+
+        // 2. Mettre à jour les infos de base
+        user.setFirstName(dto.getFirstName());
+        user.setLastName(dto.getLastName());
+        user.setPhone(dto.getPhone());
+
+        // Vérif email unique si changé
+        if (!user.getEmail().equals(dto.getEmail())) {
+            if (userRepository.existsByEmail(dto.getEmail())) {
+                throw new RuntimeException("Cet email est déjà utilisé.");
+            }
+            user.setEmail(dto.getEmail());
+        }
+
+        // 3. Gestion de l'Image (Si nouveau fichier fourni)
+        if (file != null && !file.isEmpty()) {
+            // Optionnel : Supprimer l'ancienne image via fileStorageService.delete(...)
+            String imageUrl = fileStorageService.storeFile(file);
+            user.setProfileImageUrl(imageUrl);
+        }
+
+        // 4. Mettre à jour les infos spécifiques Client
+        client.setNotes(dto.getNotes());
+
+        // 5. Sauvegarder
+        userRepository.save(user); // Sauve le tout via Cascade
+
+        return mapToDto(client);
+    }
+
+    // ==========================================
+    // 🛠️ MAPPER (Ou utilise MapStruct)
+    // ==========================================
+    private ClientDto mapToDto(Client client) {
+        ApplicationUser user = client.getUser();
+        return ClientDto.builder()
+                .id(client.getId())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .profileImageUrl(user.getProfileImageUrl())
+                .notes(client.getNotes())
+                .build();
     }
 
     @Override
@@ -384,6 +516,7 @@ public class ClientServiceImpl implements ClientService {
      * Update client profile
      */
     @Override
+    @Transactional // ✅ Important pour la modification
     public ClientProfileDto updateClientProfile(Long clientId, UpdateClientDto updateDto) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"));
@@ -391,42 +524,39 @@ public class ClientServiceImpl implements ClientService {
         ApplicationUser user = client.getUser();
 
         // Update user information
-        if (updateDto.getFirstName() != null) {
+        if (updateDto.getFirstName() != null)
             user.setFirstName(updateDto.getFirstName());
-        }
-        if (updateDto.getLastName() != null) {
+        if (updateDto.getLastName() != null)
             user.setLastName(updateDto.getLastName());
-        }
+
         if (updateDto.getEmail() != null && !updateDto.getEmail().equals(user.getEmail())) {
-            // Check if email is already taken
             if (userRepository.existsByEmail(updateDto.getEmail())) {
                 throw new RuntimeException("Cet email est déjà utilisé");
             }
             user.setEmail(updateDto.getEmail());
+            // Penser à mettre à jour l'email du client aussi pour la cohérence
+            client.setEmail(updateDto.getEmail());
         }
+
+        // ✅ SYNCHRONISATION IMAGE DE PROFIL
         if (updateDto.getProfilePicture() != null) {
             user.setProfileImageUrl(updateDto.getProfilePicture());
+            client.setProfileImageUrl(updateDto.getProfilePicture()); // <--- AJOUT ICI
         }
 
         // Update client information
-        if (updateDto.getPhoneNumber() != null) {
+        if (updateDto.getPhoneNumber() != null)
             client.setPhone(updateDto.getPhoneNumber());
-        }
-        if (updateDto.getAddress() != null) {
+        if (updateDto.getAddress() != null)
             client.setAddress(updateDto.getAddress());
-        }
-        if (updateDto.getCity() != null) {
+        if (updateDto.getCity() != null)
             client.setCity(updateDto.getCity());
-        }
-        if (updateDto.getPostalCode() != null) {
+        if (updateDto.getPostalCode() != null)
             client.setPostalCode(updateDto.getPostalCode());
-        }
-        if (updateDto.getBirthDate() != null) {
+        if (updateDto.getBirthDate() != null)
             client.setBirthDate(updateDto.getBirthDate());
-        }
-        if (updateDto.getPreferences() != null) {
+        if (updateDto.getPreferences() != null)
             client.setPreferences(updateDto.getPreferences());
-        }
 
         userRepository.save(user);
         clientRepository.save(client);

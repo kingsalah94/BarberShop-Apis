@@ -25,7 +25,7 @@ public class UserAdminController {
     private final UserAdminService service;
 
     @GetMapping
-    // @PreAuthorize("hasAuthority('users:read')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<ApplicationUserDto>> search(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean enabled,
@@ -38,45 +38,45 @@ public class UserAdminController {
     }
 
     @PostMapping
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> create(@Valid @RequestBody ApplicationUserDto dto,
             @RequestParam String password) {
         return ResponseEntity.ok(service.create(dto, password));
     }
 
     @PutMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> update(@PathVariable Long id, @RequestBody ApplicationUserDto dto) {
         return ResponseEntity.ok(service.update(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> get(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
     }
 
     @PostMapping("/{id}/enabled")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> setEnabled(@PathVariable Long id, @RequestParam boolean value) {
         return ResponseEntity.ok(service.setEnabled(id, value));
     }
 
     @PostMapping("/{id}/verified")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> setVerified(@PathVariable Long id, @RequestParam boolean value) {
         return ResponseEntity.ok(service.setVerified(id, value));
     }
 
     @PutMapping("/{id}/roles")
-    // @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationUserDto> setRoles(@PathVariable Long id, @RequestBody Set<String> roleNames) {
         return ResponseEntity.ok(service.setRoles(id, roleNames));
     }

@@ -1,5 +1,7 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salahtech.BarberShop_Apis.Config.CurrentUser;
 import com.salahtech.BarberShop_Apis.Dtos.*;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ClientService;
@@ -11,9 +13,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -33,18 +37,44 @@ public class ClientController {
 
     @Operation(summary = "Mon Profil Client")
     @GetMapping("/me")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ClientProfileDto> getMyProfile(@CurrentUser ApplicationUser user) {
         return ResponseEntity.ok(clientService.getClientProfile(user.getClient().getId()));
     }
 
     @Operation(summary = "Mettre à jour mon profil")
     @PutMapping("/me")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
+    @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ClientProfileDto> updateMyProfile(
             @CurrentUser ApplicationUser user,
             @Valid @RequestBody UpdateClientDto updateDto) {
         return ResponseEntity.ok(clientService.updateClientProfile(user.getClient().getId(), updateDto));
+    }
+
+    // ✅ 1. CREATE avec Image (POST)
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ClientDto> createClient(
+            @RequestPart("user") String clientJson, // On reçoit le JSON en String et on le parse, ou directement en Dto
+                                                    // si configuré
+            @RequestPart(value = "file", required = false) MultipartFile file) throws JsonProcessingException {
+        // Conversion manuelle si besoin, ou laisser Spring le faire si ObjectMapper est
+        // bien configuré
+        ObjectMapper mapper = new ObjectMapper();
+        ClientDto clientDto = mapper.readValue(clientJson, ClientDto.class);
+
+        return ResponseEntity.ok(clientService.create(clientDto, file));
+    }
+
+    // ✅ 2. UPDATE avec Image (PUT /{id}) -> Corrige l'erreur 405
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ClientDto> updateClient(
+            @PathVariable Long id,
+            @RequestPart("user") String clientJson,
+            @RequestPart(value = "file", required = false) MultipartFile file) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        ClientDto clientDto = mapper.readValue(clientJson, ClientDto.class);
+
+        return ResponseEntity.ok(clientService.update(id, clientDto, file));
     }
 
     @Operation(summary = "Mes Statistiques (Dashboard)")
