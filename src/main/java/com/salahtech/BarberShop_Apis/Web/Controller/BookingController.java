@@ -8,8 +8,6 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -166,6 +164,13 @@ public class BookingController {
         // Ici on utilise l'ID direct si le front l'envoie, sinon on adapte le service.
         // Pour l'instant, utilisons l'endpoint public filtré :
         return ResponseEntity.ok(bookingService.findByBarberId(user.getId()));
+    }
+
+    @GetMapping("/by-client/{clientId}")
+    @Operation(summary = "Historique des RDV d'un client spécifique")
+    @PreAuthorize("hasAnyRole('BARBER', 'ADMIN')")
+    public ResponseEntity<List<BookingDto>> getByClientId(@PathVariable Long clientId) {
+        return ResponseEntity.ok(bookingService.findByClientId(clientId));
     }
 
     @Operation(summary = "Réservations par Barbier (Public/Admin)")

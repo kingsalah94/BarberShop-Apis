@@ -3,6 +3,7 @@ package com.salahtech.BarberShop_Apis.Services.Interfaces;
 import com.salahtech.BarberShop_Apis.Dtos.ClientDto;
 import com.salahtech.BarberShop_Apis.Dtos.ClientProfileDto;
 import com.salahtech.BarberShop_Apis.Dtos.UpdateClientDto;
+import com.salahtech.BarberShop_Apis.Dtos.BarberClientSummaryDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Dtos.ClientDashboardStatsDto;
@@ -120,4 +121,14 @@ public interface ClientService {
 
         ClientDto update(Long id, ClientDto clientDto, MultipartFile file);
 
+        // Récupère tous les clients associés à un barbier spécifique
+        List<ClientDto> getClientsByBarberId(Long barberId);
+
+        List<BarberClientSummaryDto> getBarberClientsSummary(Long barberId);
+
+        List<ClientDto> getRegularClientsByBarberId(Long barberId);
+
+        Long countNewClientsSince(LocalDateTime date);
+
+        Long countActiveClientsSince(LocalDateTime date);
 }

@@ -1,5 +1,6 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import com.salahtech.BarberShop_Apis.Dtos.AvailabilityDto;
 import com.salahtech.BarberShop_Apis.Dtos.ExceptionTimeSlotDto;
 import com.salahtech.BarberShop_Apis.Dtos.TimeSlotDto;
@@ -41,8 +42,8 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     private final BarberRepository barberRepository;
 
     /** Horaires par défaut si Barber.workingHours est absent ou invalide */
-    private static final LocalTime DEFAULT_START_TIME = LocalTime.of(9, 0);
-    private static final LocalTime DEFAULT_END_TIME = LocalTime.of(18, 0);
+    // private static final LocalTime DEFAULT_START_TIME = LocalTime.of(9, 0);
+    // private static final LocalTime DEFAULT_END_TIME = LocalTime.of(00, 0);
     private static final int DEFAULT_SLOT_DURATION = 30; // minutes
     private static final int STEP_MINUTES = 30; // pas d’itération
     private static final ZoneId ZONE = ZoneId.of("Africa/Niamey");
@@ -71,6 +72,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     // Sauvegarder une disponibilité
     @Override
+    @LogActivity(action = "CREATE_AVAILABILITY", entityName = "Availability")
     public AvailabilityDto save(AvailabilityDto dto) {
         if (dto == null || dto.getBarberId() == null) {
             throw new InvalideEntityException("Availability invalide (barberId manquant)",
@@ -113,6 +115,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     // Supprimer une disponibilité par ID
     @Override
+    @LogActivity(action = "DELETE_AVAILABILITY", entityName = "Availability")
     public void delete(Long id) {
         if (id == null) {
             log.warn("delete(null) ignoré");
@@ -345,6 +348,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     @Override
     @Transactional
+    @LogActivity(action = "BLOCK_TIME_SLOT", entityName = "Availability")
     public void blockTimeSlot(Long barberId, LocalDateTime startAt, LocalDateTime endAt, String reason) {
         log.info("Blocage demandé pour barber={} [{} - {}] reason={}", barberId, startAt, endAt, reason);
 
@@ -381,6 +385,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     @Override
     @Transactional
+    @LogActivity(action = "RELEASE_TIME_SLOT", entityName = "Availability")
     public void releaseTimeSlot(Long barberId, LocalDateTime startAt, LocalDateTime endAt) {
         log.info("Libération demandée pour barber={} [{} - {}]", barberId, startAt, endAt);
 
@@ -431,6 +436,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
 
     @Override
     @Transactional
+    @LogActivity(action = "UPDATE_WEEKLY_SCHEDULE", entityName = "BarberSchedule")
     public void updateWeeklySchedule(Long barberId, List<AvailabilityDto> weeklySchedule) {
         log.info("Mise à jour de l'horaire hebdo pour barber={}, reçu {} créneaux",
                 barberId, weeklySchedule != null ? weeklySchedule.size() : 0);
@@ -686,10 +692,12 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     @Override
     @Transactional(readOnly = true)
     public List<TimeSlotDto> generateTimeSlots(LocalDate date, String workingHours) {
-        // workingHours attendu "HH:mm-HH:mm". Sinon défaut.
-        LocalTime start = DEFAULT_START_TIME;
-        LocalTime end = DEFAULT_END_TIME;
+        // 1. Déterminer la plage globale de la journée
+        LocalTime start = LocalTime.MIN; // 00:00
+        LocalTime end = LocalTime.MAX; // 23:59:59
 
+        // Si le barbier a défini des "Working Hours" globales (ex: "09:00-19:00"), on
+        // les respecte
         if (workingHours != null && workingHours.contains("-")) {
             String[] parts = workingHours.split("-");
             if (parts.length == 2) {
@@ -697,7 +705,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
                     start = LocalTime.parse(parts[0].trim());
                     end = LocalTime.parse(parts[1].trim());
                 } catch (Exception e) {
-                    log.warn("Parsing workingHours échoué: {} -> on utilise les valeurs par défaut", workingHours);
+                    log.warn("Format workingHours invalide : {}", workingHours);
                 }
             }
         }
@@ -706,10 +714,10 @@ public class AvailabilityServiceImpl implements AvailabilityService {
         LocalDateTime cur = date.atTime(start);
         LocalDateTime endOfDay = date.atTime(end);
 
-        while (cur.isBefore(endOfDay)) {
+        // 2. Générer les créneaux
+        while (cur.plusMinutes(DEFAULT_SLOT_DURATION).isBefore(endOfDay)
+                || cur.plusMinutes(DEFAULT_SLOT_DURATION).equals(endOfDay)) {
             LocalDateTime slotEnd = cur.plusMinutes(DEFAULT_SLOT_DURATION);
-            if (slotEnd.isAfter(endOfDay))
-                break;
 
             slots.add(TimeSlotDto.builder()
                     .startAt(cur)
@@ -836,6 +844,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     // À ajouter dans AvailabilityServiceImpl.java
 
     @Override
+    @LogActivity(action = "CREATE_EXCEPTION", entityName = "AvailabilityException")
     public AvailabilityDto createException(
             Long barberId,
             LocalDate exceptionDate,
@@ -911,6 +920,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
+    @LogActivity(action = "UPDATE_EXCEPTION", entityName = "AvailabilityException")
     public AvailabilityDto updateException(
             Long id,
             LocalDate exceptionDate,
@@ -951,6 +961,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     }
 
     @Override
+    @LogActivity(action = "DELETE_EXCEPTION", entityName = "AvailabilityException")
     public void deleteException(Long id) {
         if (!availabilityRepository.existsById(id)) {
             throw new ResourceNotFoundException("Exception non trouvée avec l'id: " + id);

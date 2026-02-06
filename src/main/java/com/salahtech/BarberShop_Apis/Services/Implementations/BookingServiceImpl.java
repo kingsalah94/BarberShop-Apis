@@ -1,6 +1,7 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import com.salahtech.BarberShop_Apis.Dtos.*;
 import com.salahtech.BarberShop_Apis.Enums.*;
 import com.salahtech.BarberShop_Apis.Exceptions.*;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,8 +24,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -46,6 +46,7 @@ public class BookingServiceImpl implements BookingService {
     @Override
     @Transactional
     @CacheEvict(value = "barbers", key = "#dto.barberId")
+    @LogActivity(action = "CREATE_BOOKING", entityName = "Booking")
     public BookingDto createBooking(BookingCreateDto dto) {
 
         // =================================================================
@@ -132,7 +133,8 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "barbers", key = "#result.barberId") // On vide le cache du barbier concerné
+    @CacheEvict(value = "barbers", key = "#result.barberId")
+    @LogActivity(action = "UPDATE_BOOKING", entityName = "Booking")
     public BookingDto updateBooking(Long id, BookingDto dto) {
 
         // 1. Charger la réservation existante
@@ -277,27 +279,59 @@ public class BookingServiceImpl implements BookingService {
     // ========================================================================
     // ✅ 2. CONFIRMATION (BARBIER)
     // ========================================================================
+    private boolean isAdmin(ApplicationUser user) {
+        if (user == null || user.getRoles() == null)
+            return false;
+        return user.getRoles().stream()
+                .anyMatch(role -> {
+                    String name = role.getName().toUpperCase();
+                    return name.equals("ADMIN") || name.equals("ROLE_ADMIN");
+                });
+    }
 
     @Override
     @Transactional
-    public BookingDto confirmBooking(Long bookingId, Long barberId) {
+    @Caching(evict = {
+            @CacheEvict(value = "bookings", key = "#bookingId"),
+            @CacheEvict(value = "barbers", allEntries = true)
+    })
+    @LogActivity(action = "CONFIRM_BOOKING", entityName = "Booking")
+    public BookingDto confirmBooking(Long bookingId, Long userId) {
         Booking booking = getBookingOrThrow(bookingId);
+        ApplicationUser currentUser = getUserOrThrow(userId);
 
-        // Sécurité : Seul le barbier concerné peut confirmer
-        if (!booking.getBarber().getId().equals(barberId)) {
-            throw new InvalideEntityException("Action non autorisée.");
+        // --- SÉCURITÉ RENFORCÉE ---
+        boolean isAdmin = isAdmin(currentUser);
+
+        // Vérification null-safe pour le propriétaire
+        boolean isBarberOwner = false;
+        if (booking.getBarber() != null && booking.getBarber().getUser() != null) {
+            isBarberOwner = booking.getBarber().getUser().getId().equals(userId);
         }
 
+        // Si ni Admin, ni Propriétaire -> Dehors
+        if (!isAdmin && !isBarberOwner) {
+            log.warn("Tentative non autorisée de confirmation par User ID {} sur Booking ID {}", userId, bookingId);
+            throw new InvalideEntityException("Action non autorisée. Droits insuffisants.");
+        }
+        // ------------------------
+
         if (booking.getStatus() != BookingStatus.PENDING) {
-            throw new InvalideEntityException("Statut invalide pour confirmation.");
+            // Petite souplesse pour l'Admin : il peut re-confirmer si besoin, sinon on
+            // bloque
+            if (!isAdmin) {
+                throw new InvalideEntityException("Seule une réservation en attente peut être confirmée.");
+            }
         }
 
         booking.setStatus(BookingStatus.CONFIRMED);
+        // Si c'est l'admin qui confirme, on peut vouloir mettre à jour la date d'update
+        booking.setUpdatedAt(LocalDateTime.now());
+
         Booking saved = bookingRepository.save(booking);
 
-        // Notif Client
         notifyChange(saved, "BOOKING_CONFIRMED", "Réservation Confirmée ✅",
-                "Votre RDV chez " + saved.getBarber().getSalonName() + " est validé.");
+                "Votre RDV a été validé.");
 
         return mapToDto(saved);
     }
@@ -308,25 +342,65 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
+    // ✅ Même gestion de Cache : on nettoie tout pour être sûr
+    @Caching(evict = {
+            @CacheEvict(value = "bookings", key = "#bookingId"),
+            @CacheEvict(value = "barbers", allEntries = true)
+    })
+    @LogActivity(action = "CANCEL_BOOKING", entityName = "Booking")
     public BookingDto cancelBooking(Long bookingId, Long userId) {
         Booking booking = getBookingOrThrow(bookingId);
+        ApplicationUser currentUser = getUserOrThrow(userId);
 
-        boolean isClient = booking.getClient().getUser().getId().equals(userId);
-        boolean isBarber = booking.getBarber().getUser().getId().equals(userId);
+        // --- SÉCURITÉ RENFORCÉE (Admin + Null-safe checks) ---
+        boolean isAdmin = isAdmin(currentUser);
 
-        if (!isClient && !isBarber) {
-            throw new InvalideEntityException("Action non autorisée.");
+        // 1. Est-ce le Barbier ?
+        boolean isBarberOwner = false;
+        if (booking.getBarber() != null && booking.getBarber().getUser() != null) {
+            isBarberOwner = booking.getBarber().getUser().getId().equals(userId);
         }
 
+        // 2. Est-ce le Client ?
+        boolean isClientOwner = false;
+        if (booking.getClient() != null && booking.getClient().getUser() != null) {
+            isClientOwner = booking.getClient().getUser().getId().equals(userId);
+        }
+
+        // Si ni Admin, ni Barbier, ni Client -> Dehors
+        if (!isAdmin && !isBarberOwner && !isClientOwner) {
+            log.warn("Tentative d'annulation non autorisée par User ID {} sur Booking ID {}", userId, bookingId);
+            throw new InvalideEntityException("Action non autorisée. Vous n'êtes ni le client, ni le barbier.");
+        }
+        // ------------------------
+
+        // Vérification d'état
         if (booking.getStatus() == BookingStatus.CANCELLED) {
-            throw new InvalideEntityException("Déjà annulé.");
+            throw new InvalideEntityException("Ce rendez-vous est déjà annulé.");
         }
 
+        // Empêcher l'annulation d'un RDV déjà terminé (optionnel mais logique)
+        if (booking.getStatus() == BookingStatus.COMPLETED && !isAdmin) {
+            throw new InvalideEntityException("Impossible d'annuler un rendez-vous déjà terminé.");
+        }
+
+        // Action
         booking.setStatus(BookingStatus.CANCELLED);
+        booking.setUpdatedAt(LocalDateTime.now());
+
         Booking saved = bookingRepository.save(booking);
 
-        // Notif à la contrepartie
-        String msg = isClient ? "Le client a annulé." : "Le barbier a annulé.";
+        // --- NOTIFICATION INTELLIGENTE ---
+        // On adapte le message selon QUI a annulé
+        String msg;
+        if (isClientOwner) {
+            msg = "Le client a annulé le rendez-vous.";
+        } else if (isBarberOwner) {
+            msg = "Le barbier a annulé le rendez-vous.";
+        } else {
+            msg = "Le rendez-vous a été annulé par l'administrateur.";
+        }
+
         notifyChange(saved, "BOOKING_CANCELLED", "Rendez-vous Annulé ❌", msg);
 
         return mapToDto(saved);
@@ -338,42 +412,71 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingDto completeBooking(Long bookingId, Long barberId) {
+    // ✅ On garde la même stratégie de cache pour forcer le rafraîchissement
+    @Caching(evict = {
+            @CacheEvict(value = "bookings", key = "#bookingId"),
+            @CacheEvict(value = "barbers", allEntries = true)
+    })
+    @LogActivity(action = "COMPLETE_BOOKING", entityName = "Booking")
+    public BookingDto completeBooking(Long bookingId, Long userId) {
         Booking booking = getBookingOrThrow(bookingId);
+        ApplicationUser currentUser = getUserOrThrow(userId); // On récupère le user connecté
 
-        if (!booking.getBarber().getId().equals(barberId)) {
-            throw new InvalideEntityException("Action non autorisée.");
+        // --- SÉCURITÉ RENFORCÉE (Identique à confirmBooking) ---
+        boolean isAdmin = isAdmin(currentUser); // Suppose que tu as cette méthode helper
+
+        // Vérification null-safe pour le propriétaire (Barbier)
+        boolean isBarberOwner = false;
+        if (booking.getBarber() != null && booking.getBarber().getUser() != null) {
+            // ✅ C'est ici que la correction magique opère : on compare User ID vs User ID
+            isBarberOwner = booking.getBarber().getUser().getId().equals(userId);
         }
 
+        // Si ni Admin, ni Propriétaire -> Dehors
+        if (!isAdmin && !isBarberOwner) {
+            log.warn("Tentative non autorisée de terminaison par User ID {} sur Booking ID {}", userId, bookingId);
+            throw new InvalideEntityException("Action non autorisée. Droits insuffisants.");
+        }
+        // ------------------------
+
+        // Vérification du statut (Logique métier)
         if (booking.getStatus() != BookingStatus.CONFIRMED) {
-            throw new InvalideEntityException("Le RDV doit être confirmé avant d'être terminé.");
+            // L'Admin a le droit de forcer la fermeture même si c'était pas confirmé (ex:
+            // rattrapage d'erreur)
+            if (!isAdmin) {
+                throw new InvalideEntityException("Le RDV doit être confirmé avant d'être terminé.");
+            }
         }
 
+        // Action principale
         booking.setStatus(BookingStatus.COMPLETED);
+        booking.setUpdatedAt(LocalDateTime.now());
 
-        // Paiement Auto (Cash)
-        if (booking.getPaymentMethod() == PaymentMethod.CASH && booking.getPaymentStatus() == PaymentStatus.PENDING) {
+        // --- LOGIQUE PAIEMENT (Spécifique à Complete) ---
+        // Si c'est du Cash et que ce n'est pas encore noté payé, on le valide auto
+        if (booking.getPaymentMethod() == PaymentMethod.CASH &&
+                booking.getPaymentStatus() == PaymentStatus.PENDING) {
             booking.setPaymentStatus(PaymentStatus.PAID);
         }
 
         Booking saved = bookingRepository.save(booking);
 
-        // Notif Client (Demande avis)
+        // Notification
         notifyChange(saved, "BOOKING_COMPLETED", "Merci pour votre visite ⭐",
                 "N'oubliez pas de noter votre prestation !");
 
         return mapToDto(saved);
     }
-
     // ========================================================================
     // 🔍 5. LECTURE & HELPERS
     // ========================================================================
 
     @Override
-    @Cacheable(value = "bookings", key = "#id")
+    // @Cacheable(value = "bookings", key = "#id")
     public BookingDto findById(Long id) {
-        return bookingRepository.findById(id).map(this::mapToDto)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+        Booking booking = bookingRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + id));
+        return mapToDto(booking);
     }
 
     // ... (Vos autres méthodes findByClientId, findByBarberId restent identiques,
@@ -390,7 +493,12 @@ public class BookingServiceImpl implements BookingService {
     public List<BookingDto> findByClientId(Long clientId) {
         if (clientId == null)
             return List.of();
-        return bookingRepository.findByClient_Id(clientId).stream().map(this::mapToDto).toList();
+
+        // ✅ Utilisation de la version optimisée avec JOIN FETCH
+        return bookingRepository.findByClientIdWithDetails(clientId)
+                .stream()
+                .map(this::mapToDto)
+                .toList();
     }
 
     @Override
@@ -399,6 +507,7 @@ public class BookingServiceImpl implements BookingService {
     } // À éviter en prod sur grosse table
 
     @Override
+    @LogActivity(action = "DELETE_BOOKING", entityName = "Booking")
     public void delete(Long id) {
         bookingRepository.deleteById(id);
     }
@@ -419,8 +528,14 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public List<BookingDto> findByBarberIdBetweenDates(Long b, LocalDateTime s, LocalDateTime e) {
-        return List.of();
+    public List<BookingDto> findByBarberIdBetweenDates(Long barberId, LocalDateTime start, LocalDateTime end) {
+        // On force l'appel à la base de données
+        List<Booking> bookings = bookingRepository.findAllBetweenDatesAndBarberId(start, end, barberId);
+
+        // On transforme en DTO
+        return bookings.stream()
+                .map(this::mapToDto)
+                .toList();
     }
 
     @Override
@@ -450,6 +565,11 @@ public class BookingServiceImpl implements BookingService {
     private Booking getBookingOrThrow(Long id) {
         return bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Réservation introuvable (ID: " + id + ")"));
+    }
+
+    private ApplicationUser getUserOrThrow(Long userId) {
+        return applicationUserRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Utilisateur non trouvé (ID: " + userId + ")"));
     }
 
     private ApplicationUser getCurrentUser() {
@@ -485,8 +605,12 @@ public class BookingServiceImpl implements BookingService {
                     ? booking.getBarber().getUser().getId() // Pour le barbier
                     : booking.getClient().getUser().getId(); // Pour le client
 
-            NotificationMessageDto msgDto = new NotificationMessageDto(
-                    targetUserId, title, body, eventType, booking.getId());
+            NotificationMessageDto msgDto = NotificationMessageDto.builder()
+                    .userId(targetUserId)
+                    .title(title)
+                    .body(body)
+                    .referenceId(booking.getId())
+                    .build();
 
             String payload = objectMapper.writeValueAsString(msgDto);
 
@@ -511,31 +635,8 @@ public class BookingServiceImpl implements BookingService {
     }
 
     private BookingDto mapToDto(Booking b) {
-        BookingDto dto = BookingDto.builder()
-                .id(b.getId())
-                .clientId(b.getClient().getId())
-                .barberId(b.getBarber().getId())
-                .serviceId(b.getBarberService().getId())
-                .startAt(b.getStartAt())
-                .endAt(b.getEndAt())
-                .status(b.getStatus())
-                .totalPrice(b.getTotalPrice())
-                .notes(b.getNotes())
-                .createdAt(b.getCreatedAt())
-                .paymentMethod(b.getPaymentMethod())
-                .paymentStatus(b.getPaymentStatus())
-                .build();
-
-        // Enrichissement rapide
-        if (b.getBarber() != null)
-            dto.setSalonName(b.getBarber().getSalonName());
-        if (b.getBarberService() != null)
-            dto.setServiceName(b.getBarberService().getName());
-        if (b.getClient() != null) {
-            dto.setClientFirstName(b.getClient().getFirstName());
-            dto.setClientLastName(b.getClient().getLastName());
-        }
-        return dto;
+        // On délègue le travail à notre méthode "Indestructible" située dans la classe
+        // DTO
+        return BookingDto.fromEntity(b);
     }
-
 }

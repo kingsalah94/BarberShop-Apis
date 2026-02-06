@@ -1,29 +1,24 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
+import com.salahtech.BarberShop_Apis.Services.Implementations.FileStorageService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BarberServices;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType; // IMPORTANT
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile; // IMPORTANT
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -35,32 +30,54 @@ import java.util.List;
 public class BarberController {
 
     private final BarberServices barberService;
-    // ❌ Suppression de BarberRepository : Le contrôleur ne doit pas toucher la BDD
+    private final FileStorageService fileStorageService;
 
     // ======= CRUD =======
 
-    @Operation(summary = "Créer un profil barbier (Admin ou User)")
-    @PostMapping
-    @PreAuthorize("isAuthenticated()") // Sécurisé
-    public ResponseEntity<BarberDto> create(@Valid @RequestBody BarberDto dto) {
-        // La vérification "User a déjà un profil" DOIT être dans barberService.save()
-        // Le contrôleur ne fait que passer le plat.
-        BarberDto saved = barberService.save(dto);
+    @Operation(summary = "Créer un profil barbier (Admin ou User) avec Image")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // ✅ Consumes Multipart
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BarberDto> create(
+            @RequestPart("barber") @Valid BarberDto dto, // ✅ RequestPart pour le JSON
+            @RequestPart(value = "file", required = false) MultipartFile file // ✅ RequestPart pour le Fichier
+    ) {
+        String imageUrl = null;
+        if (file != null && !file.isEmpty()) {
+            imageUrl = fileStorageService.storeFile(file);
+        }
+        // On appelle la méthode create du service (pas save générique)
+        BarberDto saved = barberService.create(dto, imageUrl);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    @Operation(summary = "Mettre à jour un barbier")
-    @PutMapping("/update/{id}")
+    @Operation(summary = "Mettre à jour un barbier avec Image")
+    @PutMapping(value = "/update/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // ✅ Consumes Multipart
     @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
-    public ResponseEntity<BarberDto> update(@PathVariable Long id, @Valid @RequestBody BarberDto dto) {
+    public ResponseEntity<BarberDto> update(
+            @PathVariable Long id,
+            @RequestPart("barber") @Valid BarberDto dto, // ✅ RequestPart JSON
+            @RequestPart(value = "file", required = false) MultipartFile file // ✅ RequestPart Fichier
+    ) {
+        String newImageUrl = null;
         dto.setId(id);
-        return ResponseEntity.ok(barberService.save(dto));
+        if (file != null && !file.isEmpty()) {
+            newImageUrl = fileStorageService.storeFile(file);
+        }
+        // On appelle la méthode update du service
+        return ResponseEntity.ok(barberService.update(id, dto, newImageUrl));
     }
+
+    // ... Le reste (GET, DELETE, SEARCH) ne change pas ...
 
     @Operation(summary = "Trouver un barbier par ID")
     @GetMapping("/{id}")
     public ResponseEntity<BarberDto> findById(@PathVariable Long id) {
         return ResponseEntity.ok(barberService.findById(id));
+    }
+
+    @GetMapping("/by-user/{userId}")
+    public ResponseEntity<BarberDto> getBarberByUserId(@PathVariable Long userId) {
+        return ResponseEntity.ok(barberService.findBarberByUserId(userId));
     }
 
     @Operation(summary = "Supprimer un barbier")
@@ -70,8 +87,6 @@ public class BarberController {
         barberService.delete(id);
         return ResponseEntity.noContent().build();
     }
-
-    // ======= RECHERCHES (Lectures Publiques) =======
 
     @GetMapping
     public ResponseEntity<List<BarberDto>> findAll() {
@@ -104,5 +119,4 @@ public class BarberController {
             @ParameterObject @PageableDefault(size = 12) Pageable pageable) {
         return ResponseEntity.ok(barberService.findBySalonName(q, pageable));
     }
-
 }

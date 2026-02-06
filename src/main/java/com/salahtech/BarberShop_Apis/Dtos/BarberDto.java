@@ -6,6 +6,8 @@ import lombok.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -13,12 +15,13 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class BarberDto {
+public class BarberDto implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     private Long id;
 
-    private Long userId; // on passe l’ID, pas l’entité
-    private ApplicationUserDto userDto; // lecture seule si tu veux renvoyer info user
+    private Long userId;
+    private ApplicationUserDto userDto;
 
     @NotNull
     @Size(min = 2, max = 100)
@@ -30,7 +33,7 @@ public class BarberDto {
 
     private BigDecimal latitude;
     private BigDecimal longitude;
-    private Double distance; // La distance en km par rapport au client
+    private Double distance;
 
     private Integer experience;
     private BigDecimal rating;
@@ -39,7 +42,7 @@ public class BarberDto {
     @Size(max = 1000)
     private String description;
 
-    private String specialties; // JSON
+    private String specialties;
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal priceFrom;
 
@@ -54,12 +57,15 @@ public class BarberDto {
     private String userFirstName;
     private String userLastName;
     private String userEmail;
+
+    // C'est l'image du Barbier (Salon)
     private String profilePicture;
 
     public static BarberDto fromEntity(Barber b) {
         if (b == null)
             return null;
         var u = b.getUser();
+
         return BarberDto.builder()
                 .id(b.getId())
                 .salonName(b.getSalonName())
@@ -77,18 +83,22 @@ public class BarberDto {
                 .totalReviews(b.getTotalReviews())
                 .createdAt(b.getCreatedAt())
                 .updatedAt(b.getUpdatedAt())
+                .experience(b.getExperience()) // N'oublie pas l'expérience
+
+                // Info User
                 .userId(u != null ? u.getId() : null)
                 .userFirstName(u != null ? u.getFirstName() : null)
                 .userLastName(u != null ? u.getLastName() : null)
                 .userEmail(u != null ? u.getEmail() : null)
-                .profilePicture(u != null ? u.getProfileImageUrl() : null)
+
+                // ✅ CORRECTION ICI : On prend l'image du Barbier, pas celle du User
+                // Si le barbier n'a pas d'image, on peut fallback sur le user ou laisser null
+                .profilePicture(b.getProfileImageUrl() != null ? b.getProfileImageUrl()
+                        : (u != null ? u.getProfileImageUrl() : null))
+
                 .build();
     }
 
-    /**
-     * ⚠️ Ne rattache pas user ici. Laisse le service charger l’ApplicationUser par
-     * userId.
-     */
     public static Barber toEntity(BarberDto dto) {
         if (dto == null)
             return null;
@@ -106,7 +116,9 @@ public class BarberDto {
         b.setPriceFrom(dto.getPriceFrom());
         b.setAvailable(dto.getAvailable());
         b.setWorkingHours(dto.getWorkingHours());
-        // user + dates gérés par service/JPA
+        b.setExperience(dto.getExperience());
+
+        // Note: profileImageUrl est géré par le service via l'argument String, pas ici
         return b;
     }
 }

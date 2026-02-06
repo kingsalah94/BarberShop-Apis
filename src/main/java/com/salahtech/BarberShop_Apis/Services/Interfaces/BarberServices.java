@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberFullProfileDto;
@@ -35,4 +36,10 @@ public interface BarberServices {
     List<BarberDto> findNearby(double lat, double lng, double radiusInKm);
 
     BarberFullProfileDto getBarberFullProfile(Long barberId, Long currentClientId);
+
+    BarberDto create(BarberDto dto, String imageUrl);
+
+    BarberDto update(Long id, BarberDto dto, String newImageUrl);
+
+    BarberDto findBarberByUserId(Long userId);
 }

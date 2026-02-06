@@ -1,5 +1,6 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
+import com.salahtech.BarberShop_Apis.AOP.LogActivity; // 👈 IMPORT IMPORTANT
 import com.salahtech.BarberShop_Apis.Dtos.*;
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
@@ -25,11 +26,9 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +53,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     // ========================================================================
 
     @Override
+    // Pas de @LogActivity ici car le LoginAuditListener s'en charge déjà
     public AuthResponseDTO login(AuthRequestDTO authRequest) {
         Authentication auth = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(authRequest.getEmail(), authRequest.getPassword()));
@@ -63,11 +63,9 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
 
         validateUserStatus(user);
 
-        // Génération Tokens
         String accessToken = jwtUtil.generateAccessToken(principal);
         String refreshToken = jwtUtil.generateRefreshToken(principal);
 
-        // ✅ FIX: Supprimer l'ancien token AVANT de sauvegarder le nouveau
         saveRefreshToken(user, refreshToken);
 
         user.setLastLogin(LocalDateTime.now());
@@ -82,6 +80,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     @Override
+    @LogActivity(action = "REGISTER", entityName = "User") // ✅ AUDIT
     public AuthResponseDTO register(RegisterRequestDTO req) {
         if (userRepository.existsByEmail(req.getEmail())) {
             throw new BadRequestException("Un compte avec cet email existe déjà");
@@ -98,6 +97,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         u.setIsVerified(false);
         u.setVerificationToken(UUID.randomUUID().toString());
         u.setProvider(AuthProvider.LOCAL);
+        u.setMustChangePassword(true);
 
         ApplicationUserType type = req.getUserType() != null ? req.getUserType() : ApplicationUserType.CLIENT;
         u.setUserType(type);
@@ -114,7 +114,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             log.warn("Erreur envoi email verif: {}", e.getMessage());
         }
 
-        // Auto-login après register
         String accessToken = jwtUtil.generateAccessToken(u);
         String refreshToken = jwtUtil.generateRefreshToken(u);
         saveRefreshToken(u, refreshToken);
@@ -124,7 +123,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                 refreshToken,
                 jwtUtil.getAccessTokenExpiration(),
                 convertToUserDTO(u),
-                false);
+                true);
     }
 
     @Override
@@ -144,7 +143,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             throw new BadRequestException("Refresh token expiré");
         }
 
-        // ✅ Rotation du token: supprimer l'ancien
         refreshTokenRepository.delete(stored);
 
         String newAccess = jwtUtil.generateAccessToken(u);
@@ -160,6 +158,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     @Override
+    @LogActivity(action = "LOGOUT", entityName = "Session") // ✅ AUDIT
     public void logout(String refreshToken) {
         if (refreshToken != null) {
             refreshTokenRepository.findByToken(refreshToken)
@@ -172,6 +171,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     // ========================================================================
 
     @Override
+    @LogActivity(action = "UPDATE", entityName = "User") // ✅ AUDIT
     public ApplicationUserDto updateMe(String email, UpdateProfileRequest req) {
         ApplicationUser user = getUserByEmailOrThrow(email);
 
@@ -184,7 +184,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         if (req.getPreferences() != null)
             user.setPreferences(req.getPreferences());
 
-        // ✅ MISE A JOUR AVEC SYNCHRONISATION
         if (req.getProfileImageUrl() != null) {
             updateProfileImageAcrossEntities(user, req.getProfileImageUrl());
         }
@@ -194,38 +193,26 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     @Override
+    @LogActivity(action = "UPDATE_AVATAR", entityName = "User") // ✅ AUDIT
     public ApplicationUserDto updateAvatar(Long userId, String fileUrl) {
         ApplicationUser user = getUserByIdOrThrow(userId);
-
-        // ✅ MISE A JOUR AVEC SYNCHRONISATION
         updateProfileImageAcrossEntities(user, fileUrl);
-
         ApplicationUser saved = userRepository.save(user);
         return convertToUserDTO(saved);
     }
 
-    /**
-     * 🛠️ Helper pour synchroniser l'image entre User, Client et Barber
-     */
     private void updateProfileImageAcrossEntities(ApplicationUser user, String imageUrl) {
-        // 1. Update User
         user.setProfileImageUrl(imageUrl);
-
-        // 2. Update Client (si existe)
         if (user.getClient() != null) {
             user.getClient().setProfileImageUrl(imageUrl);
-            // clientRepository.save(user.getClient()); // Optionnel grâce au Cascade, mais
-            // plus sûr
         }
-
-        // 3. Update Barber (si existe)
         if (user.getBarber() != null) {
             user.getBarber().setProfileImageUrl(imageUrl);
-            // barberRepository.save(user.getBarber()); // Optionnel grâce au Cascade
         }
     }
 
     @Override
+    @LogActivity(action = "CHANGE_PASSWORD", entityName = "User") // ✅ AUDIT
     public void changePassword(ChangePasswordRequest request) {
         ApplicationUser user = getUserByEmailOrThrow(request.getEmail());
 
@@ -241,11 +228,11 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         user.setMustChangePassword(false);
         userRepository.save(user);
 
-        // ✅ Sécurité : déconnexion de tous les appareils
         refreshTokenRepository.deleteByUser(user);
     }
 
     @Override
+    @LogActivity(action = "REQUEST_PASSWORD_RESET", entityName = "User") // ✅ AUDIT
     public void forgotPassword(String email) {
         ApplicationUser u = getUserByEmailOrThrow(email);
 
@@ -262,6 +249,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     @Override
+    @LogActivity(action = "RESET_PASSWORD", entityName = "User") // ✅ AUDIT
     public void resetPassword(String token, String newPassword) {
         ApplicationUser u = userRepository.findByResetPasswordToken(token)
                 .orElseThrow(() -> new BadRequestException("Token invalide"));
@@ -276,7 +264,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         u.setMustChangePassword(false);
         userRepository.save(u);
 
-        // ✅ Force reconnexion
         refreshTokenRepository.deleteByUser(u);
     }
 
@@ -288,6 +275,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     @Override
+    @LogActivity(action = "VERIFY_EMAIL", entityName = "User") // ✅ AUDIT
     public void verifyEmail(String token) {
         ApplicationUser u = userRepository.findByVerificationToken(token)
                 .orElseThrow(() -> new BadRequestException("Token invalide"));
@@ -308,6 +296,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     // ========================================================================
 
     @Override
+    @LogActivity(action = "CREATE_ADMIN", entityName = "User") // ✅ AUDIT
     public ApplicationUser registerSystemAdmin(ApplicationUser user) {
         if (userRepository.existsByEmail(user.getEmail())) {
             return userRepository.findByEmail(user.getEmail()).orElseThrow();
@@ -330,6 +319,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     @Override
+    @LogActivity(action = "SOCIAL_LOGIN", entityName = "User") // ✅ AUDIT (Creation via Google/FB)
     public ApplicationUser findByEmailOrCreate(String email, String name, AuthProvider provider, String providerId) {
         Optional<ApplicationUser> existing = userRepository.findByEmail(email);
         if (existing.isPresent()) {
@@ -357,7 +347,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     }
 
     // ========================================================================
-    // 🛠️ HELPER METHODS (PRIVATE)
+    // 🛠️ HELPER METHODS
     // ========================================================================
 
     private ApplicationUser getUserByEmailOrThrow(String email) {
@@ -376,41 +366,15 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         }
     }
 
-    /**
-     * ✅ FIX: Supprime l'ancien refresh token avant d'en créer un nouveau
-     * Cela évite l'erreur: duplicate key value violates unique constraint
-     * "refresh_tokens_user_id_key"
-     */
-    // private void saveRefreshToken(ApplicationUser user, String tokenValue) {
-    // // Supprimer l'ancien token s'il existe
-    // refreshTokenRepository.findByUser(user).ifPresent(oldToken -> {
-    // log.debug("Suppression de l'ancien refresh token pour user_id={}",
-    // user.getId());
-    // refreshTokenRepository.delete(oldToken);
-    // });
-
-    // // Créer et sauvegarder le nouveau token
-    // RefreshToken rt = new RefreshToken(
-    // tokenValue,
-    // user,
-    // LocalDateTime.now().plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000));
-    // refreshTokenRepository.save(rt);
-
-    // log.debug("Nouveau refresh token créé pour user_id={}", user.getId());
-    // }
     private void saveRefreshToken(ApplicationUser user, String tokenValue) {
-        // 1. Chercher si un token existe déjà pour cet utilisateur
         RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
-                .orElseGet(RefreshToken::new); // Si non, on crée une instance vide
+                .orElseGet(RefreshToken::new);
 
-        // 2. Mettre à jour les données (que ce soit un nouveau ou un ancien)
         refreshToken.setToken(tokenValue);
         refreshToken.setUser(user);
         refreshToken.setExpiryDate(LocalDateTime.now().plusSeconds(jwtUtil.getRefreshTokenExpiration() / 1000));
 
-        // 3. Sauvegarder (JPA fera un UPDATE si l'ID existe, sinon un INSERT)
         refreshTokenRepository.save(refreshToken);
-
         log.debug("Refresh token mis à jour pour user_id={}", user.getId());
     }
 
@@ -442,7 +406,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                     .lastName(user.getLastName())
                     .email(user.getEmail())
                     .phone(user.getPhone())
-                    // ✅ CORRECTION : On prend l'image du USER (pas une nouvelle génération)
                     .profileImageUrl(user.getProfileImageUrl())
                     .build();
             clientRepository.save(client);
@@ -458,7 +421,6 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                     .salonName("À configurer")
                     .available(false)
                     .priceFrom(BigDecimal.ZERO)
-                    // ✅ CORRECTION : On prend l'image du USER
                     .profileImageUrl(user.getProfileImageUrl())
                     .build();
             barberRepository.save(barber);

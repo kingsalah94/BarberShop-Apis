@@ -23,4 +23,6 @@ public interface ReviewService {
      */
     void deleteReview(Long reviewId, Long clientId);
 
+    ReviewResponseDto replyToReview(Long reviewId, Long barberUserId, String replyText);
+
 }

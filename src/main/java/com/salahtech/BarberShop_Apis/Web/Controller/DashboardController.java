@@ -7,13 +7,17 @@ import com.salahtech.BarberShop_Apis.Dtos.TimePointLongDto;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.DashboardService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
+import com.salahtech.BarberShop_Apis.models.Barber;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -27,6 +31,7 @@ import java.util.Map;
 public class DashboardController {
 
     private final DashboardService service;
+    private final BarberRepository barberRepository; // ✅ Injection ajoutée
 
     @Operation(summary = "Statistiques Globales (Admin) ou Personnelles (Barber)")
     @GetMapping("/stats")
@@ -79,11 +84,20 @@ public class DashboardController {
         return ResponseEntity.ok(service.getStatusBreakdown(barberId, from, to));
     }
 
-    // --- Helper Privé ---
+    // --- Helper Privé Corrigé ---
     private Long determineTargetId(ApplicationUser user) {
+        // 1. Si c'est un ADMIN, on renvoie null (pour dire "Global")
         boolean isAdmin = user.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"));
-        // Si Admin -> null (veut dire "global" pour le service)
-        // Si Barber -> renvoie son ID
-        return isAdmin ? null : user.getId();
+        if (isAdmin) {
+            return null;
+        }
+
+        // 2. Si c'est un BARBER (ou autre), on DOIT chercher son entité Barber
+        // Car l'ID de l'User (ex: 10) n'est pas le même que l'ID du Barbier (ex: 5)
+        return barberRepository.findByUser_Id(user.getId())
+                .map(Barber::getId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Aucun profil barbier associé à ce compte utilisateur."));
     }
 }

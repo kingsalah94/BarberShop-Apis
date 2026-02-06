@@ -2,6 +2,7 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import com.salahtech.BarberShop_Apis.Dtos.ReviewRequestDto;
 import com.salahtech.BarberShop_Apis.Dtos.ReviewResponseDto;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -147,6 +149,8 @@ public class ReviewServiceImpl implements ReviewService {
                 .photos(convertJsonToList(r.getPhotos()))
                 .tipAmount(r.getTipAmount())
                 .createdAt(r.getCreatedAt())
+                .barberReply(r.getBarberReply())
+                .repliedAt(r.getRepliedAt())
                 .build();
     }
 
@@ -170,4 +174,43 @@ public class ReviewServiceImpl implements ReviewService {
             return new ArrayList<>();
         }
     }
+
+    // 1. La méthode de réponse
+    @Override
+    @Transactional
+    @LogActivity(action = "REPLY_TO_REVIEW", entityName = "Review")
+    public ReviewResponseDto replyToReview(Long reviewId, Long barberUserId, String replyText) {
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResourceNotFoundException("Avis introuvable"));
+
+        // Sécurité : Vérifier que c'est bien le barbier concerné qui répond
+        if (!review.getBarber().getUser().getId().equals(barberUserId)) {
+            throw new InvalideEntityException("Vous ne pouvez pas répondre à un avis qui ne vous concerne pas.");
+        }
+
+        review.setBarberReply(replyText);
+        review.setRepliedAt(LocalDateTime.now());
+
+        Review saved = reviewRepository.save(review);
+        return mapToDto(saved);
+    }
+
+    // 2. Mise à jour du Mapper existant (mapToDto)
+    // private ReviewResponseDto mapToDto(Review r) {
+    // return ReviewResponseDto.builder()
+    // .id(r.getId())
+    // // ... tes champs existants ...
+    // .clientName(r.getClient().getUser().getFirstName() + " " +
+    // r.getClient().getUser().getLastName())
+    // .clientAvatar(r.getClient().getUser().getProfileImageUrl())
+    // .barberId(r.getBarber().getId())
+    // .overallRating(r.getOverallRating())
+    // .comment(r.getComment())
+    // .tags(convertJsonToList(r.getTags()))
+    // .createdAt(r.getCreatedAt())
+    // // ✅ AJOUTS
+    // .barberReply(r.getBarberReply())
+    // .repliedAt(r.getRepliedAt())
+    // .build();
+    // }
 }

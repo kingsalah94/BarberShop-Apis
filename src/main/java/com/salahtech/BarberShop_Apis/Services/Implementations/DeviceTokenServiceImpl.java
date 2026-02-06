@@ -1,5 +1,6 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import com.salahtech.BarberShop_Apis.Dtos.DeviceTokenDto;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService;
@@ -100,6 +101,7 @@ public class DeviceTokenServiceImpl implements DeviceTokenService {
      * - sinon on en crée un nouveau.
      */
     @Override
+    @LogActivity(action = "CREATE_DEVICE_TOKEN", entityName = "DeviceToken")
     public void saveDeviceToken(Long userId, String token, DeviceType deviceType) {
         try {
             ApplicationUser user = userRepository.findById(userId)

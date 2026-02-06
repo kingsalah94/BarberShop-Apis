@@ -159,6 +159,7 @@ public class UserAdminServiceImpl implements UserAdminService {
         user.setPassword(passwordEncoder.encode(effectivePassword));
         user.setCreatedAt(LocalDateTime.now());
         user.setProvider(AuthProvider.LOCAL);
+        user.setMustChangePassword(true);
 
         ApplicationUserType userType = dto.getUserType() != null ? dto.getUserType() : ApplicationUserType.CLIENT;
         user.setUserType(userType);

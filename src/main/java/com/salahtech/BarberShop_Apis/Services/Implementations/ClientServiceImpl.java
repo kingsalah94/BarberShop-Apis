@@ -1,6 +1,8 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.salahtech.BarberShop_Apis.Dtos.ClientDto;
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
+import com.salahtech.BarberShop_Apis.Dtos.BarberClientSummaryDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
 import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
@@ -65,6 +67,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @Transactional
+    @LogActivity(action = "CREATE_CLIENT", entityName = "Client")
     public ClientDto save(ClientDto dto) {
         log.info("Saving client: {}", dto.getEmail());
 
@@ -115,6 +118,7 @@ public class ClientServiceImpl implements ClientService {
     // 🟢 CRÉATION
     // ==========================================
     @Override
+    @LogActivity(action = "CREATE_CLIENT_WITH_FILE", entityName = "Client")
     public ClientDto create(ClientDto dto, MultipartFile file) {
         // 1. Vérifier si l'email existe déjà
         if (userRepository.existsByEmail(dto.getEmail())) {
@@ -180,6 +184,7 @@ public class ClientServiceImpl implements ClientService {
     // 🟠 MISE À JOUR
     // ==========================================
     @Override
+    @LogActivity(action = "UPDATE_CLIENT", entityName = "Client")
     public ClientDto update(Long id, ClientDto dto, MultipartFile file) {
         // 1. Récupérer le Client
         Client client = clientRepository.findById(id)
@@ -269,6 +274,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @Transactional
+    @LogActivity(action = "DELETE_CLIENT", entityName = "Client")
     public void delete(Long id) {
         if (!clientRepository.existsById(id)) {
             throw new ResourceNotFoundException("Client non trouvé avec l'ID: " + id);
@@ -349,6 +355,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @Transactional
+    @LogActivity(action = "UPDATE_PREFERENCES", entityName = "Client")
     public ClientDto updatePreferences(Long clientId, String preferences) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client non trouvé"));
@@ -358,6 +365,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @Transactional
+    @LogActivity(action = "UPDATE_NOTES", entityName = "Client")
     public ClientDto updateNotes(Long clientId, String notes) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client non trouvé"));
@@ -367,6 +375,7 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     @Transactional
+    @LogActivity(action = "UPDATE_CONTACT", entityName = "Client")
     public ClientDto updateContact(Long clientId, String email, String phone) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client non trouvé"));
@@ -516,7 +525,8 @@ public class ClientServiceImpl implements ClientService {
      * Update client profile
      */
     @Override
-    @Transactional // ✅ Important pour la modification
+    @Transactional
+    @LogActivity(action = "UPDATE_CLIENT_PROFILE", entityName = "Client")
     public ClientProfileDto updateClientProfile(Long clientId, UpdateClientDto updateDto) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"));
@@ -633,6 +643,7 @@ public class ClientServiceImpl implements ClientService {
      */
     @Override
     @Transactional
+    @LogActivity(action = "ADD_FAVORITE", entityName = "Client")
     public void addFavorite(Long clientId, Long barberId) {
         // Check if already favorited
         if (clientFavoriteRepository.existsByClientIdAndBarberId(clientId, barberId)) {
@@ -659,6 +670,7 @@ public class ClientServiceImpl implements ClientService {
      */
     @Override
     @Transactional
+    @LogActivity(action = "REMOVE_FAVORITE", entityName = "Client")
     public void removeFavorite(Long clientId, Long barberId) {
         if (!clientRepository.existsById(clientId)) {
             throw new ResourceNotFoundException("Client non trouvé: " + clientId);
@@ -718,6 +730,50 @@ public class ClientServiceImpl implements ClientService {
                 .filter(Objects::nonNull) // sécurité
                 .map(BarberDto::fromEntity) // mapping manuel
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ClientDto> getClientsByBarberId(Long barberId) {
+        List<Client> clients = clientRepository.findClientsByBarberId(barberId);
+
+        // On mappe vers DTO
+        return clients.stream().map(client -> {
+            ClientDto dto = ClientDto.fromEntity(client);
+
+            // BONUS : On peut injecter des stats spécifiques à ce barbier ici si on veut
+            // Ex: combien de fois ce client est venu chez CE barbier
+            long visits = client.getBookings().stream()
+                    .filter(b -> b.getBarber().getId().equals(barberId) && b.getStatus() == BookingStatus.COMPLETED)
+                    .count();
+
+            // On peut utiliser un champ transient dans le DTO ou juste renvoyer le client
+            // brut
+            // Pour l'instant on renvoie le client standard
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<BarberClientSummaryDto> getBarberClientsSummary(Long barberId) {
+        return clientRepository.findClientSummariesByBarberId(barberId);
+    }
+
+    @Override
+    public List<ClientDto> getRegularClientsByBarberId(Long barberId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getRegularClientsByBarberId'");
+    }
+
+    @Override
+    public Long countNewClientsSince(LocalDateTime date) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'countNewClientsSince'");
+    }
+
+    @Override
+    public Long countActiveClientsSince(LocalDateTime date) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'countActiveClientsSince'");
     }
 
 }

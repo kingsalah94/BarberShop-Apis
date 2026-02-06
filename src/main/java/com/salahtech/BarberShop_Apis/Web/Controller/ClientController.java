@@ -168,4 +168,16 @@ public class ClientController {
             @RequestBody Map<String, String> body) {
         return ResponseEntity.ok(clientService.updateNotes(clientId, body.get("notes")));
     }
+
+    @GetMapping("/barber/{barberId}")
+    @PreAuthorize("hasAnyRole('BARBER', 'ADMIN')")
+    public ResponseEntity<List<ClientDto>> getBarberClients(@PathVariable Long barberId) {
+        return ResponseEntity.ok(clientService.getClientsByBarberId(barberId));
+    }
+
+    //
+    @GetMapping("/barber/{barberId}/summary")
+    public ResponseEntity<List<BarberClientSummaryDto>> getBarberClientsSummary(@PathVariable Long barberId) {
+        return ResponseEntity.ok(clientService.getBarberClientsSummary(barberId));
+    }
 }

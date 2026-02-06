@@ -75,7 +75,7 @@ public class SecurityConfig {
             "/v1/oauth2/**",
             "/v1/files/**",
             "/v1/settings/**",
-            "/api/uploads/**",
+            "/uploads/**",
 
             // springdoc (toujours sans le context-path dans les matchers)
             "/v3/api-docs/**",
@@ -105,6 +105,9 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/v1/auth/**").permitAll() // Tes autres routes publiques
                         .requestMatchers("/v1/settings/**").permitAll() // La config qu'on a faite avant
+                        .requestMatchers(HttpMethod.GET, "/v1/availabilities/slots").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/availabilities/day").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/v1/availabilities/slot/check").permitAll()
                         // Exemples par rôle
                         .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
                         .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
@@ -152,7 +155,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.List.of("http://localhost:4200"));
+        configuration.setAllowedOrigins(java.util.List.of("http://localhost:4200", "http://localhost:8100"));
+        // configuration.setAllowedOrigins(java.util.List.of());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

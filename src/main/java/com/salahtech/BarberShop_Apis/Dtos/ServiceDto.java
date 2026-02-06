@@ -5,6 +5,7 @@ import com.salahtech.BarberShop_Apis.models.BarberService;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -12,8 +13,9 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ServiceDto {
+public class ServiceDto implements Serializable {
 
+    private static final long serialVersionUID = 1L;
     private Long id;
 
     @NotNull
@@ -36,14 +38,18 @@ public class ServiceDto {
     @Min(1)
     private Integer duration;
 
-    @NotNull
-    private ServiceCategory category;
+    // @NotNull
+    // private ServiceCategory category;
 
     @Builder.Default
     private Boolean active = true;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    private Long categoryId; // ✅ AJOUTER pour l'écriture (création)
+    private String categoryName; // ✅ AJOUTER pour la lecture (affichage)
+    private String categoryIcon; // ✅ AJOUTER pour l'affichage mobile
 
     // Lecture
     private String barberName;
@@ -88,7 +94,10 @@ public class ServiceDto {
                 .description(s.getDescription())
                 .price(s.getPrice())
                 .duration(s.getDuration())
-                .category(s.getCategory())
+                // .category(s.getCategory())
+                .categoryId(s.getCategory().getId())
+                .categoryName(s.getCategory().getName())
+                .categoryIcon(s.getCategory().getIcon())
                 .active(s.getActive())
                 .createdAt(s.getCreatedAt())
                 .updatedAt(s.getUpdatedAt())
@@ -99,10 +108,15 @@ public class ServiceDto {
                 .rating(0.0)
                 .build();
 
-        if (s.getBarber() != null) {
-            dto.setBarberId(s.getBarber().getId());
-            dto.setBarberName(s.getBarber().getName());
-            dto.setSalonName(s.getBarber().getSalonName());
+        // if (s.getBarber() != null) {
+        // dto.setBarberId(s.getBarber().getId());
+        // dto.setBarberName(s.getBarber().getName());
+        // dto.setSalonName(s.getBarber().getSalonName());
+        // }
+        if (s.getCategory() != null) {
+            dto.setCategoryId(s.getCategory().getId());
+            dto.setCategoryName(s.getCategory().getName());
+            dto.setCategoryIcon(s.getCategory().getIcon());
         }
 
         return dto;
@@ -118,7 +132,7 @@ public class ServiceDto {
         s.setDescription(dto.getDescription());
         s.setPrice(dto.getPrice());
         s.setDuration(dto.getDuration());
-        s.setCategory(dto.getCategory());
+        // s.setCategory(dto.getCategory());
         s.setActive(dto.getActive());
         s.setImageUrl(dto.getImageUrl());
         // barber + dates gérés par service/JPA

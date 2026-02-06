@@ -1,6 +1,7 @@
 package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Config.CurrentUser;
+import com.salahtech.BarberShop_Apis.Dtos.ReplyRequestDto;
 import com.salahtech.BarberShop_Apis.Dtos.ReviewRequestDto;
 import com.salahtech.BarberShop_Apis.Dtos.ReviewResponseDto;
 import com.salahtech.BarberShop_Apis.Services.Implementations.ReviewServiceImpl;
@@ -63,5 +64,16 @@ public class ReviewController {
 
         reviewService.deleteReview(reviewId, user.getClient().getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Répondre à un avis (Barbier uniquement)")
+    @PostMapping("/{reviewId}/reply")
+    @PreAuthorize("hasAnyRole('BARBER', 'ADMIN')")
+    public ResponseEntity<ReviewResponseDto> replyToReview(
+            @CurrentUser ApplicationUser user,
+            @PathVariable Long reviewId,
+            @RequestBody @Valid ReplyRequestDto dto) {
+
+        return ResponseEntity.ok(reviewService.replyToReview(reviewId, user.getId(), dto.getReply()));
     }
 }

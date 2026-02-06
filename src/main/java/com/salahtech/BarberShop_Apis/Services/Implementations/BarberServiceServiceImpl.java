@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.BarberService;
+import com.salahtech.BarberShop_Apis.models.Category;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +17,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Dtos.ServiceStatsDto;
 import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
@@ -27,6 +29,7 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
 import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
 import com.salahtech.BarberShop_Apis.reppsitories.BarberServiceRepository;
+import com.salahtech.BarberShop_Apis.reppsitories.CategoryRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,8 +42,11 @@ public class BarberServiceServiceImpl implements ServiceService {
     private final BarberServiceRepository serviceRepository;
     private final BarberRepository barberRepo;
     private final ApplicationUserRepository userRepo;
+    private final CategoryRepository categoryRepository;
 
     @Override
+    @Transactional
+    @LogActivity(action = "CREATE_SERVICE", entityName = "Service")
     public ServiceDto save(ServiceDto dto) {
         var barber = barberRepo.findById(dto.getBarberId())
                 .orElseThrow(() -> new ResourceNotFoundException("Barber not found: " + dto.getBarberId()));
@@ -56,6 +62,7 @@ public class BarberServiceServiceImpl implements ServiceService {
 
     @Override
     @Transactional
+    @LogActivity(action = "CREATE_SERVICE", entityName = "Service")
     public ServiceDto create(ServiceDto dto, String imageUrl, ApplicationUser connectedUser) {
 
         Barber barber;
@@ -86,6 +93,17 @@ public class BarberServiceServiceImpl implements ServiceService {
         }
 
         // =========================================================================
+        // 2. RÉCUPÉRATION DE LA CATÉGORIE (Dynamique BDD)
+        // =========================================================================
+
+        if (dto.getCategoryId() == null) {
+            throw new IllegalArgumentException("La catégorie est obligatoire (categoryId manquant).");
+        }
+
+        Category category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Catégorie introuvable (ID: " + dto.getCategoryId() + ")"));
+        // =========================================================================
         // 🏗️ CRÉATION DE L'ENTITÉ
         // =========================================================================
 
@@ -98,12 +116,14 @@ public class BarberServiceServiceImpl implements ServiceService {
         serviceEntity.setBarber(barber); // ✅ Le bon barbier est assigné
         serviceEntity.setActive(true);
 
-        // Catégorie
-        if (dto.getCategory() != null) {
-            serviceEntity.setCategory(dto.getCategory());
-        } else {
-            serviceEntity.setCategory(ServiceCategory.OTHER);
-        }
+        serviceEntity.setCategory(category);
+
+        // // Catégorie
+        // if (dto.getCategory() != null) {
+        // serviceEntity.setCategory(dto.getCategory());
+        // } else {
+        // serviceEntity.setCategory(ServiceCategory.OTHER);
+        // }
 
         // Image
         if (imageUrl != null) {
@@ -117,6 +137,7 @@ public class BarberServiceServiceImpl implements ServiceService {
     }
 
     @Override
+    @LogActivity(action = "UPDATE_SERVICE", entityName = "Service")
     public ServiceDto update(Long serviceId, Long userId, ServiceDto dto, String newImageUrl) {
 
         // 1. Récupérer le service existant en base
@@ -138,17 +159,43 @@ public class BarberServiceServiceImpl implements ServiceService {
         }
 
         // 4. Mise à jour des champs standards (Texte, Prix, Durée...)
-        serviceEntity.setName(dto.getName());
-        serviceEntity.setDescription(dto.getDescription());
-        serviceEntity.setPrice(dto.getPrice());
-        serviceEntity.setDuration(dto.getDuration());
+        // serviceEntity.setName(dto.getName());
+        // serviceEntity.setDescription(dto.getDescription());
+        // serviceEntity.setPrice(dto.getPrice());
+        // serviceEntity.setDuration(dto.getDuration());
 
-        // Important : Mettre à jour le statut Actif/Inactif
-        serviceEntity.setActive(dto.getActive());
+        // // Important : Mettre à jour le statut Actif/Inactif
+        // serviceEntity.setActive(dto.getActive());
 
-        // 4. Mise à jour de la Catégorie
-        if (dto.getCategory() != null) {
-            serviceEntity.setCategory(dto.getCategory());
+        // // 4. Mise à jour de la Catégorie
+        // if (dto.getCategory() != null) {
+        // serviceEntity.setCategory(dto.getCategory());
+        // }
+
+        if (dto.getName() != null)
+            serviceEntity.setName(dto.getName());
+        if (dto.getDescription() != null)
+            serviceEntity.setDescription(dto.getDescription());
+        if (dto.getPrice() != null)
+            serviceEntity.setPrice(dto.getPrice());
+        if (dto.getDuration() != null)
+            serviceEntity.setDuration(dto.getDuration());
+        if (dto.getActive() != null)
+            serviceEntity.setActive(dto.getActive());
+
+        // =========================================================================
+        // 🏗️ MISE À JOUR DE LA CATÉGORIE (Logic dynamique)
+        // =========================================================================
+
+        if (dto.getCategoryId() != null) {
+            // On vérifie si la catégorie a changé pour éviter un appel BDD inutile
+            if (!serviceEntity.getCategory().getId().equals(dto.getCategoryId())) {
+                Category newCategory = categoryRepository.findById(dto.getCategoryId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Catégorie introuvable ID: " + dto.getCategoryId()));
+
+                serviceEntity.setCategory(newCategory);
+            }
         }
 
         // ✅ 5. LOGIQUE CRITIQUE POUR L'IMAGE
@@ -171,14 +218,23 @@ public class BarberServiceServiceImpl implements ServiceService {
 
     // Helper mapping
     private ServiceDto mapToDto(com.salahtech.BarberShop_Apis.models.BarberService s) {
-        return ServiceDto.builder()
+        ServiceDto.ServiceDtoBuilder builder = ServiceDto.builder()
                 .id(s.getId())
                 .name(s.getName())
+                .description(s.getDescription()) // N'oublie pas la description si elle existe
                 .price(s.getPrice())
                 .duration(s.getDuration())
-                .category(s.getCategory())
-                .imageUrl(s.getImageUrl()) // ✅ On renvoie l'URL au front
-                .build();
+                .imageUrl(s.getImageUrl())
+                .active(s.getActive()); // Important pour le front
+
+        // ✅ MAPPING DE LA CATÉGORIE (Entité -> Champs DTO)
+        if (s.getCategory() != null) {
+            builder.categoryId(s.getCategory().getId())
+                    .categoryName(s.getCategory().getName())
+                    .categoryIcon(s.getCategory().getIcon());
+        }
+
+        return builder.build();
     }
 
     // src/main/java/.../Services/Implementations/BarberServiceServiceImpl.java
@@ -222,6 +278,7 @@ public class BarberServiceServiceImpl implements ServiceService {
     }
 
     @Override
+    @LogActivity(action = "DELETE_SERVICE", entityName = "Service")
     public void delete(Long id) {
         if (id == null) {
             log.error("ID du service à supprimer est null.");
@@ -352,6 +409,7 @@ public class BarberServiceServiceImpl implements ServiceService {
      */
     @Override
     @Transactional
+    @LogActivity(action = "TOGGLE_SERVICE_STATUS", entityName = "Service")
     public ServiceDto toggleServiceStatus(Long id, Boolean active) {
         BarberService service = serviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Service non trouvé avec l'ID: " + id));
@@ -368,6 +426,7 @@ public class BarberServiceServiceImpl implements ServiceService {
      */
     @Override
     @Transactional
+    @LogActivity(action = "DUPLICATE_SERVICE", entityName = "Service")
     public ServiceDto duplicateService(Long id) {
         BarberService original = serviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Service non trouvé avec l'ID: " + id));

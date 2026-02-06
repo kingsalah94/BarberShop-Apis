@@ -1,8 +1,10 @@
 package com.salahtech.BarberShop_Apis.Services.Interfaces;
 
 import com.salahtech.BarberShop_Apis.Dtos.NotificationDto;
+import com.salahtech.BarberShop_Apis.Dtos.NotificationMessageDto;
 import com.salahtech.BarberShop_Apis.models.Booking;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -49,4 +51,8 @@ public interface NotificationService {
     void resendBookingReminder(Long bookingId);
 
     void resendBookingCancellation(Long bookingId);
+
+    List<NotificationMessageDto> getUserNotifications(Long userId);
+
+    void generateNotificationsFromExistingBookings(Long barberId);
 }

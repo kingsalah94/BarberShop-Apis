@@ -5,8 +5,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.salahtech.BarberShop_Apis.Enums.ServiceCategory;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -62,10 +60,13 @@ public class BarberService {
     @Column(name = "image_url")
     private String imageUrl;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ServiceCategory category;
+    // @NotNull
+    // @Enumerated(EnumType.STRING)
+    // @Column(nullable = false)
+    // private ServiceCategory category;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "barber_id", nullable = false)

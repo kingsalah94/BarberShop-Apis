@@ -28,7 +28,7 @@ public class AuditController {
 
     @Operation(summary = "Rechercher dans les logs")
     @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Sécurisé Admin only
+    @PreAuthorize("hasRole('ADMIN')") // Sécurisé Admin only
     public ResponseEntity<Page<AuditEventDto>> search(
             @RequestParam(required = false) String action,
             @RequestParam(required = false) Long userId,

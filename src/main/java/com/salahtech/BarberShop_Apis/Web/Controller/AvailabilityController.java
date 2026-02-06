@@ -2,8 +2,13 @@ package com.salahtech.BarberShop_Apis.Web.Controller;
 
 import com.salahtech.BarberShop_Apis.Config.CurrentUser;
 import com.salahtech.BarberShop_Apis.Dtos.*;
+import com.salahtech.BarberShop_Apis.Exceptions.AccessDeniedException;
+import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.AvailabilityService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
+import com.salahtech.BarberShop_Apis.models.Barber;
+import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -19,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,6 +37,7 @@ import java.util.stream.Collectors;
 public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
+    private final BarberRepository barberRepository;
 
     // ==========================================
     // 🔍 LECTURE PUBLIQUE (Slots, Check, Day)
@@ -97,9 +102,31 @@ public class AvailabilityController {
     @PreAuthorize("hasAnyRole('ADMIN', 'BARBER', 'SALON_OWNER')")
     public ResponseEntity<Void> updateWeeklySchedule(
             @CurrentUser ApplicationUser user,
+            @RequestParam(required = false) Long targetBarberId, // ✅ Paramètre clé pour l'Admin
             @Valid @RequestBody List<AvailabilityDto> weeklySchedule) {
-        // Sécurité : on utilise user.getId()
-        availabilityService.updateWeeklySchedule(user.getId(), weeklySchedule);
+
+        Long finalBarberId;
+        boolean isAdmin = user.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"));
+
+        if (targetBarberId != null) {
+            // --- CAS 1 : Admin ou Owner gère un autre barbier ---
+            if (!isAdmin) {
+                // Optionnel : Vérifier si c'est le Salon Owner qui gère SES employés
+                // Pour l'instant, on bloque si pas Admin
+                throw new AccessDeniedException("Seul un administrateur peut modifier le planning d'un autre barbier.");
+            }
+            finalBarberId = targetBarberId;
+        } else {
+            // --- CAS 2 : Le barbier se gère lui-même ---
+            // On récupère son profil Barbier via son UserID
+            Barber barber = barberRepository.findByUser_Id(user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Aucun profil barbier associé à ce compte."));
+            finalBarberId = barber.getId();
+        }
+
+        // Appel du service avec l'ID final certifié
+        availabilityService.updateWeeklySchedule(finalBarberId, weeklySchedule);
+
         return ResponseEntity.noContent().build();
     }
 
@@ -162,6 +189,26 @@ public class AvailabilityController {
         Long targetId = isAdmin && barberId != null ? barberId : user.getId();
 
         return ResponseEntity.ok(availabilityService.getAvailabilityStats(targetId, startDate, endDate));
+    }
+
+    // ==========================================
+    // CRUD BASE & EXCEPTIONS (Lecture)
+    // ==========================================
+
+    // ✅ AJOUT : C'est cette méthode qui manquait pour le Frontend
+    @Operation(summary = "Récupérer les exceptions d'un barbier spécifique")
+    @GetMapping("/exceptions")
+    public ResponseEntity<List<AvailabilityDto>> getExceptions(
+            @RequestParam Long barberId,
+            @RequestParam(required = false, defaultValue = "true") Boolean upcoming) {
+
+        // On utilise l'ID passé en paramètre (barberId)
+        // Attention: Assurez-vous que votre service gère bien cet ID (Barber ID vs User
+        // ID)
+        if (Boolean.TRUE.equals(upcoming)) {
+            return ResponseEntity.ok(availabilityService.getUpcomingExceptions(barberId));
+        }
+        return ResponseEntity.ok(availabilityService.getAllExceptions(barberId));
     }
 
     // ==========================================

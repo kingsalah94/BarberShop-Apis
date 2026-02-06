@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.models;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -55,6 +54,12 @@ public class Review {
     // Photo URLs stored as JSON array: ["url1", "url2"]
     @Column(columnDefinition = "TEXT")
     private String photos;
+
+    @Column(columnDefinition = "TEXT")
+    private String barberReply;
+
+    @Column
+    private LocalDateTime repliedAt; // Date de la réponse
 
     // Optional tip given by client
     @Column(precision = 10, scale = 2)

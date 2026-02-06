@@ -15,6 +15,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
@@ -109,6 +110,10 @@ public class Barber {
     @DecimalMin("0.0")
     @Column(name = "price_from", nullable = false, precision = 10, scale = 2)
     private BigDecimal priceFrom;
+
+    @ManyToOne
+    @JoinColumn(name = "establishment_type_id")
+    private EstablishmentType establishmentType;
 
     @Column(nullable = false)
     @Builder.Default

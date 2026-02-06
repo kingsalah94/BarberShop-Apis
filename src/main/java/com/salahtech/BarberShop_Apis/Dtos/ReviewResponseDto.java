@@ -24,6 +24,8 @@ public class ReviewResponseDto {
     private List<String> tags;
     private List<String> photos;
     private BigDecimal tipAmount;
+    private String barberReply;
+    private LocalDateTime repliedAt;
 
     private LocalDateTime createdAt;
     private String timeAgo; // Ex: "Il y a 2 jours" (Calculé ou null)

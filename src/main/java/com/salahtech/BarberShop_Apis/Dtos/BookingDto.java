@@ -4,10 +4,10 @@ import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Enums.PaymentMethod;
 import com.salahtech.BarberShop_Apis.Enums.PaymentStatus;
 import com.salahtech.BarberShop_Apis.models.Booking;
+import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import lombok.*;
-
-import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -15,60 +15,58 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class BookingDto {
+public class BookingDto implements Serializable {
 
+    private static final long serialVersionUID = 1L;
     private Long id;
 
-    // --- Relations DTO complètes (optionnel pour le détail) ---
-    private ApplicationUserDto clientUser;
-    private BarberDto barberDto;
-    private ServiceDto serviceDto;
-
-    // --- IDs pour la création/mise à jour ---
+    // --- IDs ---
     private Long clientId;
-
-    @NotNull(message = "Barber ID is required")
+    @NotNull
     private Long barberId;
-
-    @NotNull(message = "Service ID is required")
+    @NotNull
     private Long serviceId;
 
     // --- Données principales ---
-    @NotNull(message = "Start time is required")
-    // @Future(message = "Start time must be in the future") // Parfois gênant en
-    // update, à voir
     private LocalDateTime startAt;
-
     private LocalDateTime endAt;
-
     private BookingStatus status;
     private BigDecimal totalPrice;
     private String notes;
-
     private PaymentMethod paymentMethod;
     private PaymentStatus paymentStatus;
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // --- Champs enrichis (Flattened) pour affichage facile dans les tableaux ---
+    // --- Champs aplatis (Flattened) pour la sécurité Frontend ---
     private String clientFirstName;
     private String clientLastName;
+
+    // ✅ LES NOUVEAUX CHAMPS (Envoyés directement à la racine)
+    private String clientPhone;
+    private String clientEmail;
+    private String clientAvatar;
+
     private String barberName;
     private String salonName;
     private String serviceName;
     private Integer serviceDuration;
-    private BigDecimal servicePrice;
     private String location;
 
+    // Objets complets (optionnels, gardés pour compatibilité)
+    private BarberDto barberDto;
+    private ServiceDto serviceDto;
+    // On garde celui-ci au cas où, mais on ne l'utilise plus pour l'affichage
+    // critique
+    private ApplicationUserDto clientUser;
+
     // ============================================================
-    // 🛠️ MAPPING ENTITY -> DTO (LA CORRECTION EST ICI)
+    // 🛠️ MAPPING ENTITY -> DTO (VERSION PRODUCTION)
     // ============================================================
     public static BookingDto fromEntity(Booking b) {
         if (b == null)
             return null;
 
-        // 1. Construction de base
         var dto = BookingDto.builder()
                 .id(b.getId())
                 .startAt(b.getStartAt())
@@ -82,71 +80,69 @@ public class BookingDto {
                 .updatedAt(b.getUpdatedAt())
                 .build();
 
-        // 2. Mapping Client
+        // --- MAPPING CLIENT ROBUSTE ---
         if (b.getClient() != null) {
             dto.setClientId(b.getClient().getId());
-            // ✅ CORRECTION : On remplit les noms pour l'affichage
-            dto.setClientFirstName(b.getClient().getFirstName());
-            dto.setClientLastName(b.getClient().getLastName());
 
-            // Si le client n'a pas de nom propre mais utilise celui du User lié :
+            // 1. On récupère les valeurs de base (Fiche Client)
+            String fName = b.getClient().getFirstName();
+            String lName = b.getClient().getLastName();
+            String phone = b.getClient().getPhone();
+            String email = b.getClient().getEmail();
+            String avatar = b.getClient().getProfileImageUrl(); // Vérifie le nom exact dans ton entité Client
 
-            if (b.getClient().getUser() != null) {
-                if (dto.getClientFirstName() == null)
-                    dto.setClientFirstName(b.getClient().getUser().getFirstName());
-                if (dto.getClientLastName() == null)
-                    dto.setClientLastName(b.getClient().getUser().getLastName());
+            // 2. On tente d'améliorer avec les données du User (Compte Application)
+            try {
+                if (b.getClient().getUser() != null) {
+                    ApplicationUser u = b.getClient().getUser();
+
+                    if (u.getFirstName() != null)
+                        fName = u.getFirstName();
+                    if (u.getLastName() != null)
+                        lName = u.getLastName();
+
+                    // Le User est prioritaire pour les contacts car c'est lui qui se connecte
+                    if (u.getPhone() != null && !u.getPhone().isEmpty())
+                        phone = u.getPhone();
+                    if (u.getEmail() != null && !u.getEmail().isEmpty())
+                        email = u.getEmail();
+                    if (u.getProfileImageUrl() != null && !u.getProfileImageUrl().isEmpty())
+                        avatar = u.getProfileImageUrl();
+                }
+            } catch (Exception e) {
+                // Si LazyLoading exception, on garde les valeurs de l'étape 1
+                System.out.println("Info: User non chargé pour le booking " + b.getId());
             }
 
+            // 3. On injecte dans les champs plats
+            dto.setClientFirstName(fName);
+            dto.setClientLastName(lName);
+            dto.setClientPhone(phone); // ✅
+            dto.setClientEmail(email); // ✅
+            dto.setClientAvatar(avatar); // ✅
         }
 
-        // 3. Mapping Barbier
+        // --- MAPPING BARBIER ---
         if (b.getBarber() != null) {
             dto.setBarberId(b.getBarber().getId());
             dto.setBarberDto(BarberDto.fromEntity(b.getBarber()));
             dto.setSalonName(b.getBarber().getSalonName());
             dto.setLocation(b.getBarber().getLocation());
-
-            // ✅ CORRECTION : On remplit le nom du barbier
-            // Vérifie si ton entité Barber a un champ 'name', sinon utilise
-            // 'user.firstName'
             dto.setBarberName(b.getBarber().getName());
 
-            // Fallback si name est null (au cas où)
             if (dto.getBarberName() == null && b.getBarber().getUser() != null) {
                 dto.setBarberName(b.getBarber().getUser().getFirstName() + " " + b.getBarber().getUser().getLastName());
             }
         }
 
-        // 4. Mapping Service (Prestation)
-        // Attention : Vérifie si ton entité s'appelle 'getBarberService()' ou
-        // 'getService()'
+        // --- MAPPING SERVICE ---
         if (b.getBarberService() != null) {
             dto.setServiceId(b.getBarberService().getId());
             dto.setServiceDto(ServiceDto.fromService(b.getBarberService()));
-
-            // ✅ CORRECTION : On remplit les infos du service
             dto.setServiceName(b.getBarberService().getName());
             dto.setServiceDuration(b.getBarberService().getDuration());
-            // dto.setServicePrice(b.getBarberService().getPrice()); // Optionnel
         }
 
         return dto;
-    }
-
-    /** DTO -> entity (relations chargées par le service). */
-    public static Booking toEntity(BookingDto dto) {
-        if (dto == null)
-            return null;
-        Booking b = new Booking();
-        b.setId(dto.getId());
-        b.setStartAt(dto.getStartAt());
-        b.setEndAt(dto.getEndAt());
-        b.setStatus(dto.getStatus());
-        b.setTotalPrice(dto.getTotalPrice());
-        b.setNotes(dto.getNotes());
-        b.setPaymentMethod(dto.getPaymentMethod());
-        b.setPaymentStatus(dto.getPaymentStatus());
-        return b;
     }
 }
