@@ -55,6 +55,7 @@ public class ClientServiceImpl implements ClientService {
     private final BarberRepository barberRepository;
     private final SalonBookingRepository salonBookingRepository;
     private final SalonReviewRepository salonReviewRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.SalonFavoriteRepository salonFavoriteRepository;
     private final RoleRepository roleRepository;
 
     private final PasswordEncoder passwordEncoder;
@@ -483,7 +484,7 @@ public class ClientServiceImpl implements ClientService {
                         .filter(b -> b.getStatus() == BookingStatus.PENDING || b.getStatus() == BookingStatus.CONFIRMED
                                 || b.getStatus() == BookingStatus.BOOKED)
                         .count())
-                .favoritesCount(0)
+                .favoritesCount((int) salonFavoriteRepository.countByClient_Id(clientId))
                 .reviewsCount((int) salonReviewRepository.countByClient_Id(clientId))
                 .memberSince(client.getCreatedAt())
                 .lastUpdated(client.getUpdatedAt())
@@ -565,7 +566,7 @@ public class ClientServiceImpl implements ClientService {
         long totalCount = salonBookings.size();
 
         // Favorites and reviews
-        int favoritesCount = 0; // favoris barbiers retirés (modèle salon)
+        int favoritesCount = (int) salonFavoriteRepository.countByClient_Id(clientId);
         int reviewsCount = (int) salonReviewRepository.countByClient_Id(clientId);
 
         // Loyalty tier calculation

@@ -148,13 +148,9 @@ public class UserProfileService {
                 return user.getClient() != null;
             }
             case BARBER -> {
-                if (user.getBarber() == null)
-                    return false;
-                Barber barber = user.getBarber();
-                return barber.getSalonName() != null &&
-                        !barber.getSalonName().equals("À définir") &&
-                        barber.getLocation() != null &&
-                        !barber.getLocation().equals("À définir");
+                // Barbier indépendant (modèle « tout salon ») : sa prochaine étape est
+                // de créer son salon (onboarding owner-setup) ; le téléphone suffit.
+                return true;
             }
             case SALON_OWNER -> {
                 // Un propriétaire n'a PAS de profil barbier. Son profil est
