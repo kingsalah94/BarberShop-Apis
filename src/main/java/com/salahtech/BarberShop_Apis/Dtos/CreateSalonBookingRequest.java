@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
-/** Demande de réservation : salon (path) + service + date + heure. */
+/** Demande de réservation : salon (path) + service + date + heure (+ prestataire optionnel). */
 @Data
 @Builder
 @NoArgsConstructor
@@ -28,4 +28,7 @@ public class CreateSalonBookingRequest {
     private String time;
 
     private String notes;
+
+    /** Prestataire choisi par le client (Employee.id) ; null = « peu importe », le salon affecte. */
+    private Long employeeId;
 }

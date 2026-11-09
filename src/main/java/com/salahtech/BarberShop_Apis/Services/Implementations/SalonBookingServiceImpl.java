@@ -74,7 +74,7 @@ public class SalonBookingServiceImpl implements SalonBookingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<String> availableSlots(Long salonId, Long serviceId, LocalDate date) {
+    public List<String> availableSlots(Long salonId, Long serviceId, LocalDate date, Long employeeId) {
         salon(salonId);
         SalonOffering svc = offering(salonId, serviceId);
         int duration = svc.getDurationMinutes() != null ? svc.getDurationMinutes() : 30;
@@ -85,10 +85,20 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             return List.of();
         }
 
+        // Prestataire choisi : absent ce jour-là (congé / inactif) → aucun créneau.
+        Employee chosen = null;
+        if (employeeId != null) {
+            chosen = employeeOfSalon(salonId, employeeId);
+            if (!isBookable(chosen, date)) {
+                return List.of();
+            }
+        }
+
         int cap = capacity(salonId);
         LocalDateTime dayStart = date.atStartOfDay();
         List<SalonBooking> dayBookings = bookingRepository
                 .findBySalon_IdAndStatusInAndStartAtBetween(salonId, ACTIVE, dayStart, dayStart.plusDays(1));
+        List<SalonBooking> employeeBookings = chosen == null ? List.of() : assignedTo(dayBookings, chosen.getId());
 
         LocalDateTime now = LocalDateTime.now();
         boolean today = date.equals(LocalDate.now());
@@ -96,7 +106,8 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         // Un jeu de créneaux par plage d'ouverture (la pause déjeuner est ainsi exclue).
         List<String> slots = new java.util.ArrayList<>();
         for (TimeWindowDto w : windows) {
-            slots.addAll(buildSlots(date, w.getOpenAt(), w.getCloseAt(), duration, cap, dayBookings, today, now));
+            slots.addAll(buildSlots(date, w.getOpenAt(), w.getCloseAt(), duration, cap, dayBookings,
+                    employeeBookings, today, now));
         }
         return slots;
     }
@@ -112,7 +123,8 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     }
 
     private List<String> buildSlots(LocalDate date, LocalTime open, LocalTime close, int duration,
-                                    int capacity, List<SalonBooking> dayBookings, boolean today, LocalDateTime now) {
+                                    int capacity, List<SalonBooking> dayBookings,
+                                    List<SalonBooking> employeeBookings, boolean today, LocalDateTime now) {
         List<String> slots = new java.util.ArrayList<>();
         for (LocalTime t = open; !t.plusMinutes(duration).isAfter(close); t = t.plusMinutes(SLOT_STEP_MIN)) {
             LocalDateTime start = date.atTime(t);
@@ -121,7 +133,8 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             long overlap = dayBookings.stream()
                     .filter(b -> b.getStartAt().isBefore(end) && b.getEndAt().isAfter(start))
                     .count();
-            if (overlap < capacity) slots.add(t.format(HHMM));
+            boolean employeeFree = employeeBookings.stream().noneMatch(b -> overlaps(b, start, end));
+            if (overlap < capacity && employeeFree) slots.add(t.format(HHMM));
         }
         return slots;
     }
@@ -176,6 +189,23 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             throw new BusinessException("Ce créneau n'est plus disponible");
         }
 
+        // Prestataire choisi par le client : rattaché au salon, présent ce jour-là, libre sur le créneau.
+        Employee chosen = null;
+        if (req.getEmployeeId() != null) {
+            chosen = employeeOfSalon(salonId, req.getEmployeeId());
+            if (!isBookable(chosen, req.getDate())) {
+                throw new BusinessException("Ce prestataire n'est pas disponible à cette date");
+            }
+            boolean busy = assignedTo(bookingRepository
+                    .findBySalon_IdAndStatusInAndStartAtBetween(salonId, ACTIVE,
+                            req.getDate().atStartOfDay(), req.getDate().atStartOfDay().plusDays(1)), chosen.getId())
+                    .stream()
+                    .anyMatch(b -> overlaps(b, start, end));
+            if (busy) {
+                throw new BusinessException("Ce prestataire n'est plus disponible sur ce créneau");
+            }
+        }
+
         SalonBooking b = SalonBooking.builder()
                 .salon(salon)
                 .offering(svc)
@@ -185,6 +215,7 @@ public class SalonBookingServiceImpl implements SalonBookingService {
                 .status(BookingStatus.PENDING)
                 .totalPrice(svc.getPrice())
                 .notes(req.getNotes())
+                .assignedEmployee(chosen)
                 .build();
         SalonBooking saved = bookingRepository.save(b);
         log.info("SalonBooking créée id={} salon={} service={} client={} {}",
@@ -226,6 +257,43 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             throw new BusinessException("Ce prestataire est en congé à cette date");
         }
         return e;
+    }
+
+    private static boolean overlaps(SalonBooking b, LocalDateTime start, LocalDateTime end) {
+        return b.getStartAt().isBefore(end) && b.getEndAt().isAfter(start);
+    }
+
+    private static List<SalonBooking> assignedTo(List<SalonBooking> bookings, Long employeeId) {
+        return bookings.stream()
+                .filter(b -> b.getAssignedEmployee() != null && employeeId.equals(b.getAssignedEmployee().getId()))
+                .collect(Collectors.toList());
+    }
+
+    /** Réservable ce jour-là : actif et pas en congé. */
+    private boolean isBookable(Employee e, LocalDate date) {
+        return e.isActive() && !timeOffRepository
+                .existsByEmployee_IdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(e.getId(), date, date);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<com.salahtech.BarberShop_Apis.Dtos.SalonStaffDto> bookableStaff(Long salonId) {
+        salon(salonId);
+        return employeeRepository.findBySalonIdAndRole(salonId, com.salahtech.BarberShop_Apis.Enums.EmployeeRole.BARBER)
+                .stream()
+                .map(e -> {
+                    String last = e.getLastName() == null || e.getLastName().isBlank() ? ""
+                            : " " + e.getLastName().substring(0, 1).toUpperCase() + ".";
+                    String photo = e.getBarber() != null && e.getBarber().getProfileImageUrl() != null
+                            ? e.getBarber().getProfileImageUrl()
+                            : (e.getUser() != null ? e.getUser().getProfileImageUrl() : null);
+                    return com.salahtech.BarberShop_Apis.Dtos.SalonStaffDto.builder()
+                            .id(e.getId())
+                            .displayName((e.getFirstName() == null ? "" : e.getFirstName()) + last)
+                            .photoUrl(photo)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     /** Charge un employé et vérifie qu'il est rattaché au salon. */

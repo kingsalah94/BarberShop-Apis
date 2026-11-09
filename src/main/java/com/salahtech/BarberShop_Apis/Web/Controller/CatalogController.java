@@ -60,7 +60,14 @@ public class CatalogController {
     public ResponseEntity<List<String>> slots(
             @PathVariable Long salonId,
             @RequestParam Long serviceId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(bookingService.availableSlots(salonId, serviceId, date));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) Long employeeId) {
+        return ResponseEntity.ok(bookingService.availableSlots(salonId, serviceId, date, employeeId));
+    }
+
+    @Operation(summary = "Prestataires réservables d'un salon (public : prénom + photo)")
+    @GetMapping("/salons/{salonId}/staff")
+    public ResponseEntity<List<com.salahtech.BarberShop_Apis.Dtos.SalonStaffDto>> staff(@PathVariable Long salonId) {
+        return ResponseEntity.ok(bookingService.bookableStaff(salonId));
     }
 }

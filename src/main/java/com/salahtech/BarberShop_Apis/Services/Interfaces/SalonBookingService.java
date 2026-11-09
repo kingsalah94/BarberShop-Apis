@@ -12,7 +12,15 @@ import java.util.List;
 public interface SalonBookingService {
 
     /** Créneaux disponibles ("HH:mm") pour un salon + service + date. */
-    List<String> availableSlots(Long salonId, Long serviceId, LocalDate date);
+    default List<String> availableSlots(Long salonId, Long serviceId, LocalDate date) {
+        return availableSlots(salonId, serviceId, date, null);
+    }
+
+    /** Créneaux libres ; avec {@code employeeId}, uniquement ceux où ce prestataire est libre. */
+    List<String> availableSlots(Long salonId, Long serviceId, LocalDate date, Long employeeId);
+
+    /** Prestataires que le client peut choisir (barbiers actifs du salon). */
+    List<com.salahtech.BarberShop_Apis.Dtos.SalonStaffDto> bookableStaff(Long salonId);
 
     /** Crée une réservation (client connecté). */
     SalonBookingDto create(Long salonId, CreateSalonBookingRequest req, ApplicationUser user);
