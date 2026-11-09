@@ -71,20 +71,11 @@
 </dependency>
 
 
-    <!-- Kafka core -->
-    <dependency>
-        <groupId>org.springframework.kafka</groupId>
-        <artifactId>spring-kafka</artifactId>
-    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
 
-      <dependency>
-          <groupId>org.springframework.boot</groupId>
-          <artifactId>spring-boot-starter-amqp</artifactId>
-      </dependency>
 
     <!-- OAuth2 client (connexion sociale) -->
     <dependency>
@@ -92,11 +83,6 @@
       <artifactId>spring-boot-starter-oauth2-client</artifactId>
     </dependency>
 
-    <!-- Redis (cache) -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-data-redis</artifactId>
-    </dependency>
 
     <!-- DB driver (version gérée par Spring Boot) -->
     <dependency>
