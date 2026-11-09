@@ -20,6 +20,9 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.ClientService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.models.Client;
+import com.salahtech.BarberShop_Apis.models.SalonBooking;
+import com.salahtech.BarberShop_Apis.repositories.SalonBookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.SalonReviewRepository;
 import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
 import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
@@ -59,6 +62,8 @@ public class ClientServiceImpl implements ClientService {
     private final ClientFavoriteRepository clientFavoriteRepository;
     private final BarberRepository barberRepository;
     private final ReviewRepository reviewRepository;
+    private final SalonBookingRepository salonBookingRepository;
+    private final SalonReviewRepository salonReviewRepository;
     private final RoleRepository roleRepository;
 
     private final PasswordEncoder passwordEncoder;
@@ -585,18 +590,21 @@ public class ClientServiceImpl implements ClientService {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new RuntimeException("Client non trouvé"));
 
-        // Count bookings by status
-        long upcomingCount = bookingRepository.countByClientIdAndStatusIn(
-                clientId, List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING));
-        long completedCount = bookingRepository.countByClientIdAndStatus(
-                clientId, BookingStatus.COMPLETED);
-        long cancelledCount = bookingRepository.countByClientIdAndStatus(
-                clientId, BookingStatus.CANCELLED);
-        long totalCount = bookingRepository.countByClientId(clientId);
+        // Réservations SALON (modèle unique de réservation)
+        List<SalonBooking> salonBookings = salonBookingRepository.findByClient_IdOrderByStartAtDesc(clientId);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        long upcomingCount = salonBookings.stream()
+                .filter(b -> b.getStartAt() != null && !b.getStartAt().isBefore(now))
+                .filter(b -> b.getStatus() == BookingStatus.PENDING || b.getStatus() == BookingStatus.CONFIRMED
+                        || b.getStatus() == BookingStatus.BOOKED)
+                .count();
+        long completedCount = salonBookings.stream().filter(b -> b.getStatus() == BookingStatus.COMPLETED).count();
+        long cancelledCount = salonBookings.stream().filter(b -> b.getStatus() == BookingStatus.CANCELLED).count();
+        long totalCount = salonBookings.size();
 
         // Favorites and reviews
         int favoritesCount = clientFavoriteRepository.countByClientId(clientId).intValue();
-        int reviewsCount = reviewRepository.countByClientId(clientId).intValue();
+        int reviewsCount = (int) salonReviewRepository.countByClient_Id(clientId);
 
         // Loyalty tier calculation
         int loyaltyPoints = client.getLoyaltyPoints();
@@ -617,8 +625,11 @@ public class ClientServiceImpl implements ClientService {
             mostVisitedBarberVisitCount = topFavorite.getVisitCount().longValue();
         }
 
-        // Calculate total spent
-        Double totalSpent = bookingRepository.getTotalSpentByClient(clientId);
+        // Total dépensé : prestations salon terminées
+        Double totalSpent = salonBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED && b.getTotalPrice() != null)
+                .mapToDouble(b -> b.getTotalPrice().doubleValue())
+                .sum();
         Double averagePrice = totalSpent != null && completedCount > 0
                 ? totalSpent / completedCount
                 : 0.0;

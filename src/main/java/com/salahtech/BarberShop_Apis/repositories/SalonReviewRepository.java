@@ -15,6 +15,8 @@ public interface SalonReviewRepository extends JpaRepository<SalonReview, Long> 
 
     long countBySalon_Id(Long salonId);
 
+    long countByClient_Id(Long clientId);
+
     /** Note moyenne d'un salon (null si aucun avis). */
     @Query("SELECT AVG(r.overallRating) FROM SalonReview r WHERE r.salon.id = :salonId")
     Double avgRating(@Param("salonId") Long salonId);
