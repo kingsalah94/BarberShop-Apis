@@ -7,7 +7,7 @@ import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.AvailabilityService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,6 +38,8 @@ public class AvailabilityController {
 
     private final AvailabilityService availabilityService;
     private final BarberRepository barberRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.AvailabilityRepository availabilityRepository;
+    private final com.salahtech.BarberShop_Apis.Config.TenantGuard tenantGuard;
 
     // ==========================================
     // 🔍 LECTURE PUBLIQUE (Slots, Check, Day)
@@ -230,7 +232,15 @@ public class AvailabilityController {
     // standard ...
     @DeleteMapping("/exceptions/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> deleteException(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteException(@PathVariable Long id, @CurrentUser ApplicationUser user) {
+        if (!tenantGuard.isAdmin(user)) {
+            Long ownerBarberId = availabilityRepository.findBarberIdById(id).orElse(null);
+            Long myBarberId = barberRepository.findByUser_Id(user.getId()).map(b -> b.getId()).orElse(null);
+            Long salonId = ownerBarberId == null ? null : barberRepository.findSalonIdById(ownerBarberId).orElse(null);
+            boolean ok = (ownerBarberId != null && ownerBarberId.equals(myBarberId))
+                    || (salonId != null && tenantGuard.isSalonStaff(user, salonId));
+            if (!ok) throw new org.springframework.security.access.AccessDeniedException("Accès refusé : exception d'un autre barbier");
+        }
         availabilityService.deleteException(id);
         return ResponseEntity.noContent().build();
     }

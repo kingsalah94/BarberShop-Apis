@@ -42,6 +42,7 @@ public class NotificationsController {
 
     @Operation(summary = "Générer les notifications manquantes depuis les RDV existants")
     @PostMapping("/generate/{barberId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
     public ResponseEntity<Void> generateNotifications(@PathVariable Long barberId) {
         // Lancer le processus en arrière-plan (Async)
         notificationService.generateNotificationsFromExistingBookings(barberId);

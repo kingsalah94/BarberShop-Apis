@@ -41,6 +41,9 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}")
+    private String[] allowedOrigins;
+
     public SecurityConfig(
             CustomUserDetailsService userDetailsService,
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
@@ -64,9 +67,8 @@ public class SecurityConfig {
             "/v1/auth/login",
             "/v1/auth/logout",
             // "/v1/auth/me",
-            "/v1/users",
-            "/v1/permissions",
-            "/v1/roles",
+            // ⚠️ /v1/users, /v1/roles, /v1/permissions NE DOIVENT PAS être publics
+            // (élévation de privilèges) : contrôleurs protégés par hasRole('ADMIN').
             "/v1/auth/register/**",
             "/v1/auth/refresh-token",
             "/v1/auth/forgot-password",
@@ -76,6 +78,11 @@ public class SecurityConfig {
             "/v1/files/**",
             "/v1/settings/**",
             "/uploads/**",
+
+            // WebSocket / SockJS : le handshake HTTP (/ws/info, /ws/**) est public ;
+            // l'authentification se fait au niveau STOMP (frame CONNECT, header Authorization)
+            // → voir Config/StompAuthChannelInterceptor (JWT au CONNECT, autorisation au SUBSCRIBE).
+            "/ws/**",
 
             // springdoc (toujours sans le context-path dans les matchers)
             "/v3/api-docs/**",
@@ -105,13 +112,14 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/v1/auth/**").permitAll() // Tes autres routes publiques
                         .requestMatchers("/v1/settings/**").permitAll() // La config qu'on a faite avant
+                        .requestMatchers(HttpMethod.GET, "/v1/catalog/**").permitAll() // Catalogue client (lecture publique)
                         .requestMatchers(HttpMethod.GET, "/v1/availabilities/slots").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/availabilities/day").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v1/availabilities/slot/check").permitAll()
                         // Exemples par rôle
-                        .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
+                        .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER", "MANAGER", "RECEPTIONIST")
                         .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
-                        .hasAnyRole("ADMIN", "SALON_OWNER", "BARBER")
+                        .hasAnyRole("ADMIN", "SALON_OWNER", "BARBER", "MANAGER", "RECEPTIONIST")
                         // fichiers publics
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/files/**").permitAll()
                         // upload réservé (au moins authentifié)
@@ -155,8 +163,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(java.util.List.of("http://localhost:4200", "http://localhost:8100"));
-        // configuration.setAllowedOrigins(java.util.List.of());
+        // Origines pilotées par app.cors.allowed-origins (env APP_CORS_ALLOWED_ORIGINS en prod)
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);

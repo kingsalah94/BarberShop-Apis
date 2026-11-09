@@ -6,7 +6,11 @@ import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.Config.TenantGuard;
+import org.springframework.security.access.AccessDeniedException;
+import java.util.Objects;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -30,13 +34,47 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/bookings")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
 @Tag(name = "Bookings", description = "Gestion des réservations")
 public class BookingController {
 
     private final BookingService bookingService;
     private final BookingRepository bookingRepository; // Gardé uniquement pour la recherche complexe (Pageable)
+    private final BarberRepository barberRepository;
+    private final TenantGuard tenantGuard;
+
+    // ========================================================================
+    // 🔒 CONTRÔLES D'ACCÈS (anti-IDOR / multi-tenant)
+    // ========================================================================
+
+    /** Id du profil barbier de l'utilisateur (null s'il n'en a pas). */
+    private Long myBarberId(ApplicationUser user) {
+        return barberRepository.findByUser_Id(user.getId()).map(b -> b.getId()).orElse(null);
+    }
+
+    private static Long myClientId(ApplicationUser user) {
+        return user.getClient() != null ? user.getClient().getId() : null;
+    }
+
+    /** ADMIN, client du RDV, barbier du RDV ou personnel du salon du RDV. */
+    private void assertCanAccessBooking(ApplicationUser user, Long bookingId) {
+        if (tenantGuard.isAdmin(user)) return;
+        Long uid = user.getId();
+        if (Objects.equals(uid, bookingRepository.findClientUserIdById(bookingId).orElse(null))) return;
+        if (Objects.equals(uid, bookingRepository.findBarberUserIdById(bookingId).orElse(null))) return;
+        Long salonId = bookingRepository.findSalonIdById(bookingId).orElse(null);
+        if (salonId != null && tenantGuard.isSalonStaff(user, salonId)) return;
+        throw new AccessDeniedException("Accès refusé : ce rendez-vous ne vous concerne pas");
+    }
+
+    /** ADMIN, le barbier lui-même ou le personnel de son salon. */
+    private void assertCanAccessBarber(ApplicationUser user, Long barberId) {
+        if (tenantGuard.isAdmin(user)) return;
+        if (Objects.equals(barberId, myBarberId(user))) return;
+        Long salonId = barberRepository.findSalonIdById(barberId).orElse(null);
+        if (salonId != null && tenantGuard.isSalonStaff(user, salonId)) return;
+        throw new AccessDeniedException("Accès refusé : planning d'un autre barbier");
+    }
 
     // ========================================================================
     // 📝 CRÉATION & LECTURE SIMPLE
@@ -90,6 +128,8 @@ public class BookingController {
             @Valid @RequestBody BookingDto dto,
             @CurrentUser ApplicationUser user) {
 
+        assertCanAccessBooking(user, id);
+
         // Vérification du rôle
         boolean isStaff = user.getRoles().stream()
                 .anyMatch(r -> r.getName().equals("ADMIN")
@@ -138,7 +178,8 @@ public class BookingController {
     @Operation(summary = "Trouver une réservation par ID")
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()") // Tout utilisateur connecté peut essayer, le service vérifiera s'il a le droit
-    public ResponseEntity<BookingDto> findById(@PathVariable Long id) {
+    public ResponseEntity<BookingDto> findById(@PathVariable Long id, @CurrentUser ApplicationUser user) {
+        assertCanAccessBooking(user, id);
         return ResponseEntity.ok(bookingService.findById(id));
     }
 
@@ -163,19 +204,31 @@ public class BookingController {
         // Note: Il faudrait idéalement une méthode findByBarberUserId dans le service
         // Ici on utilise l'ID direct si le front l'envoie, sinon on adapte le service.
         // Pour l'instant, utilisons l'endpoint public filtré :
-        return ResponseEntity.ok(bookingService.findByBarberId(user.getId()));
+        Long barberId = myBarberId(user);
+        if (barberId == null) return ResponseEntity.ok(List.of());
+        return ResponseEntity.ok(bookingService.findByBarberId(barberId));
     }
 
     @GetMapping("/by-client/{clientId}")
     @Operation(summary = "Historique des RDV d'un client spécifique")
     @PreAuthorize("hasAnyRole('BARBER', 'ADMIN')")
-    public ResponseEntity<List<BookingDto>> getByClientId(@PathVariable Long clientId) {
-        return ResponseEntity.ok(bookingService.findByClientId(clientId));
+    public ResponseEntity<List<BookingDto>> getByClientId(@PathVariable Long clientId,
+                                                          @CurrentUser ApplicationUser user) {
+        List<BookingDto> all = bookingService.findByClientId(clientId);
+        if (tenantGuard.isAdmin(user)) return ResponseEntity.ok(all);
+        // Un barbier ne voit que l'historique du client AVEC lui.
+        Long barberId = myBarberId(user);
+        return ResponseEntity.ok(all.stream()
+                .filter(b -> barberId != null && barberId.equals(b.getBarberId()))
+                .toList());
     }
 
     @Operation(summary = "Réservations par Barbier (Public/Admin)")
     @GetMapping("/by-barber/{barberId}")
-    public ResponseEntity<List<BookingDto>> findByBarberId(@PathVariable @NotNull Long barberId) {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<BookingDto>> findByBarberId(@PathVariable @NotNull Long barberId,
+                                                           @CurrentUser ApplicationUser user) {
+        assertCanAccessBarber(user, barberId);
         return ResponseEntity.ok(bookingService.findByBarberId(barberId));
     }
 
@@ -189,7 +242,20 @@ public class BookingController {
             @RequestParam(required = false) Long clientId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
-            Pageable pageable) {
+            Pageable pageable,
+            @CurrentUser ApplicationUser user) {
+
+        // Périmètre : l'ADMIN voit tout ; un barbier ses RDV ; un client les siens.
+        if (!tenantGuard.isAdmin(user)) {
+            Long myBarber = myBarberId(user);
+            if (myBarber != null) {
+                barberId = myBarber;
+            } else if (myClientId(user) != null) {
+                clientId = myClientId(user);
+            } else {
+                throw new AccessDeniedException("Accès refusé");
+            }
+        }
 
         BookingStatus st = (status == null || status.isBlank()) ? null : BookingStatus.valueOf(status.toUpperCase());
 
@@ -217,7 +283,9 @@ public class BookingController {
     public ResponseEntity<List<BookingDto>> findByBarberBetweenDates(
             @PathVariable @NotNull Long barberId,
             @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
-            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
+            @RequestParam @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end,
+            @CurrentUser ApplicationUser user) {
+        assertCanAccessBarber(user, barberId);
         return ResponseEntity.ok(bookingService.findByBarberIdBetweenDates(barberId, start, end));
     }
 
@@ -229,6 +297,7 @@ public class BookingController {
     @PreAuthorize("hasRole('BARBER') or hasRole('ADMIN')")
     @Operation(summary = "Terminer le RDV et Encaisser (Cash)")
     public ResponseEntity<BookingDto> complete(@PathVariable Long id, @CurrentUser ApplicationUser user) {
+        assertCanAccessBooking(user, id);
         // user.getId() permet de vérifier que c'est bien CE barbier qui termine SON rdv
         return ResponseEntity.ok(bookingService.completeBooking(id, user.getId()));
     }
@@ -237,6 +306,7 @@ public class BookingController {
     @PreAuthorize("hasRole('BARBER') or hasRole('ADMIN')")
     @Operation(summary = "Confirmer un rendez-vous (Barbier)")
     public ResponseEntity<BookingDto> confirm(@PathVariable Long id, @CurrentUser ApplicationUser user) {
+        assertCanAccessBooking(user, id);
         return ResponseEntity.ok(bookingService.confirmBooking(id, user.getId()));
     }
 

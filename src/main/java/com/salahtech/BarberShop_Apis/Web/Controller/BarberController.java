@@ -31,6 +31,8 @@ public class BarberController {
 
     private final BarberServices barberService;
     private final FileStorageService fileStorageService;
+    private final com.salahtech.BarberShop_Apis.repositories.BarberRepository barberRepository;
+    private final com.salahtech.BarberShop_Apis.Config.TenantGuard tenantGuard;
 
     // ======= CRUD =======
 
@@ -39,8 +41,14 @@ public class BarberController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BarberDto> create(
             @RequestPart("barber") @Valid BarberDto dto, // ✅ RequestPart pour le JSON
-            @RequestPart(value = "file", required = false) MultipartFile file // ✅ RequestPart pour le Fichier
+            @RequestPart(value = "file", required = false) MultipartFile file, // ✅ RequestPart pour le Fichier
+            @com.salahtech.BarberShop_Apis.Config.CurrentUser com.salahtech.BarberShop_Apis.models.ApplicationUser user
     ) {
+        // Un non-admin ne peut créer un profil barbier QUE pour lui-même.
+        if (!tenantGuard.isAdmin(user)) {
+            dto.setUserId(user.getId());
+            dto.setUserDto(null);
+        }
         String imageUrl = null;
         if (file != null && !file.isEmpty()) {
             imageUrl = fileStorageService.storeFile(file);
@@ -56,8 +64,15 @@ public class BarberController {
     public ResponseEntity<BarberDto> update(
             @PathVariable Long id,
             @RequestPart("barber") @Valid BarberDto dto, // ✅ RequestPart JSON
-            @RequestPart(value = "file", required = false) MultipartFile file // ✅ RequestPart Fichier
+            @RequestPart(value = "file", required = false) MultipartFile file, // ✅ RequestPart Fichier
+            @com.salahtech.BarberShop_Apis.Config.CurrentUser com.salahtech.BarberShop_Apis.models.ApplicationUser user
     ) {
+        if (!tenantGuard.isAdmin(user)) {
+            Long mine = barberRepository.findByUser_Id(user.getId()).map(b -> b.getId()).orElse(null);
+            Long salonId = barberRepository.findSalonIdById(id).orElse(null);
+            boolean ok = id.equals(mine) || (salonId != null && tenantGuard.isSalonStaff(user, salonId));
+            if (!ok) throw new org.springframework.security.access.AccessDeniedException("Accès refusé : profil d'un autre barbier");
+        }
         String newImageUrl = null;
         dto.setId(id);
         if (file != null && !file.isEmpty()) {

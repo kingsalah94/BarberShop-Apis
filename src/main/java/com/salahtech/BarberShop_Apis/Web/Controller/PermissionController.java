@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Permissions", description = "CRUD & Search des permissions")
+@PreAuthorize("hasRole('ADMIN')")
 public class PermissionController {
 
     private final PermissionService service;

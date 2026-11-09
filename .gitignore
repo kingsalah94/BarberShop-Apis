@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+### Local patches (not for tracking) ###
+*.patch
+
+### Secrets (jamais dans git) ###
+src/main/resources/secrets.properties
+src/main/resources/firebase-*.json
+*.env
+.env
+
+### Données runtime ###
+uploads/
+kafka_data/
+logs/

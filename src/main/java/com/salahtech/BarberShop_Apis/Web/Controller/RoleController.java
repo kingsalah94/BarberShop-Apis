@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Roles", description = "CRUD & Search des rôles")
+@PreAuthorize("hasRole('ADMIN')")
 public class RoleController {
 
     private final RoleService service;

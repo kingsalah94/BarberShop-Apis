@@ -25,7 +25,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/clients")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Clients", description = "Gestion des clients et favoris")
 public class ClientController {
 
@@ -53,6 +52,7 @@ public class ClientController {
 
     // ✅ 1. CREATE avec Image (POST)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')") // création de comptes clients : back-office uniquement
     public ResponseEntity<ClientDto> createClient(
             @RequestPart("user") String clientJson, // On reçoit le JSON en String et on le parse, ou directement en Dto
                                                     // si configuré
@@ -67,6 +67,7 @@ public class ClientController {
 
     // ✅ 2. UPDATE avec Image (PUT /{id}) -> Corrige l'erreur 405
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')") // anti prise de compte (changement d'email d'un tiers) ; le client passe par PUT /me
     public ResponseEntity<ClientDto> updateClient(
             @PathVariable Long id,
             @RequestPart("user") String clientJson,

@@ -49,7 +49,9 @@ public class UserProfileController {
 
     @Operation(summary = "Changer le type d'utilisateur (CLIENT → BARBER)")
     @PostMapping("/upgrade-to-barber")
-    @PreAuthorize("hasRole('CLIENT')")
+    // Auto-promotion CLIENT → BARBER désactivée (escalade de privilèges) :
+    // les prestataires sont provisionnés par le salon. Réservé à l'ADMIN.
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserProfileDto> upgradeToBarber(
             Authentication auth,
             @Valid @RequestBody BarberProfileData barberData) {

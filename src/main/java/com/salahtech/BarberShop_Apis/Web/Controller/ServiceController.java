@@ -42,18 +42,42 @@ import java.util.List;
 @RequestMapping("/v1/services") // ✅ CHANGEMENT ICI : /v1/services → /api/v1/services
 @RequiredArgsConstructor
 @Validated
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Services", description = "Gestion des prestations proposées par les barbiers/salons")
 public class ServiceController {
 
     private final ServiceService serviceService;
     private final FileStorageService fileStorageService;
+    private final com.salahtech.BarberShop_Apis.repositories.BarberServiceRepository barberServiceRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.BarberRepository barberRepository;
+    private final com.salahtech.BarberShop_Apis.Config.TenantGuard tenantGuard;
+
+    private static final String MANAGER_ROLES = "hasAnyRole('BARBER', 'ADMIN', 'SALON_OWNER')";
+
+    /** ADMIN, le barbier propriétaire, ou le personnel du salon du barbier. */
+    private void assertCanManageBarber(ApplicationUser user, Long barberId) {
+        if (tenantGuard.isAdmin(user)) return;
+        if (barberId == null) throw new org.springframework.security.access.AccessDeniedException("Barbier non spécifié");
+        Long mine = barberRepository.findByUser_Id(user.getId()).map(b -> b.getId()).orElse(null);
+        if (barberId.equals(mine)) return;
+        Long salonId = barberRepository.findSalonIdById(barberId).orElse(null);
+        if (salonId != null && tenantGuard.isSalonStaff(user, salonId)) return;
+        throw new org.springframework.security.access.AccessDeniedException("Accès refusé : prestation d'un autre barbier");
+    }
+
+    private void assertCanManageService(ApplicationUser user, Long serviceId) {
+        if (tenantGuard.isAdmin(user)) return;
+        Long barberId = barberServiceRepository.findBarberIdById(serviceId)
+                .orElseThrow(() -> new org.springframework.security.access.AccessDeniedException("Prestation sans barbier"));
+        assertCanManageBarber(user, barberId);
+    }
 
     // ======= CRUD =======
 
     @Operation(summary = "Créer une prestation", responses = @ApiResponse(responseCode = "201", content = @Content(schema = @Schema(implementation = ServiceDto.class))))
     @PostMapping
-    public ResponseEntity<ServiceDto> create(@Valid @RequestBody ServiceDto dto) {
+    @PreAuthorize(MANAGER_ROLES)
+    public ResponseEntity<ServiceDto> create(@Valid @RequestBody ServiceDto dto, @CurrentUser ApplicationUser user) {
+        assertCanManageBarber(user, dto.getBarberId());
         ServiceDto saved = serviceService.save(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -96,6 +120,7 @@ public class ServiceController {
             @PathVariable Long id,
             @RequestPart("service") @Valid ServiceDto dto,
             @RequestPart(value = "file", required = false) MultipartFile file) {
+        assertCanManageService(user, id);
         String newImageUrl = null;
 
         // 1. Upload de la NOUVELLE image (si présente)
@@ -130,7 +155,9 @@ public class ServiceController {
             @ApiResponse(responseCode = "204", description = "Supprimé")
     })
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    @PreAuthorize(MANAGER_ROLES)
+    public ResponseEntity<Void> delete(@PathVariable Long id, @CurrentUser ApplicationUser user) {
+        assertCanManageService(user, id);
         serviceService.delete(id);
         return ResponseEntity.noContent().build();
     }
@@ -207,9 +234,12 @@ public class ServiceController {
             @ApiResponse(responseCode = "200", description = "Statut modifié avec succès", content = @Content(schema = @Schema(implementation = ServiceDto.class)))
     })
     @PatchMapping("/{id}/status")
+    @PreAuthorize(MANAGER_ROLES)
     public ResponseEntity<ServiceDto> toggleStatus(
             @PathVariable Long id,
-            @RequestBody @Valid StatusUpdateRequest request) {
+            @RequestBody @Valid StatusUpdateRequest request,
+            @CurrentUser ApplicationUser user) {
+        assertCanManageService(user, id);
         ServiceDto updated = serviceService.toggleServiceStatus(id, request.getActive());
         return ResponseEntity.ok(updated);
     }
@@ -218,7 +248,9 @@ public class ServiceController {
             @ApiResponse(responseCode = "201", description = "Service dupliqué avec succès", content = @Content(schema = @Schema(implementation = ServiceDto.class)))
     })
     @PostMapping("/{id}/duplicate")
-    public ResponseEntity<ServiceDto> duplicate(@PathVariable Long id) {
+    @PreAuthorize(MANAGER_ROLES)
+    public ResponseEntity<ServiceDto> duplicate(@PathVariable Long id, @CurrentUser ApplicationUser user) {
+        assertCanManageService(user, id);
         ServiceDto duplicated = serviceService.duplicateService(id);
         return ResponseEntity.status(HttpStatus.CREATED).body(duplicated);
     }

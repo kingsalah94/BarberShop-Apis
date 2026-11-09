@@ -11,10 +11,10 @@ import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
+import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
-import java.util.Optional;
 
 /**
  * Initialise automatiquement les comptes système et de test au démarrage.
@@ -47,7 +46,7 @@ public class SystemAdminInitializer implements CommandLineRunner {
     @Value("${app.admin.email:admin@barbershop.local}")
     private String adminEmail;
 
-    @Value("${app.admin.password:Root@Admin@2025}")
+    @Value("${app.admin.password:}") // aucun mot de passe par défaut : à fournir via APP_ADMIN_PASSWORD
     private String adminPassword;
 
     @Value("${app.admin.firstName:System}")
@@ -123,6 +122,10 @@ public class SystemAdminInitializer implements CommandLineRunner {
     // ===== CRÉATION ADMIN (PURE) =====
     @Transactional
     private void createSystemAdmin() {
+        if (adminPassword == null || adminPassword.isBlank()) {
+            log.error("❌ app.admin.password (APP_ADMIN_PASSWORD) non défini : admin système NON créé.");
+            return;
+        }
         try {
             ApplicationUser admin = new ApplicationUser();
             admin.setFirstName(adminFirstName);
