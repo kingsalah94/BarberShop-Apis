@@ -86,42 +86,6 @@ public class ClientController {
     }
 
     // ==========================================
-    // ⭐ FAVORIS (Client Connecté)
-    // ==========================================
-
-    @Operation(summary = "Mes Barbiers Favoris")
-    @GetMapping("/me/favorites")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
-    public ResponseEntity<List<BarberDto>> getMyFavorites(@CurrentUser ApplicationUser user) {
-        return ResponseEntity.ok(clientService.getFavoriteBarbers(user.getClient().getId()));
-    }
-
-    @Operation(summary = "Ajouter un favori")
-    @PostMapping("/me/favorites/{barberId}")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
-    public ResponseEntity<Void> addFavorite(@CurrentUser ApplicationUser user, @PathVariable Long barberId) {
-        clientService.addFavorite(user.getClient().getId(), barberId);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @Operation(summary = "Retirer un favori")
-    @DeleteMapping("/me/favorites/{barberId}")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
-    public ResponseEntity<Void> removeFavorite(@CurrentUser ApplicationUser user, @PathVariable Long barberId) {
-        clientService.removeFavorite(user.getClient().getId(), barberId);
-        return ResponseEntity.noContent().build();
-    }
-
-    @Operation(summary = "Est-ce un favori ?")
-    @GetMapping("/me/favorites/{barberId}/check")
-    @PreAuthorize("hasAuthority('ROLE_CLIENT')")
-    public ResponseEntity<Map<String, Boolean>> checkFavorite(@CurrentUser ApplicationUser user,
-            @PathVariable Long barberId) {
-        boolean isFav = clientService.isFavorite(user.getClient().getId(), barberId);
-        return ResponseEntity.ok(Map.of("isFavorite", isFav));
-    }
-
-    // ==========================================
     // 🛠️ ADMIN ONLY (Gestion Clients)
     // ==========================================
 

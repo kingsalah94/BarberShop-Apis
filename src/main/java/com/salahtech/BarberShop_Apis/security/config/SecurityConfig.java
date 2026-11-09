@@ -113,9 +113,6 @@ public class SecurityConfig {
                         .requestMatchers("/v1/auth/**").permitAll() // Tes autres routes publiques
                         .requestMatchers("/v1/settings/**").permitAll() // La config qu'on a faite avant
                         .requestMatchers(HttpMethod.GET, "/v1/catalog/**").permitAll() // Catalogue client (lecture publique)
-                        .requestMatchers(HttpMethod.GET, "/v1/availabilities/slots").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v1/availabilities/day").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v1/availabilities/slot/check").permitAll()
                         // Exemples par rôle
                         .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER", "MANAGER", "RECEPTIONIST")
                         .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
