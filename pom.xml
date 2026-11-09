@@ -25,6 +25,15 @@
   </properties>
 
   <dependencies>
+		<!-- Migrations de schéma versionnées (remplace ddl-auto=update) -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
     <!-- Spring starters -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
