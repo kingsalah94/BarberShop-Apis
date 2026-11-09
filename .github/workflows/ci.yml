@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "fix/**", "feat/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests (unitaires + intégration)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: barbershop_ci
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci -d barbershop_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      # Valeurs factices propres à la CI — aucun vrai secret ici.
+      DB_URL: jdbc:postgresql://localhost:5432/barbershop_ci
+      DB_USERNAME: ci
+      DB_PASSWORD: ci
+      MAIL_USERNAME: ci@example.invalid
+      MAIL_PASSWORD: ci
+      GOOGLE_CLIENT_ID: ci
+      GOOGLE_CLIENT_SECRET: ci
+      FACEBOOK_CLIENT_ID: ci
+      FACEBOOK_CLIENT_SECRET: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Secret JWT éphémère
+        run: echo "JWT_SECRET_BASE64=$(openssl rand -base64 64 | tr -d '\n')" >> "$GITHUB_ENV"
+
+      # verify = tests unitaires (surefire) + ApplicationIT (failsafe) :
+      # Flyway applique les migrations sur une base vide puis Hibernate valide le schéma.
+      - name: Build & tests
+        run: ./mvnw -B -ntp verify
+
+      - name: Rapports de tests
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+
+  docker:
+    name: Image Docker
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (sans push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: barbershop-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
