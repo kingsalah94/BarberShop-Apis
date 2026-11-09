@@ -23,6 +23,9 @@ spring:
     enabled: true
 
 app:
+  # Cookie du refresh token web : uniquement en HTTPS.
+  auth:
+    cookie-secure: true
   demo-data:
     enabled: false
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}

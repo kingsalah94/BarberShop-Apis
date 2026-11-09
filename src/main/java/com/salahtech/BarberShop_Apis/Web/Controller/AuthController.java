@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 
 @RestController
 @RequestMapping("/v1/auth")
@@ -23,6 +27,21 @@ public class AuthController {
     private final ApplicationUserService userService;
     private final RateLimitUtil rateLimitUtil;
 
+    /**
+     * Mode « cookie » (client web, en-tête {@code X-Auth-Mode: cookie}) : le refresh token
+     * est posé dans un cookie HttpOnly et n'est JAMAIS renvoyé dans le JSON — un script
+     * injecté (XSS) ne peut donc pas le voler. Sans l'en-tête (mobile), comportement
+     * inchangé : tokens dans le corps de la réponse.
+     */
+    static final String AUTH_MODE_HEADER = "X-Auth-Mode";
+    static final String REFRESH_COOKIE = "bb_refresh";
+
+    @Value("${app.auth.cookie-secure:false}")
+    private boolean cookieSecure;
+
+    @Value("${jwt.refresh-token-expiration:2592000000}")
+    private long refreshTtlMs;
+
     @Operation(summary = "Connexion (Login)")
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody AuthRequestDTO request,
@@ -32,7 +51,7 @@ public class AuthController {
         if (rateLimitUtil != null && !rateLimitUtil.tryConsume(key, "login")) {
             return ResponseEntity.status(429).build();
         }
-        return ResponseEntity.ok(userService.login(request));
+        return withRefreshCookie(http, userService.login(request));
     }
 
     @Operation(summary = "Inscription (Register) — public : crée uniquement des CLIENTS")
@@ -45,17 +64,57 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.register(request));
     }
 
-    @Operation(summary = "Rafraîchir le token")
+    @Operation(summary = "Rafraîchir le token (corps JSON ou cookie HttpOnly du client web)")
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponseDTO> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(userService.refreshToken(request.getRefreshToken()));
+    public ResponseEntity<AuthResponseDTO> refresh(@RequestBody(required = false) RefreshTokenRequest request,
+                                                   @CookieValue(name = REFRESH_COOKIE, required = false) String cookie,
+                                                   HttpServletRequest http) {
+        String token = refreshTokenFrom(request, cookie);
+        if (token == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return withRefreshCookie(http, userService.refreshToken(token));
     }
 
     @Operation(summary = "Déconnexion")
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@Valid @RequestBody RefreshTokenRequest request) {
-        userService.logout(request.getRefreshToken());
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<Void> logout(@RequestBody(required = false) RefreshTokenRequest request,
+                                       @CookieValue(name = REFRESH_COOKIE, required = false) String cookie) {
+        String token = refreshTokenFrom(request, cookie);
+        if (token != null) {
+            userService.logout(token);
+        }
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, refreshCookie("", 0).toString())
+                .build();
+    }
+
+    private static String refreshTokenFrom(RefreshTokenRequest body, String cookie) {
+        if (body != null && body.getRefreshToken() != null && !body.getRefreshToken().isBlank()) {
+            return body.getRefreshToken();
+        }
+        return cookie != null && !cookie.isBlank() ? cookie : null;
+    }
+
+    /** Client web : refresh token → cookie HttpOnly et retiré du JSON. Mobile : inchangé. */
+    private ResponseEntity<AuthResponseDTO> withRefreshCookie(HttpServletRequest http, AuthResponseDTO body) {
+        if (!"cookie".equalsIgnoreCase(http.getHeader(AUTH_MODE_HEADER)) || body == null
+                || body.getRefreshToken() == null) {
+            return ResponseEntity.ok(body);
+        }
+        ResponseCookie cookie = refreshCookie(body.getRefreshToken(), refreshTtlMs / 1000);
+        body.setRefreshToken(null);
+        return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).body(body);
+    }
+
+    private ResponseCookie refreshCookie(String value, long maxAgeSeconds) {
+        return ResponseCookie.from(REFRESH_COOKIE, value)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Strict")
+                .path("/api/v1/auth")
+                .maxAge(maxAgeSeconds)
+                .build();
     }
 
     @Operation(summary = "Vérifier l'email")

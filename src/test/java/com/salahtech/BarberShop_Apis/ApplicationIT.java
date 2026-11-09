@@ -19,7 +19,12 @@ import org.springframework.test.web.servlet.MockMvc;
 @SpringBootTest(properties = {
         "spring.kafka.listener.auto-startup=false",
         "app.demo-data.enabled=false",
-        "app.admin.password="
+        "app.admin.password=",
+        // Jamais d'e-mail réel depuis les tests : SMTP local inexistant (échec immédiat)
+        "spring.mail.host=127.0.0.1",
+        "spring.mail.port=1",
+        "spring.mail.properties.mail.smtp.connectiontimeout=500",
+        "spring.mail.properties.mail.smtp.timeout=500"
 })
 @AutoConfigureMockMvc
 class ApplicationIT {
