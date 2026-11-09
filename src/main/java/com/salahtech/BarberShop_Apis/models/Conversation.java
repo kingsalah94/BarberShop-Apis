@@ -17,12 +17,14 @@ import java.time.LocalDateTime;
 // (unread_count_client, client_id…). On l'évite proprement via un nom distinct.
 @Table(name = "chat_conversations")
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Conversation {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -31,15 +33,18 @@ public class Conversation {
     @Builder.Default
     private ConversationType type = ConversationType.CLIENT_BARBER;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "participant1_id", nullable = false)
     private ApplicationUser participant1;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "participant2_id", nullable = false)
     private ApplicationUser participant2;
 
     // Tenant : salon associé (optionnel, ex. conversation client ↔ barbier d'un salon).
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "salon_id")
     private Salon salon;

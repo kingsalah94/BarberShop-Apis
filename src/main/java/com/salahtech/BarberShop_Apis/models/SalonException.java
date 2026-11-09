@@ -19,15 +19,18 @@ import java.time.LocalTime;
         @Index(name = "idx_salon_exc_date", columnList = "exc_date")
 })
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SalonException {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "salon_id", nullable = false)
     private Salon salon;

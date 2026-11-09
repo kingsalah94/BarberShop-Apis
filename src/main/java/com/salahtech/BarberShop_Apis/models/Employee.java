@@ -17,6 +17,7 @@ import java.util.Set;
 
 @Entity
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -24,15 +25,18 @@ import java.util.Set;
 public class Employee {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     // Lien vers le compte utilisateur (pour qu'il se connecte)
+    @ToString.Exclude
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", unique = true)
     private ApplicationUser user;
 
     // Il travaille dans quel salon ?
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "salon_id")
     private Salon salon;
@@ -53,6 +57,7 @@ public class Employee {
     @Column(nullable = false)
     private EmployeeRole role;
 
+    @ToString.Exclude
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "employee_salons",
@@ -62,6 +67,7 @@ public class Employee {
     @Builder.Default
     private Set<Salon> salons = new HashSet<>();
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "primary_salon_id")
     private Salon primarySalon;
@@ -84,6 +90,7 @@ public class Employee {
 //    @JoinTable(name = "employee_skills", joinColumns = @JoinColumn(name = "employee_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
 //    private List<Category> skills;
 
+    @ToString.Exclude
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "employee_skills",

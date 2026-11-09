@@ -9,12 +9,14 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "posts")
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Post {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -28,6 +30,7 @@ public class Post {
     private LocalDateTime createdAt;
 
     // Relation : Plusieurs Posts appartiennent à un seul Barbier
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "barber_id", nullable = false)
     @JsonIgnore // ⚠️ Important : Évite la boucle infinie JSON (Post -> Barber -> Post...)

@@ -16,15 +16,18 @@ import java.time.LocalDateTime;
         @Index(name = "idx_salon_offering_salon", columnList = "salon_id")
 })
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class SalonOffering {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "salon_id", nullable = false)
     private Salon salon;
@@ -47,6 +50,7 @@ public class SalonOffering {
     private String imageUrl;
 
     /** Catégorie optionnelle (réutilise le référentiel existant). */
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "category_id")
     private Category category;

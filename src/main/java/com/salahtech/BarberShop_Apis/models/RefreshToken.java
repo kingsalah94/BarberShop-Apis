@@ -6,21 +6,26 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.ToString;
+import lombok.EqualsAndHashCode;
 
 // RefreshTokenRequest
 @Entity
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @AllArgsConstructor
 @Builder
 @Table(name = "refresh_tokens", indexes = @Index(name = "idx_token", columnList = "token", unique = true))
 public class RefreshToken {
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
     private String token;
 
+    @ToString.Exclude
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private ApplicationUser user;

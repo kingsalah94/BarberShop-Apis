@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,6 +20,7 @@ import java.time.LocalDateTime;
 public class Workstation {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -36,16 +38,19 @@ public class Workstation {
     private StationStatus status = StationStatus.FREE;
 
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "salon_id", nullable = false)
     private Salon salon;
 
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "current_employee_id")
     private Employee currentEmployee;
 
     // Barbier affecté au poste (modèle barber-centric — déprécie currentEmployee
     // pour ce flux). La file d'attente assigne le client à ce barbier.
+    @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "current_barber_id")
     private Barber currentBarber;

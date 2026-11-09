@@ -6,11 +6,13 @@ import java.util.List;
 
 @Entity
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "salons")
 public class Salon {
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -26,15 +28,18 @@ public class Salon {
     private String coverUrl;
 
     // Le Gérant (Propriétaire du compte)
+    @ToString.Exclude
     @OneToOne
     private ApplicationUser owner;
 
     // Type de salon (Définit les catégories accessibles)
+    @ToString.Exclude
     @ManyToOne
     @JoinColumn(name = "establishment_type_id")
     private EstablishmentType type;
 
     // Liste des postes de travail
+    @ToString.Exclude
     @OneToMany(mappedBy = "salon")
     private List<Workstation> workstations;
 }
