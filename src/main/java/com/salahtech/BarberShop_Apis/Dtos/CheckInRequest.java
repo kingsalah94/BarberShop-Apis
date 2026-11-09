@@ -25,7 +25,5 @@ public class CheckInRequest {
 
     private Long preferredEmployeeId;
 
-    private List<Long> requestedServiceIds;
-
     private String notes;
 }

@@ -36,10 +36,6 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
                                                 @Param("startOfDay") LocalDateTime startOfDay,
                                                 @Param("endOfDay") LocalDateTime endOfDay);
 
-    /** Entrée active déjà créée pour ce RDV (évite un double check-in). */
-    Optional<QueueEntry> findFirstByBooking_IdAndStatusInOrderByCheckInTimeDesc(
-            Long bookingId, List<QueueStatus> statuses);
-
     /** Entrée active déjà créée pour cette réservation salon (idempotence confirm/arrivée). */
     Optional<QueueEntry> findFirstBySalonBookingIdAndStatusInOrderByCheckInTimeDesc(
             Long salonBookingId, List<QueueStatus> statuses);

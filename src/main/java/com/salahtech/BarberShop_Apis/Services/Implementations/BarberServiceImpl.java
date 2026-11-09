@@ -2,14 +2,10 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.salahtech.BarberShop_Apis.AOP.LogActivity; // 👈 IMPORT AOP
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
-import com.salahtech.BarberShop_Apis.Dtos.BarberFullProfileDto;
-import com.salahtech.BarberShop_Apis.Dtos.ReviewDto;
-import com.salahtech.BarberShop_Apis.Dtos.ServiceDto;
 import com.salahtech.BarberShop_Apis.Enums.ErrorCodes;
 import com.salahtech.BarberShop_Apis.Exceptions.ConflictException;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.AvailabilityService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BarberServices;
 import com.salahtech.BarberShop_Apis.Validators.BarberValidator;
 import com.salahtech.BarberShop_Apis.models.*;
@@ -34,11 +30,7 @@ public class BarberServiceImpl implements BarberServices {
 
     private final BarberRepository barberRepository;
     private final ApplicationUserRepository userRepository;
-    private final BarberServiceRepository barberServiceRepository;
     private final PostRepository postRepository;
-    private final ReviewRepository reviewRepository;
-    private final ClientFavoriteRepository clientFavoriteRepository;
-    private final AvailabilityService availabilityService;
     private final FileStorageService fileStorageService;
 
     // ======================================================
@@ -233,73 +225,6 @@ public class BarberServiceImpl implements BarberServices {
                         * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public BarberFullProfileDto getBarberFullProfile(Long barberId, Long currentClientId) {
-        Barber barber = barberRepository.findById(barberId)
-                .orElseThrow(() -> new ResourceNotFoundException("Barbier introuvable"));
-
-        List<ServiceDto> services = barberServiceRepository.findByBarberId(barberId).stream()
-                .map(this::mapServiceToDto).toList();
-
-        List<Post> portfolio = postRepository.findByBarberIdOrderByCreatedAtDesc(barberId);
-
-        List<ReviewDto> reviews = reviewRepository.findByBarberId(barberId, PageRequest.of(0, 5))
-                .getContent().stream().map(this::mapReviewToDto).toList();
-
-        boolean isFavorite = false;
-        if (currentClientId != null) {
-            isFavorite = clientFavoriteRepository.existsByClientIdAndBarberId(currentClientId, barberId);
-        }
-
-        boolean isOpen = availabilityService.isShopOpenNow(barberId);
-
-        return BarberFullProfileDto.builder()
-                .id(barber.getId())
-                .salonName(barber.getSalonName())
-                .firstName(barber.getUser().getFirstName())
-                .lastName(barber.getUser().getLastName())
-                .email(barber.getUser().getEmail())
-                .phone(barber.getUser().getPhone())
-                .address(barber.getLocation())
-                .avatarUrl(barber.getProfileImageUrl())
-                .bio(barber.getBio() != null ? barber.getBio() : "")
-                .rating(barber.getRating())
-                .reviewCount(barber.getReviewsCount())
-                .isFavorite(isFavorite)
-                .services(services)
-                .portfolio(portfolio)
-                .recentReviews(reviews)
-                .isOpenNow(isOpen)
-                .build();
-    }
-
-    private ServiceDto mapServiceToDto(BarberService s) {
-        return ServiceDto.builder()
-                .id(s.getId())
-                .name(s.getName())
-                .price(s.getPrice())
-                .duration(s.getDuration())
-                .imageUrl(s.getImageUrl())
-                .build();
-    }
-
-    private ReviewDto mapReviewToDto(Review r) {
-        ReviewDto dto = new ReviewDto();
-        dto.setId(r.getId());
-        dto.setOverallRating(r.getOverallRating());
-        dto.setComment(r.getComment());
-        dto.setCreatedAt(r.getCreatedAt());
-        if (r.getClient() != null && r.getClient().getUser() != null) {
-            dto.setClientFirstName(r.getClient().getUser().getFirstName());
-            dto.setClientLastName(r.getClient().getUser().getLastName());
-            dto.setClientAvatar(r.getClient().getUser().getProfileImageUrl());
-        }
-        dto.setTags(new ArrayList<>());
-        dto.setPhotos(new ArrayList<>());
-        return dto;
     }
 
     @Override

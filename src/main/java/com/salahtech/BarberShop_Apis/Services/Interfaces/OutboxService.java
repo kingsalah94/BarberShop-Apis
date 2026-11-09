@@ -1,6 +1,5 @@
 package com.salahtech.BarberShop_Apis.Services.Interfaces;
 
-import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
 
@@ -15,11 +14,6 @@ public interface OutboxService {
    */
   UUID add(String aggregateType, String aggregateId, String eventType, Map<String, Object> payload,
       Map<String, Object> headers);
-
-  /**
-   * Cas métier : Planifier une nouvelle tentative pour une réservation
-   */
-  void enqueueRetry(Booking booking);
 
   /**
    * Cas métier : Mettre en file d'attente un email

@@ -14,15 +14,6 @@ public interface QueueService {
 
     QueueEntryDto checkIn(CheckInRequest request);
 
-    /** Crée une entrée de file à partir d'un RDV confirmé (check-in à l'arrivée). */
-    QueueEntryDto checkInFromBooking(Long bookingId);
-
-    /**
-     * Ajoute un RDV à la file dans une transaction NEUVE (REQUIRES_NEW), sans jamais
-     * propager d'erreur. À appeler depuis un afterCommit (le RDV est déjà committé).
-     */
-    void enqueueFromBookingQuietly(Long bookingId);
-
     /** Ajoute à la file le client d'une réservation salon confirmée (flux salon-centric). */
     QueueEntryDto enqueueFromSalonBooking(Long salonBookingId);
 

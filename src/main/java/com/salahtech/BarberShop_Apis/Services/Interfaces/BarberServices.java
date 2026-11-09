@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
-import com.salahtech.BarberShop_Apis.Dtos.BarberFullProfileDto;
 
 public interface BarberServices {
 
@@ -34,8 +33,6 @@ public interface BarberServices {
     void delete(Long id);
 
     List<BarberDto> findNearby(double lat, double lng, double radiusInKm);
-
-    BarberFullProfileDto getBarberFullProfile(Long barberId, Long currentClientId);
 
     BarberDto create(BarberDto dto, String imageUrl);
 

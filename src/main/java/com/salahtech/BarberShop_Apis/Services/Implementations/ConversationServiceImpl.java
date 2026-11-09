@@ -15,12 +15,10 @@ import com.salahtech.BarberShop_Apis.Exceptions.BusinessException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ConversationService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.models.Conversation;
 import com.salahtech.BarberShop_Apis.models.Message;
 import com.salahtech.BarberShop_Apis.models.Salon;
 import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 import com.salahtech.BarberShop_Apis.repositories.ConversationRepository;
 import com.salahtech.BarberShop_Apis.repositories.MessageRepository;
 import com.salahtech.BarberShop_Apis.repositories.SalonRepository;
@@ -46,7 +44,6 @@ public class ConversationServiceImpl implements ConversationService {
     private final MessageRepository messageRepository;
     private final ApplicationUserRepository userRepository;
     private final SalonRepository salonRepository;
-    private final BookingRepository bookingRepository;
     private final MessagingNotifier notifier;
 
     @Override
@@ -87,7 +84,7 @@ public class ConversationServiceImpl implements ConversationService {
                 });
 
         if (req.getInitialMessage() != null && !req.getInitialMessage().isBlank()) {
-            persistMessage(conv, me, other, req.getInitialMessage(), MessageType.TEXT, null, null);
+            persistMessage(conv, me, other, req.getInitialMessage(), MessageType.TEXT, null);
         }
         return toDto(conv, userId);
     }
@@ -129,13 +126,8 @@ public class ConversationServiceImpl implements ConversationService {
         if (req.getReplyToId() != null) {
             reply = messageRepository.findById(req.getReplyToId()).orElse(null);
         }
-        Booking booking = null;
-        if (req.getBookingId() != null) {
-            booking = bookingRepository.findById(req.getBookingId()).orElse(null);
-        }
-
         Message saved = persistMessage(conv, me, receiver, req.getContent(),
-                req.getMessageType() != null ? req.getMessageType() : MessageType.TEXT, reply, booking);
+                req.getMessageType() != null ? req.getMessageType() : MessageType.TEXT, reply);
 
         ConversationMessageDto dto = toMessageDto(saved);
         notifier.notifyNewMessage(receiver.getId(), dto);
@@ -192,7 +184,7 @@ public class ConversationServiceImpl implements ConversationService {
     // ===== Helpers =====
 
     private Message persistMessage(Conversation conv, ApplicationUser sender, ApplicationUser receiver,
-                                   String content, MessageType type, Message reply, Booking booking) {
+                                   String content, MessageType type, Message reply) {
         Message m = Message.builder()
                 .conversation(conv)
                 .sender(sender)
@@ -200,7 +192,6 @@ public class ConversationServiceImpl implements ConversationService {
                 .content(content)
                 .messageType(type != null ? type : MessageType.TEXT)
                 .replyTo(reply)
-                .booking(booking)
                 .isRead(false)
                 .isDeleted(false)
                 .build();
@@ -280,7 +271,6 @@ public class ConversationServiceImpl implements ConversationService {
                 .content(m.getContent())
                 .messageType(m.getMessageType())
                 .replyToId(m.getReplyTo() != null ? m.getReplyTo().getId() : null)
-                .bookingId(m.getBooking() != null ? m.getBooking().getId() : null)
                 .createdAt(m.getSentAt())
                 .readAt(m.getReadAt())
                 .editedAt(m.getEditedAt())

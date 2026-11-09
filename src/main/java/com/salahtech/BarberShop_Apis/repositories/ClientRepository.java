@@ -2,7 +2,6 @@ package com.salahtech.BarberShop_Apis.repositories;
 
 import com.salahtech.BarberShop_Apis.Dtos.BarberClientSummaryDto;
 import com.salahtech.BarberShop_Apis.models.Client;
-import com.salahtech.BarberShop_Apis.models.ClientFavorite;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -56,12 +55,6 @@ public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecif
     @Query("SELECT c FROM Client c LEFT JOIN FETCH c.user WHERE c.id = :id")
     Optional<Client> findByIdWithUser(@Param("id") Long id);
 
-    @Query("SELECT c FROM Client c LEFT JOIN FETCH c.bookings WHERE c.id = :id")
-    Optional<Client> findByIdWithBookings(@Param("id") Long id);
-
-    @Query("SELECT c FROM Client c LEFT JOIN FETCH c.user LEFT JOIN FETCH c.bookings WHERE c.id = :id")
-    Optional<Client> findByIdWithFullDetails(@Param("id") Long id);
-
     // ========== Recherches par critères ==========
 
     @Query("SELECT c FROM Client c WHERE c.createdAt BETWEEN :startDate AND :endDate")
@@ -85,140 +78,21 @@ public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecif
 
     // ========== Clients avec/sans réservations ==========
 
-    @Query("SELECT c FROM Client c WHERE SIZE(c.bookings) > 0")
-    List<Client> findClientsWithBookings();
-
-    @Query("SELECT c FROM Client c WHERE SIZE(c.bookings) = 0")
-    List<Client> findClientsWithoutBookings();
-
-    @Query("SELECT c FROM Client c WHERE SIZE(c.bookings) > 0")
-    Page<Client> findClientsWithBookings(Pageable pageable);
-
-    @Query("SELECT c FROM Client c WHERE SIZE(c.bookings) = 0")
-    Page<Client> findClientsWithoutBookings(Pageable pageable);
-
     // ========== Top clients et statistiques ==========
-
-    @Query("""
-            SELECT c FROM Client c
-            LEFT JOIN c.bookings b
-            WHERE b.status = com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED
-            GROUP BY c.id, c.firstName, c.lastName, c.email, c.phone, c.createdAt, c.updatedAt
-            ORDER BY COUNT(b) DESC
-            """)
-    List<Client> findTopClientsByCompletedBookings(Pageable pageable);
-
-    @Query("""
-            SELECT c, COUNT(b) as bookingCount
-            FROM Client c
-            LEFT JOIN c.bookings b
-            WHERE b.status = com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED
-            GROUP BY c
-            ORDER BY bookingCount DESC
-            """)
-    List<Object[]> findTopClientsWithBookingCount(Pageable pageable);
-
-    @Query("""
-            SELECT c, SUM(b.totalPrice) as totalSpent
-            FROM Client c
-            LEFT JOIN c.bookings b
-            WHERE b.status = com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED
-            GROUP BY c
-            ORDER BY totalSpent DESC
-            """)
-    List<Object[]> findTopClientsByRevenue(Pageable pageable);
 
     // ========== Clients inactifs ==========
 
-    @Query("""
-            SELECT c FROM Client c
-            WHERE NOT EXISTS (
-                SELECT b FROM Booking b
-                WHERE b.client = c
-                AND b.startAt > :date
-            )
-            """)
-    List<Client> findInactiveClientsSince(@Param("date") LocalDateTime date);
-
-    @Query("""
-            SELECT c FROM Client c
-            WHERE c.id NOT IN (
-                SELECT DISTINCT b.client.id FROM Booking b
-                WHERE b.startAt > :date
-                OR b.bookingDate > :date
-            )
-            """)
-    Page<Client> findClientsWithoutRecentBookings(@Param("date") LocalDateTime date, Pageable pageable);
-
     // ========== Requêtes par barbier ==========
 
-    @Query("""
-            SELECT DISTINCT c FROM Client c
-            JOIN c.bookings b
-            WHERE b.barber.id = :barberId
-            """)
-    List<Client> findClientsByBarberId(@Param("barberId") Long barberId);
-
     // Dans ClientRepository.java
-
-    // =================================================================
-    // ✅ REQUÊTE NATIVE CORRIGÉE
-    // 1. Colonne avatar_url utilisée (nom SQL)
-    // 2. Aliasé en profileImageUrl (nom Java)
-    // 3. Pas de commentaires (évite le crash)
-    // =================================================================
-    @Query(value = """
-        SELECT 
-            c.id AS id, 
-            u.first_name AS firstName, 
-            u.last_name AS lastName, 
-            u.phone AS phone, 
-            u.email AS email, 
-            u.avatar_url AS profileImageUrl, 
-            c.created_at AS registeredAt, 
-            COUNT(CASE WHEN b.status = 'COMPLETED' THEN 1 END) AS totalVisits, 
-            COALESCE(SUM(CASE WHEN b.status = 'COMPLETED' THEN b.total_price ELSE 0 END), 0) AS totalRevenue, 
-            MAX(CASE WHEN b.status = 'COMPLETED' THEN b.start_at END) AS lastVisit, 
-            MIN(CASE WHEN b.start_at > CURRENT_TIMESTAMP AND b.status IN ('CONFIRMED', 'PENDING') THEN b.start_at END) AS nextBooking,
-            CASE 
-                WHEN COUNT(CASE WHEN b.status = 'COMPLETED' THEN 1 END) >= 10 
-                  OR COALESCE(SUM(CASE WHEN b.status = 'COMPLETED' THEN b.total_price ELSE 0 END), 0) >= 500 
-                THEN true 
-                ELSE false 
-            END AS isVip
-        FROM clients c
-        JOIN application_users u ON c.user_id = u.id
-        LEFT JOIN bookings b ON b.client_id = c.id AND b.barber_id = :barberId
-        WHERE b.id IS NOT NULL 
-        GROUP BY c.id, u.id, u.first_name, u.last_name, u.phone, u.email, u.avatar_url, c.created_at
-    """, nativeQuery = true)
-    List<BarberClientSummaryDto> findClientSummariesByBarberId(@Param("barberId") Long barberId); 
+ 
    
    
-    @Query("""
-            SELECT DISTINCT c FROM Client c
-            JOIN c.bookings b
-            WHERE b.barber.id = :barberId
-            AND b.status = com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED
-            """)
-    List<Client> findRegularClientsByBarberId(@Param("barberId") Long barberId);
 
     // ========== Statistiques globales ==========
 
     @Query("SELECT COUNT(c) FROM Client c WHERE c.createdAt >= :date")
     Long countNewClientsSince(@Param("date") LocalDateTime date);
-
-    @Query("SELECT COUNT(DISTINCT c) FROM Client c JOIN c.bookings b WHERE b.createdAt >= :date")
-    Long countActiveClientsSince(@Param("date") LocalDateTime date);
-
-    @Query("""
-            SELECT
-                COUNT(c) as total,
-                COUNT(CASE WHEN SIZE(c.bookings) > 0 THEN 1 END) as withBookings,
-                COUNT(CASE WHEN SIZE(c.bookings) = 0 THEN 1 END) as withoutBookings
-            FROM Client c
-            """)
-    List<Object[]> getClientStatistics();
 
     // ========== Recherches avancées avec préférences ==========
 
@@ -230,44 +104,9 @@ public interface ClientRepository extends JpaRepository<Client, Long>, JpaSpecif
 
     // ========== Requêtes natives pour performances ==========
 
-    @Query(value = """
-            SELECT c.*, COUNT(b.id) as booking_count
-            FROM clients c
-            LEFT JOIN bookings b ON c.id = b.client_id
-            WHERE b.status = 'COMPLETED'
-            GROUP BY c.id
-            HAVING COUNT(b.id) >= :minBookings
-            ORDER BY booking_count DESC
-            """, nativeQuery = true)
-    List<Client> findLoyalClients(@Param("minBookings") int minBookings);
-
-    @Query(value = """
-            SELECT c.* FROM clients c
-            WHERE c.id IN (
-                SELECT b.client_id
-                FROM bookings b
-                WHERE b.barber_service_id = :serviceId
-                GROUP BY b.client_id
-                HAVING COUNT(*) >= :minCount
-            )
-            """, nativeQuery = true)
-    List<Client> findFrequentServiceUsers(@Param("serviceId") Long serviceId, @Param("minCount") int minCount);
-
     // ========== Suppression ==========
 
     void deleteByUser_Id(Long userId);
-
-    @Query("DELETE FROM Client c WHERE c.createdAt < :date AND SIZE(c.bookings) = 0")
-    void deleteInactiveClientsOlderThan(@Param("date") LocalDateTime date);
-
-    @Query("""
-                SELECT cf
-                FROM ClientFavorite cf
-                JOIN FETCH cf.barber b
-                JOIN FETCH b.user
-                WHERE cf.client.id = :clientId
-            """)
-    List<ClientFavorite> findByClientId(@Param("clientId") Long clientId);
 
     // Fetch clients who have had at least 3 COMPLETED bookings with a specific barber
     // @Query("SELECT DISTINCT c FROM Client c JOIN c.bookings b WHERE b.barber.id = :barberId AND b.status = 'COMPLETED' GROUP BY c HAVING COUNT(b) >= 3")

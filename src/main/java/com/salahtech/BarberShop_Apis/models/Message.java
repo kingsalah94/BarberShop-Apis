@@ -40,12 +40,6 @@ public class Message {
     @JoinColumn(name = "receiver_id", nullable = false)
     private ApplicationUser receiver;
 
-    // Optionnel : Lier le message à un RDV spécifique
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id")
-    private Booking booking;
-
     // Message auquel celui-ci répond (optionnel).
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

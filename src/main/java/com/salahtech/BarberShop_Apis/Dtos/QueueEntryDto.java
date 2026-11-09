@@ -27,13 +27,8 @@ public class QueueEntryDto {
     private Long preferredEmployeeId;
     private Long assignedEmployeeId;
     private String assignedEmployeeName;
-    private Long preferredBarberId;
-    private Long assignedBarberId;
-    private String assignedBarberName;
-    private Long bookingId;
     private Long workstationId;
     private String workstationName;
-    private List<Long> requestedServiceIds;
     private LocalDateTime checkInTime;
     private LocalDateTime calledAt;
     private LocalDateTime startedAt;

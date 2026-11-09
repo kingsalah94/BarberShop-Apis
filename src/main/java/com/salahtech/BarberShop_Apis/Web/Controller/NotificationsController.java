@@ -39,15 +39,6 @@ public class NotificationsController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
-    @Operation(summary = "Générer les notifications manquantes depuis les RDV existants")
-    @PostMapping("/generate/{barberId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
-    public ResponseEntity<Void> generateNotifications(@PathVariable Long barberId) {
-        // Lancer le processus en arrière-plan (Async)
-        notificationService.generateNotificationsFromExistingBookings(barberId);
-        return ResponseEntity.ok().build();
-    }
-
     @Operation(summary = "Récupérer les notifications de l'utilisateur connecté")
     @GetMapping
     public ResponseEntity<List<NotificationMessageDto>> getMyNotifications(
@@ -74,29 +65,4 @@ public class NotificationsController {
     // return ResponseEntity.ok(notifications);
     // }
 
-    @Operation(summary = "Renvoyer la confirmation (Trigger)")
-    @PostMapping("/booking/{bookingId}/confirm")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> resendConfirmation(@PathVariable @NotNull Long bookingId) {
-        // Le service doit avoir une méthode : void resendBookingConfirmation(Long id);
-        // Si elle n'existe pas, il faut la créer dans NotificationService
-        notificationService.resendBookingConfirmation(bookingId);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
-    }
-
-    @Operation(summary = "Envoyer un rappel (Trigger)")
-    @PostMapping("/booking/{bookingId}/reminder")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> sendReminder(@PathVariable @NotNull Long bookingId) {
-        notificationService.resendBookingReminder(bookingId);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
-    }
-
-    @Operation(summary = "Notifier l'annulation (Trigger)")
-    @PostMapping("/booking/{bookingId}/cancel")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> sendCancellation(@PathVariable @NotNull Long bookingId) {
-        notificationService.resendBookingCancellation(bookingId);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
-    }
 }

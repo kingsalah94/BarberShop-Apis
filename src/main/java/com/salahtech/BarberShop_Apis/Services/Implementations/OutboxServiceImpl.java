@@ -3,7 +3,6 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.OutboxService;
-import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
 import com.salahtech.BarberShop_Apis.repositories.OutboxEventRepository;
@@ -68,22 +67,6 @@ public class OutboxServiceImpl implements OutboxService {
         repo.save(event);
         log.debug("Outbox event saved: type={}, id={}", eventType, id);
         return id;
-    }
-
-    @Override
-    public void enqueueRetry(Booking booking) {
-        Map<String, Object> payload = Map.of(
-                "bookingId", booking.getId(),
-                "barberId", booking.getBarber().getId(),
-                "clientId", booking.getClient().getId(),
-                "action", "RETRY_NOTIFICATION");
-
-        add("BOOKING",
-                booking.getId().toString(),
-                "NOTIFICATION_RETRY",
-                payload,
-                Map.of("attempt", 1) // Astuce pour forcer le type <String, Object>
-        );
     }
 
     @Override

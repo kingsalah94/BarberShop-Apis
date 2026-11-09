@@ -34,8 +34,6 @@ import com.salahtech.BarberShop_Apis.models.QueueEntry;
 import com.salahtech.BarberShop_Apis.models.Salon;
 import com.salahtech.BarberShop_Apis.models.SalonBooking;
 import com.salahtech.BarberShop_Apis.models.Workstation;
-import com.salahtech.BarberShop_Apis.repositories.BarberServiceRepository;
-import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
 import com.salahtech.BarberShop_Apis.repositories.EmployeeRepository;
 import com.salahtech.BarberShop_Apis.repositories.QueueEntryRepository;
@@ -53,8 +51,6 @@ class QueueServiceImplTest {
     @Mock ClientRepository clientRepository;
     @Mock EmployeeRepository employeeRepository;
     @Mock WorkstationRepository workstationRepository;
-    @Mock BarberServiceRepository barberServiceRepository;
-    @Mock BookingRepository bookingRepository;
     @Mock SalonBookingRepository salonBookingRepository;
     @Mock QueueNotifier notifier;
 

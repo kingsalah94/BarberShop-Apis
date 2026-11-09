@@ -11,9 +11,7 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.OutboxService;
 import com.salahtech.BarberShop_Apis.Services.SMSService;
 import com.salahtech.BarberShop_Apis.models.AuditEvent;
-import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.repositories.AuditEventRepository;
-import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 import com.salahtech.BarberShop_Apis.repositories.NotificationRepository; // ✅ Ajouté
 
 import lombok.RequiredArgsConstructor;
@@ -40,7 +38,6 @@ public class NotificationServiceImpl implements NotificationService {
     private final PushNotificationService pushNotificationService;
     private final AuditEventRepository auditEventRepository;
     private final OutboxService outboxService;
-    private final BookingRepository bookingRepository;
     private final NotificationRepository notificationRepository; // ✅ Injecté pour la base de données
 
     // Formatter pour les dates dans les messages
@@ -66,185 +63,6 @@ public class NotificationServiceImpl implements NotificationService {
                         .createdAt(n.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
-    }
-
-    // ==============================================================
-    // 2. CONFIRMATION DE RÉSERVATION
-    // ==============================================================
-    @Override
-    @Async
-    public CompletableFuture<Void> sendBookingConfirmation(Booking booking) {
-        return CompletableFuture.runAsync(() -> {
-            log.info("Envoi de confirmation de réservation pour la réservation {}", booking.getId());
-
-            try {
-                Map<String, Object> templateVariables = createBookingTemplateVariables(booking);
-                boolean atLeastOneSent = false;
-
-                // --- Envois Externes (Email/SMS/Push) ---
-                // ... (Votre code existant pour Email Client)
-                if (booking.getClient() != null && booking.getClient().getEmail() != null) {
-                    try {
-                        emailService.sendTemplateEmail(booking.getClient().getEmail(),
-                                "Confirmation de votre réservation", "booking-confirmation", templateVariables);
-                        atLeastOneSent = true;
-                    } catch (Exception e) {
-                        log.error("Erreur email", e);
-                    }
-                }
-
-                // ... (Votre code existant pour SMS)
-                if (booking.getClient() != null && booking.getClient().getPhone() != null) {
-                    try {
-                        String smsMessage = String.format("Réservation confirmée chez %s le %s. Réf: #%d",
-                                booking.getBarber().getSalonName(), DATE_FMT.format(booking.getStartAt()),
-                                booking.getId());
-                        smsService.sendSMS(booking.getClient().getPhone(), smsMessage);
-                        atLeastOneSent = true;
-                    } catch (Exception e) {
-                        log.error("Erreur SMS", e);
-                    }
-                }
-
-                // ... (Votre code existant pour Push)
-                if (booking.getClient() != null && booking.getClient().getUser() != null) {
-                    try {
-                        pushNotificationService.sendToUser(booking.getClient().getUser().getId(),
-                                "Réservation confirmée", "Votre réservation a été confirmée avec succès",
-                                createNotificationData(booking));
-                        atLeastOneSent = true;
-                    } catch (Exception e) {
-                        log.error("Erreur Push", e);
-                    }
-                }
-
-                // --- ✅ SAUVEGARDE EN BASE DE DONNÉES (POUR LE DASHBOARD) ---
-
-                // 1. Pour le CLIENT (Il verra ça dans son appli)
-                if (booking.getClient() != null && booking.getClient().getUser() != null) {
-                    saveNotificationLog(
-                            booking.getClient().getUser().getId(),
-                            "Réservation Confirmée",
-                            "RDV confirmé chez " + booking.getBarber().getSalonName() + " le "
-                                    + DATE_FMT.format(booking.getStartAt()),
-                            "BOOKING_SUCCESS", // Vert
-                            booking.getId());
-                }
-
-                // 2. Pour le BARBIER (C'est ça qui s'affiche dans "Activité Récente")
-                if (booking.getBarber() != null && booking.getBarber().getUser() != null) {
-                    saveNotificationLog(
-                            booking.getBarber().getUser().getId(),
-                            "Nouvelle Réservation",
-                            booking.getClient().getFullName() + " a réservé pour "
-                                    + DATE_FMT.format(booking.getStartAt()),
-                            "BOOKING_INFO", // Bleu
-                            booking.getId());
-                }
-
-                // Audit global
-                if (atLeastOneSent) {
-                    auditSuccessfulNotification(booking, "BOOKING_CONFIRMATION");
-                }
-
-            } catch (Exception e) {
-                handleNotificationFailure(booking, "BOOKING_CONFIRMATION", e);
-            }
-        });
-    }
-
-    // ==============================================================
-    // 3. RAPPEL DE RÉSERVATION
-    // ==============================================================
-    @Override
-    @Async
-    public CompletableFuture<Void> sendBookingReminder(Booking booking) {
-        return CompletableFuture.runAsync(() -> {
-            log.info("Envoi de rappel de réservation pour la réservation {}", booking.getId());
-            try {
-                Map<String, Object> templateVariables = createBookingTemplateVariables(booking);
-                boolean atLeastOneSent = false;
-
-                // (VOS ENVOIS EMAIL/SMS/PUSH EXISTANTS ICI... Je les garde pour la clarté)
-                // ... implémentation Email/SMS/Push existante ...
-                if (booking.getClient() != null && booking.getClient().getEmail() != null) {
-                    emailService.sendTemplateEmail(booking.getClient().getEmail(), "Rappel RDV", "booking-reminder",
-                            templateVariables);
-                    atLeastOneSent = true;
-                }
-
-                // ✅ SAUVEGARDE DB (Rappel pour le client uniquement)
-                if (booking.getClient() != null && booking.getClient().getUser() != null) {
-                    saveNotificationLog(
-                            booking.getClient().getUser().getId(),
-                            "Rappel de Rendez-vous",
-                            "N'oubliez pas votre RDV demain à " + booking.getStartAt().toLocalTime(),
-                            "BOOKING_WARNING", // Orange
-                            booking.getId());
-                }
-
-                if (atLeastOneSent)
-                    auditSuccessfulNotification(booking, "BOOKING_REMINDER");
-
-            } catch (Exception e) {
-                handleNotificationFailure(booking, "BOOKING_REMINDER", e);
-            }
-        });
-    }
-
-    // ==============================================================
-    // 4. ANNULATION
-    // ==============================================================
-    @Override
-    @Async
-    public CompletableFuture<Void> sendBookingCancellation(Booking booking) {
-        return CompletableFuture.runAsync(() -> {
-            log.info("Envoi de notification d'annulation pour la réservation {}", booking.getId());
-            try {
-                Map<String, Object> templateVariables = createBookingTemplateVariables(booking);
-                boolean atLeastOneSent = false;
-
-                // Envois Email Client & Barbier (Code existant conservé)
-                if (booking.getClient() != null && booking.getClient().getEmail() != null) {
-                    emailService.sendTemplateEmail(booking.getClient().getEmail(), "Annulation", "booking-cancellation",
-                            templateVariables);
-                    atLeastOneSent = true;
-                }
-                if (booking.getBarber() != null && booking.getBarber().getUser().getEmail() != null) {
-                    emailService.sendTemplateEmail(booking.getBarber().getUser().getEmail(), "RDV Annulé",
-                            "booking-cancellation-barber", templateVariables);
-                    atLeastOneSent = true;
-                }
-
-                // --- ✅ SAUVEGARDE EN BASE ---
-
-                // 1. Pour le CLIENT
-                if (booking.getClient() != null && booking.getClient().getUser() != null) {
-                    saveNotificationLog(
-                            booking.getClient().getUser().getId(),
-                            "Réservation Annulée",
-                            "Votre RDV du " + DATE_FMT.format(booking.getStartAt()) + " a été annulé.",
-                            "BOOKING_CANCEL", // Rouge
-                            booking.getId());
-                }
-
-                // 2. Pour le BARBIER (Important pour l'activité récente)
-                if (booking.getBarber() != null && booking.getBarber().getUser() != null) {
-                    saveNotificationLog(
-                            booking.getBarber().getUser().getId(),
-                            "Annulation Client",
-                            "Le RDV de " + booking.getClient().getFullName() + " est annulé.",
-                            "BOOKING_CANCEL", // Rouge
-                            booking.getId());
-                }
-
-                if (atLeastOneSent)
-                    auditSuccessfulNotification(booking, "BOOKING_CANCELLATION");
-
-            } catch (Exception e) {
-                handleNotificationFailure(booking, "BOOKING_CANCELLATION", e);
-            }
-        });
     }
 
     // ==============================================================
@@ -339,47 +157,6 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    @Async
-    public void generateNotificationsFromExistingBookings(Long barberId) {
-        log.info("Génération rétroactive des notifications pour le barbier {}", barberId);
-
-        // 1. Récupérer les RDV futurs de ce barbier
-        List<Booking> upcomingBookings = bookingRepository.findByBarberIdAndStartAtAfter(
-                barberId,
-                LocalDateTime.now().minusHours(24) // On prend aussi ceux d'hier pour l'historique
-        );
-
-        for (Booking booking : upcomingBookings) {
-            // On vérifie si une notif existe déjà pour éviter les doublons (Optionnel mais
-            // propre)
-            // Ici on fait simple : on crée la notif
-
-            String title = "Rappel Système";
-            String message = "RDV prévu : " + booking.getClient().getFullName();
-            String type = "BOOKING_INFO";
-
-            if (booking.getStatus() == BookingStatus.CANCELLED) {
-                title = "Annulation passée";
-                message = "Ce RDV a été annulé par le client.";
-                type = "BOOKING_CANCEL";
-            } else if (booking.getStatus() == BookingStatus.CONFIRMED) {
-                title = "RDV Confirmé";
-                message = "Client : " + booking.getClient().getFullName() + " - "
-                        + booking.getBarberService().getName();
-                type = "BOOKING_SUCCESS";
-            }
-
-            // On utilise notre méthode privée de sauvegarde
-            saveNotificationLog(
-                    booking.getBarber().getUser().getId(),
-                    title,
-                    message,
-                    type,
-                    booking.getId());
-        }
-    }
-
-    @Override
     public void sendBookingNotification(String targetToken, String title, String body, Long bookingId) {
         Map<String, String> data = new HashMap<>();
         data.put("bookingId", String.valueOf(bookingId));
@@ -387,76 +164,9 @@ public class NotificationServiceImpl implements NotificationService {
         sendNotification(targetToken, title, body, data);
     }
 
-    @Override
-    public void resendBookingConfirmation(Long bookingId) {
-        Booking booking = getBookingOrThrow(bookingId);
-        sendBookingConfirmation(booking);
-    }
-
-    @Override
-    public void resendBookingReminder(Long bookingId) {
-        Booking booking = getBookingOrThrow(bookingId);
-        sendBookingReminder(booking);
-    }
-
-    @Override
-    public void resendBookingCancellation(Long bookingId) {
-        Booking booking = getBookingOrThrow(bookingId);
-        sendBookingCancellation(booking);
-    }
-
     // ... Vos méthodes privées auditSuccessfulNotification,
     // handleNotificationFailure, etc. restent inchangées ...
     // Je ne les ai pas toutes recopiées ici pour gagner de la place, mais
     // gardez-les !
 
-    private void auditSuccessfulNotification(Booking booking, String notificationType) {
-        auditEventRepository.save(AuditEvent.builder()
-                .ts(OffsetDateTime.now())
-                .userId(booking.getClient() != null && booking.getClient().getUser() != null
-                        ? booking.getClient().getUser().getId()
-                        : null)
-                .action("NOTIFICATION_SENT")
-                .subjectType("BOOKING")
-                .subjectId(booking.getId().toString())
-                .metadataJson(String.format("{\"type\":\"%s\",\"status\":\"SUCCESS\"}", notificationType))
-                .build());
-    }
-
-    private void handleNotificationFailure(Booking booking, String notificationType, Exception e) {
-        log.error("Erreur notif: {}", e.getMessage());
-        enqueueRetryNotification(booking, notificationType);
-    }
-
-    private void enqueueRetryNotification(Booking booking, String notificationType) {
-        try {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("bookingId", booking.getId());
-            outboxService.add("NOTIFICATION_RETRY", booking.getId().toString(), notificationType, payload,
-                    Map.of("retryCount", 0));
-        } catch (Exception ex) {
-            log.error("Outbox error", ex);
-        }
-    }
-
-    private Map<String, Object> createBookingTemplateVariables(Booking booking) {
-        Map<String, Object> variables = new HashMap<>();
-        if (booking.getClient() != null)
-            variables.put("customerName", booking.getClient().getFullName());
-        if (booking.getBarber() != null)
-            variables.put("salonName", booking.getBarber().getSalonName());
-        variables.put("appointmentDate", booking.getStartAt());
-        return variables;
-    }
-
-    private Map<String, String> createNotificationData(Booking booking) {
-        Map<String, String> data = new HashMap<>();
-        data.put("bookingId", booking.getId().toString());
-        return data;
-    }
-
-    private Booking getBookingOrThrow(Long id) {
-        return bookingRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking introuvable ID: " + id));
-    }
 }

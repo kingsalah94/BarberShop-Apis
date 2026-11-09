@@ -5,7 +5,6 @@ import com.salahtech.BarberShop_Apis.Dtos.ClientProfileDto;
 import com.salahtech.BarberShop_Apis.Dtos.UpdateClientDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberClientSummaryDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
-import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Dtos.ClientDashboardStatsDto;
 
 import org.springframework.data.domain.Page;
@@ -35,15 +34,6 @@ public interface ClientService {
         // Recherche avancée
         Page<ClientDto> search(String query, Boolean hasBookings, LocalDateTime createdFrom,
                         LocalDateTime createdTo, Pageable pageable);
-
-        // Gestion des bookings du client
-        List<BookingDto> getClientBookings(Long clientId);
-
-        List<BookingDto> getClientBookingsByStatus(Long clientId, String status);
-
-        BookingDto getLastBooking(Long clientId);
-
-        Integer countClientBookings(Long clientId);
 
         // Mise à jour partielle
         ClientDto updatePreferences(Long clientId, String preferences);
@@ -90,45 +80,14 @@ public interface ClientService {
         ClientProfileDto updateClientProfile(Long clientId, UpdateClientDto updateDto);
 
         /**
-         * Remove barber from favorites
-         */
-        void removeFavorite(Long clientId, Long barberId);
-
-        /**
          * Get client dashboard statistics
          */
         ClientDashboardStatsDto getDashboardStats(Long clientId);
-
-        /**
-         * Add barber to favorites
-         */
-        void addFavorite(Long clientId, Long barberId);
-
-        /**
-         * Check if barber is favorited
-         */
-        boolean isFavorite(Long clientId, Long barberId);
-
-        /**
-         * Récupère tous les barbiers favoris d'un client
-         * 
-         * @param clientId ID du client
-         * @return Liste des barbiers favoris
-         */
-        List<BarberDto> getFavoriteBarbers(Long clientId);
 
         ClientDto create(ClientDto clientDto, MultipartFile file);
 
         ClientDto update(Long id, ClientDto clientDto, MultipartFile file);
 
-        // Récupère tous les clients associés à un barbier spécifique
-        List<ClientDto> getClientsByBarberId(Long barberId);
-
-        List<BarberClientSummaryDto> getBarberClientsSummary(Long barberId);
-
-        List<ClientDto> getRegularClientsByBarberId(Long barberId);
-
         Long countNewClientsSince(LocalDateTime date);
 
-        Long countActiveClientsSince(LocalDateTime date);
 }

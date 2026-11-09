@@ -4,31 +4,25 @@ import com.salahtech.BarberShop_Apis.Dtos.ClientDto;
 import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import com.salahtech.BarberShop_Apis.Dtos.BarberClientSummaryDto;
 import com.salahtech.BarberShop_Apis.Dtos.BarberDto;
-import com.salahtech.BarberShop_Apis.Dtos.BookingDto;
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Exceptions.ConflictException;
 import com.salahtech.BarberShop_Apis.Dtos.ClientProfileDto;
 import com.salahtech.BarberShop_Apis.Dtos.UpdateClientDto;
 import com.salahtech.BarberShop_Apis.Dtos.ClientDashboardStatsDto;
-import com.salahtech.BarberShop_Apis.models.ClientFavorite;
 import com.salahtech.BarberShop_Apis.models.Role;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ClientService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.SalonBooking;
 import com.salahtech.BarberShop_Apis.repositories.SalonBookingRepository;
 import com.salahtech.BarberShop_Apis.repositories.SalonReviewRepository;
 import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
 import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
-import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
-import com.salahtech.BarberShop_Apis.repositories.ClientFavoriteRepository;
 import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
-import com.salahtech.BarberShop_Apis.repositories.ReviewRepository;
 import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -58,10 +52,7 @@ public class ClientServiceImpl implements ClientService {
 
     private final ClientRepository clientRepository;
     private final ApplicationUserRepository userRepository;
-    private final BookingRepository bookingRepository;
-    private final ClientFavoriteRepository clientFavoriteRepository;
     private final BarberRepository barberRepository;
-    private final ReviewRepository reviewRepository;
     private final SalonBookingRepository salonBookingRepository;
     private final SalonReviewRepository salonReviewRepository;
     private final RoleRepository roleRepository;
@@ -328,39 +319,6 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
-    public List<BookingDto> getClientBookings(Long clientId) {
-        return bookingRepository.findByClient_Id(clientId).stream()
-                .map(BookingDto::fromEntity)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<BookingDto> getClientBookingsByStatus(Long clientId, String status) {
-        BookingStatus bookingStatus = BookingStatus.valueOf(status.toUpperCase());
-        return bookingRepository.findByClient_Id(clientId).stream()
-                .filter(b -> b.getStatus() == bookingStatus)
-                .map(BookingDto::fromEntity)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public BookingDto getLastBooking(Long clientId) {
-        return bookingRepository.findByClient_Id(clientId).stream()
-                .max((b1, b2) -> {
-                    LocalDateTime d1 = b1.getStartAt() != null ? b1.getStartAt() : b1.getBookingDate();
-                    LocalDateTime d2 = b2.getStartAt() != null ? b2.getStartAt() : b2.getBookingDate();
-                    return d1.compareTo(d2);
-                })
-                .map(BookingDto::fromEntity)
-                .orElse(null);
-    }
-
-    @Override
-    public Integer countClientBookings(Long clientId) {
-        return bookingRepository.findByClient_Id(clientId).size();
-    }
-
-    @Override
     @Transactional
     @LogActivity(action = "UPDATE_PREFERENCES", entityName = "Client")
     public ClientDto updatePreferences(Long clientId, String preferences) {
@@ -403,12 +361,17 @@ public class ClientServiceImpl implements ClientService {
         return ClientDto.fromEntity(clientRepository.save(client));
     }
 
+    private long completedCount(Long clientId) {
+        return salonBookingRepository.findByClient_IdOrderByStartAtDesc(clientId).stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED).count();
+    }
+
     @Override
     public ClientStatsDto getClientStats(Long clientId) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client non trouvé"));
 
-        List<Booking> bookings = client.getBookings();
+        List<SalonBooking> bookings = salonBookingRepository.findByClient_IdOrderByStartAtDesc(clientId);
 
         int totalBookings = bookings.size();
         int completedBookings = (int) bookings.stream()
@@ -428,14 +391,14 @@ public class ClientServiceImpl implements ClientService {
                 .orElse(null);
 
         LocalDateTime lastBooking = bookings.stream()
-                .map(b -> b.getStartAt() != null ? b.getStartAt() : b.getBookingDate())
+                .map(SalonBooking::getStartAt)
                 .filter(d -> d != null)
                 .max(LocalDateTime::compareTo)
                 .orElse(null);
 
         List<String> favoriteServices = bookings.stream()
-                .filter(b -> b.getBarberService() != null)
-                .collect(Collectors.groupingBy(b -> b.getBarberService().getName(), Collectors.counting()))
+                .filter(b -> b.getOffering() != null)
+                .collect(Collectors.groupingBy(b -> b.getOffering().getName(), Collectors.counting()))
                 .entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
                 .limit(5)
@@ -451,13 +414,7 @@ public class ClientServiceImpl implements ClientService {
     public List<ClientDto> getTopClients(int limit) {
         // Récupérer les clients avec le plus de réservations complétées
         return clientRepository.findAll().stream()
-                .sorted((c1, c2) -> {
-                    long count1 = c1.getBookings().stream()
-                            .filter(b -> b.getStatus() == BookingStatus.COMPLETED).count();
-                    long count2 = c2.getBookings().stream()
-                            .filter(b -> b.getStatus() == BookingStatus.COMPLETED).count();
-                    return Long.compare(count2, count1);
-                })
+                .sorted((c1, c2) -> Long.compare(completedCount(c2.getId()), completedCount(c1.getId())))
                 .limit(limit)
                 .map(ClientDto::fromEntity)
                 .collect(Collectors.toList());
@@ -469,10 +426,11 @@ public class ClientServiceImpl implements ClientService {
 
         return clientRepository.findAll().stream()
                 .filter(client -> {
-                    LocalDateTime lastActivity = client.getBookings().stream()
-                            .map(b -> b.getStartAt() != null ? b.getStartAt() : b.getBookingDate())
+                    LocalDateTime lastActivity = salonBookingRepository
+                            .findByClient_IdOrderByStartAtDesc(client.getId()).stream()
+                            .map(SalonBooking::getStartAt)
                             .filter(d -> d != null)
-                            .max(LocalDateTime::compareTo)
+                            .findFirst()
                             .orElse(client.getCreatedAt());
                     return lastActivity.isBefore(threshold);
                 })
@@ -519,10 +477,14 @@ public class ClientServiceImpl implements ClientService {
                 .birthDate(client.getBirthDate())
                 .preferences(client.getPreferences())
                 .loyaltyPoints(client.getLoyaltyPoints())
-                .completedBookingsCount(client.getCompletedBookingsCount())
-                .upcomingBookingsCount(client.getUpcomingBookingsCount())
-                .favoritesCount(clientFavoriteRepository.countByClientId(clientId).intValue())
-                .reviewsCount(reviewRepository.countByClientId(clientId).intValue())
+                .completedBookingsCount(completedCount(clientId))
+                .upcomingBookingsCount(salonBookingRepository.findByClient_IdOrderByStartAtDesc(clientId).stream()
+                        .filter(b -> b.getStartAt() != null && b.getStartAt().isAfter(LocalDateTime.now()))
+                        .filter(b -> b.getStatus() == BookingStatus.PENDING || b.getStatus() == BookingStatus.CONFIRMED
+                                || b.getStatus() == BookingStatus.BOOKED)
+                        .count())
+                .favoritesCount(0)
+                .reviewsCount((int) salonReviewRepository.countByClient_Id(clientId))
                 .memberSince(client.getCreatedAt())
                 .lastUpdated(client.getUpdatedAt())
                 .build();
@@ -603,7 +565,7 @@ public class ClientServiceImpl implements ClientService {
         long totalCount = salonBookings.size();
 
         // Favorites and reviews
-        int favoritesCount = clientFavoriteRepository.countByClientId(clientId).intValue();
+        int favoritesCount = 0; // favoris barbiers retirés (modèle salon)
         int reviewsCount = (int) salonReviewRepository.countByClient_Id(clientId);
 
         // Loyalty tier calculation
@@ -611,19 +573,13 @@ public class ClientServiceImpl implements ClientService {
         String loyaltyTier = calculateLoyaltyTier(loyaltyPoints);
         int pointsToNextTier = calculatePointsToNextTier(loyaltyPoints);
 
-        // Most visited barber
-        ClientFavorite topFavorite = clientFavoriteRepository.findTopFavoritesByClientId(clientId)
-                .stream()
-                .findFirst()
-                .orElse(null);
-
-        String mostVisitedBarberName = null;
-        Long mostVisitedBarberVisitCount = 0L;
-        if (topFavorite != null) {
-            Barber barber = topFavorite.getBarber();
-            mostVisitedBarberName = barber.getUser().getFirstName() + " " + barber.getUser().getLastName();
-            mostVisitedBarberVisitCount = topFavorite.getVisitCount().longValue();
-        }
+        // Salon le plus fréquenté (prestations terminées)
+        Map.Entry<String, Long> topSalon = salonBookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.COMPLETED && b.getSalon() != null)
+                .collect(Collectors.groupingBy(b -> b.getSalon().getName(), Collectors.counting()))
+                .entrySet().stream().max(Map.Entry.comparingByValue()).orElse(null);
+        String mostVisitedBarberName = topSalon != null ? topSalon.getKey() : null;
+        Long mostVisitedBarberVisitCount = topSalon != null ? topSalon.getValue() : 0L;
 
         // Total dépensé : prestations salon terminées
         Double totalSpent = salonBookings.stream()
@@ -651,59 +607,6 @@ public class ClientServiceImpl implements ClientService {
                 .build();
     }
 
-    /**
-     * Add barber to favorites
-     */
-    @Override
-    @Transactional
-    @LogActivity(action = "ADD_FAVORITE", entityName = "Client")
-    public void addFavorite(Long clientId, Long barberId) {
-        // Check if already favorited
-        if (clientFavoriteRepository.existsByClientIdAndBarberId(clientId, barberId)) {
-            throw new RuntimeException("Ce barbier est déjà dans vos favoris");
-        }
-
-        Client client = clientRepository.findById(clientId)
-                .orElseThrow(() -> new RuntimeException("Client non trouvé"));
-        Barber barber = barberRepository.findById(barberId)
-                .orElseThrow(() -> new RuntimeException("Barbier non trouvé"));
-
-        ClientFavorite favorite = ClientFavorite.builder()
-                .client(client)
-                .barber(barber)
-                .visitCount(0)
-                .build();
-
-        clientFavoriteRepository.save(favorite);
-        log.info("Barber {} added to favorites for client {}", barberId, clientId);
-    }
-
-    /**
-     * Remove barber from favorites
-     */
-    @Override
-    @Transactional
-    @LogActivity(action = "REMOVE_FAVORITE", entityName = "Client")
-    public void removeFavorite(Long clientId, Long barberId) {
-        if (!clientRepository.existsById(clientId)) {
-            throw new ResourceNotFoundException("Client non trouvé: " + clientId);
-        }
-
-        if (!barberRepository.existsById(barberId)) {
-            throw new ResourceNotFoundException("Barbier non trouvé: " + barberId);
-        }
-        clientFavoriteRepository.deleteByClientIdAndBarberId(clientId, barberId);
-        log.info("Barber {} removed from favorites for client {}", barberId, clientId);
-    }
-
-    /**
-     * Check if barber is favorited
-     */
-    @Override
-    public boolean isFavorite(Long clientId, Long barberId) {
-        return clientFavoriteRepository.existsByClientIdAndBarberId(clientId, barberId);
-    }
-
     // Helper methods for loyalty tier calculation
     private String calculateLoyaltyTier(int points) {
         if (points >= 1000)
@@ -726,67 +629,9 @@ public class ClientServiceImpl implements ClientService {
     }
 
     @Override
-    public List<BarberDto> getFavoriteBarbers(Long clientId) {
-
-        // 1️⃣ Vérifier que le client existe
-        if (!clientRepository.existsById(clientId)) {
-            throw new ResourceNotFoundException(
-                    "Client non trouvé avec l'ID: " + clientId);
-        }
-
-        // 2️⃣ Récupérer les favoris (avec JOIN FETCH barber recommandé côté repository)
-        List<ClientFavorite> favorites = clientFavoriteRepository.findByClientId(clientId);
-
-        // 3️⃣ Mapping manuel via BarberDto.fromEntity
-        return favorites.stream()
-                .map(ClientFavorite::getBarber) // récupérer l’entité Barber
-                .filter(Objects::nonNull) // sécurité
-                .map(BarberDto::fromEntity) // mapping manuel
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<ClientDto> getClientsByBarberId(Long barberId) {
-        List<Client> clients = clientRepository.findClientsByBarberId(barberId);
-
-        // On mappe vers DTO
-        return clients.stream().map(client -> {
-            ClientDto dto = ClientDto.fromEntity(client);
-
-            // BONUS : On peut injecter des stats spécifiques à ce barbier ici si on veut
-            // Ex: combien de fois ce client est venu chez CE barbier
-            long visits = client.getBookings().stream()
-                    .filter(b -> b.getBarber().getId().equals(barberId) && b.getStatus() == BookingStatus.COMPLETED)
-                    .count();
-
-            // On peut utiliser un champ transient dans le DTO ou juste renvoyer le client
-            // brut
-            // Pour l'instant on renvoie le client standard
-            return dto;
-        }).collect(Collectors.toList());
-    }
-
-    @Override
-    public List<BarberClientSummaryDto> getBarberClientsSummary(Long barberId) {
-        return clientRepository.findClientSummariesByBarberId(barberId);
-    }
-
-    @Override
-    public List<ClientDto> getRegularClientsByBarberId(Long barberId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getRegularClientsByBarberId'");
-    }
-
-    @Override
     public Long countNewClientsSince(LocalDateTime date) {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'countNewClientsSince'");
-    }
-
-    @Override
-    public Long countActiveClientsSince(LocalDateTime date) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'countActiveClientsSince'");
     }
 
 }

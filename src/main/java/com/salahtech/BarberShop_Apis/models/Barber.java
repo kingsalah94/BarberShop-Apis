@@ -138,25 +138,6 @@ public class Barber {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Nouvelle relation inverse avec Availability
-    @Builder.Default
-    @OneToMany(mappedBy = "barber", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.LAZY)
-    private List<Availability> availabilities = new ArrayList<>();
-
-    // Relations avec BarberService et Booking
-    @Builder.Default
-    @OneToMany(mappedBy = "barber", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.LAZY)
-    private List<BarberService> barberServices = new ArrayList<>();
-
-    @OneToMany(mappedBy = "barber", cascade = { CascadeType.PERSIST, CascadeType.MERGE }, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<Booking> bookings = new ArrayList<>();
-
-    // ⭐ NOUVELLE RELATION - REVIEWS
-    @OneToMany(mappedBy = "barber", cascade = CascadeType.ALL)
-    @Builder.Default
-    private List<Review> reviews = new ArrayList<>();
-
     @Column(name = "working_hours")
     private String workingHours; // JSON string for working hours
 
@@ -206,86 +187,6 @@ public class Barber {
         updatedAt = LocalDateTime.now();
     }
 
-    /**
-     * Update average rating based on all reviews
-     * Should be called after a review is added, updated, or deleted
-     */
-    public void updateAverageRating() {
-        List<Review> activeReviews = reviews.stream()
-                .filter(r -> !r.getIsDeleted())
-                .toList();
 
-        if (activeReviews.isEmpty()) {
-            this.rating = BigDecimal.ZERO;
-            this.reviewsCount = 0;
-        } else {
-            double averageRating = activeReviews.stream()
-                    .mapToInt(Review::getOverallRating)
-                    .average()
-                    .orElse(0.0);
-
-            this.rating = BigDecimal.valueOf(averageRating)
-                    .setScale(2, RoundingMode.HALF_UP);
-            this.reviewsCount = activeReviews.size();
-        }
-    }
-
-    /**
-     * Get count of completed bookings
-     */
-    public long getCompletedBookingsCount() {
-        return bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
-                .count();
-    }
-
-    /**
-     * Get rating breakdown for each category
-     */
-    public RatingBreakdown getRatingBreakdown() {
-        List<Review> activeReviews = reviews.stream()
-                .filter(r -> !r.getIsDeleted())
-                .toList();
-
-        if (activeReviews.isEmpty()) {
-            return new RatingBreakdown(0.0, 0.0, 0.0, 0.0);
-        }
-
-        double quality = activeReviews.stream()
-                .filter(r -> r.getQualityRating() != null)
-                .mapToInt(Review::getQualityRating)
-                .average()
-                .orElse(0.0);
-
-        double reception = activeReviews.stream()
-                .filter(r -> r.getReceptionRating() != null)
-                .mapToInt(Review::getReceptionRating)
-                .average()
-                .orElse(0.0);
-
-        double value = activeReviews.stream()
-                .filter(r -> r.getValueForMoneyRating() != null)
-                .mapToInt(Review::getValueForMoneyRating)
-                .average()
-                .orElse(0.0);
-
-        double punctuality = activeReviews.stream()
-                .filter(r -> r.getPunctualityRating() != null)
-                .mapToInt(Review::getPunctualityRating)
-                .average()
-                .orElse(0.0);
-
-        return new RatingBreakdown(quality, reception, value, punctuality);
-    }
-
-    // Inner class for rating breakdown
-    @Data
-    @AllArgsConstructor
-    public static class RatingBreakdown {
-        private Double quality;
-        private Double reception;
-        private Double valueForMoney;
-        private Double punctuality;
-    }
 
 }

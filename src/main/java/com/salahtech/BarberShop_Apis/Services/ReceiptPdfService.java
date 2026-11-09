@@ -39,10 +39,9 @@ public class ReceiptPdfService {
                 .orElseThrow(() -> new ResourceNotFoundException("Prestation introuvable: " + entryId));
 
         String salonName = e.getSalon() != null ? e.getSalon().getName() : "BarberShop";
-        String barber = e.getAssignedBarber() != null ? e.getAssignedBarber().getName()
-                : (e.getAssignedEmployee() != null
-                        ? (e.getAssignedEmployee().getFirstName() + " " + e.getAssignedEmployee().getLastName())
-                        : null);
+        String barber = e.getAssignedEmployee() != null
+                ? (e.getAssignedEmployee().getFirstName() + " " + e.getAssignedEmployee().getLastName())
+                : null;
         LocalDateTime when = e.getEndedAt() != null ? e.getEndedAt() : LocalDateTime.now();
         BigDecimal amount = e.getAmount() != null ? e.getAmount() : BigDecimal.ZERO;
         String method = e.getPaymentMethod() != null ? methodLabel(e.getPaymentMethod().name()) : "—";

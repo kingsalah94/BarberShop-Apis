@@ -92,18 +92,7 @@ public class ClientDto implements Serializable {
                 .createdAt(client.getCreatedAt())
                 .updatedAt(client.getUpdatedAt())
 
-                // Calculs complexes (Bookings)
-                .totalBookings(client.getBookings() != null ? client.getBookings().size() : 0)
-                .completedBookings(client.getBookings() != null ? (int) client.getBookings().stream()
-                        .filter(b -> b.getStatus() == BookingStatus.COMPLETED)
-                        .count() : 0)
-                .lastBookingDate(
-                        client.getBookings() != null && !client.getBookings().isEmpty() ? client.getBookings().stream()
-                                .map(b -> b.getStartAt() != null ? b.getStartAt() : b.getBookingDate()) // Gère les deux
-                                                                                                        // cas de date
-                                .filter(java.util.Objects::nonNull)
-                                .max(LocalDateTime::compareTo)
-                                .orElse(null) : null)
+                // Compteurs de réservations : renseignés par ClientServiceImpl (réservations salon)
                 .fullName(client.getFullName()) // Supposant que getFullName existe dans Client ou User
                 .build();
     }

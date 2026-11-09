@@ -41,7 +41,6 @@ public class MessagingNotifier {
         e.put("content", m.getContent());
         e.put("messageType", m.getMessageType());
         e.put("replyToId", m.getReplyToId());
-        e.put("bookingId", m.getBookingId());
         e.put("createdAt", m.getCreatedAt());
         e.put("readAt", m.getReadAt());
         e.put("editedAt", m.getEditedAt());

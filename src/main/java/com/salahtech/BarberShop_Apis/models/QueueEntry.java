@@ -42,7 +42,6 @@ public class QueueEntry {
     @Builder.Default
     private int numberOfPeople = 1;
 
-
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "salon_id", nullable = false)
@@ -59,44 +58,16 @@ public class QueueEntry {
     @JoinColumn(name = "preferred_employee_id")
     private Employee preferredEmployee;
 
-
     // Minutes estimées
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assigned_employee_id")
     private Employee assignedEmployee;
 
-    // Modèle barber-centric : barbier souhaité / barbier qui prend en charge.
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "preferred_barber_id")
-    private Barber preferredBarber;
-
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "assigned_barber_id")
-    private Barber assignedBarber;
-
-    // Lien vers le RDV d'origine (si l'entrée vient d'un check-in de Booking).
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "booking_id")
-    private Booking booking;
-
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workstation_id")
     private Workstation workstation;
-
-    @ToString.Exclude
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "queue_entry_services",
-            joinColumns = @JoinColumn(name = "queue_entry_id"),
-            inverseJoinColumns = @JoinColumn(name = "service_id")
-    )
-    @Builder.Default
-    private List<BarberService> requestedServices = new ArrayList<>();
 
     @Column(name = "ticket_number", nullable = false)
     private String ticketNumber;

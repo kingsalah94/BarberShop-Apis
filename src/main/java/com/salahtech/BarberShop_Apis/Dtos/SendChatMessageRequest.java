@@ -15,6 +15,4 @@ public class SendChatMessageRequest {
 
     private Long replyToId;
 
-    /** Optionnel : rattacher le message à un RDV. */
-    private Long bookingId;
 }

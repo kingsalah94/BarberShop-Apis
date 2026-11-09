@@ -42,8 +42,6 @@ public class DemoDataSeeder implements CommandLineRunner {
     private final ApplicationUserRepository userRepository;
     private final RoleRepository roleRepository;
     private final BarberRepository barberRepository;
-    private final BarberServiceRepository barberServiceRepository;
-    private final AvailabilityRepository availabilityRepository;
     private final CategoryRepository categoryRepository;
     private final ClientRepository clientRepository;
     private final SalonRepository salonRepository;
@@ -331,35 +329,7 @@ public class DemoDataSeeder implements CommandLineRunner {
             barber.setCreatedAt(LocalDateTime.now());
             Barber savedBarber = barberRepository.save(barber);
 
-            // 3. Prestations
-            for (ServiceDef s : services) {
-                BarberService bs = new BarberService();
-                bs.setName(s.name());
-                bs.setPrice(new BigDecimal(s.price()));
-                bs.setDuration(s.duration());
-                bs.setDescription(s.name());
-                bs.setCategory(category);
-                bs.setBarber(savedBarber);
-                bs.setActive(true);
-                bs.setCreatedAt(LocalDateTime.now());
-                barberServiceRepository.save(bs);
-            }
-
-            // 4. Disponibilités hebdomadaires (Lun → Sam, 09:00 → 19:00)
-            final List<DayOfWeek> days = List.of(
-                    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
-                    DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY);
-            for (DayOfWeek d : days) {
-                Availability a = new Availability();
-                a.setBarber(savedBarber);
-                a.setDayOfWeek(d);
-                a.setStartAt(LocalTime.of(9, 0));
-                a.setEndAt(LocalTime.of(19, 0));
-                a.setIsAvailable(true);
-                availabilityRepository.save(a);
-            }
-
-            log.info("   ✂️  Barbier démo créé : {} ({} services)", salonName, services.size());
+            log.info("   ✂️  Barbier démo créé : {}", salonName);
         } catch (Exception e) {
             log.error("   ❌ Échec création barbier démo {} : {}", email, e.getMessage(), e);
         }

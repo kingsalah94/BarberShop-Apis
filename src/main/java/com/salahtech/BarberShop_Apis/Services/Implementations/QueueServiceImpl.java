@@ -41,8 +41,6 @@ public class QueueServiceImpl implements QueueService {
     private final ClientRepository clientRepository;
     private final EmployeeRepository employeeRepository;
     private final WorkstationRepository workstationRepository;
-    private final BarberServiceRepository barberServiceRepository;
-    private final BookingRepository bookingRepository;
     private final SalonBookingRepository salonBookingRepository;
     private final QueueNotifier notifier;
 
@@ -74,11 +72,6 @@ public class QueueServiceImpl implements QueueService {
             entry.setPreferredEmployee(e);
         }
 
-        if (req.getRequestedServiceIds() != null && !req.getRequestedServiceIds().isEmpty()) {
-            List<BarberService> services = barberServiceRepository.findAllById(req.getRequestedServiceIds());
-            entry.setRequestedServices(services);
-        }
-
         entry.setTicketNumber(generateTicketNumber(salon.getId()));
         entry.setEstimatedWaitTime(estimateWaitTime(salon.getId(), entry));
 
@@ -90,80 +83,12 @@ public class QueueServiceImpl implements QueueService {
     }
 
     @Override
-    public QueueEntryDto checkInFromBooking(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("RDV introuvable: " + bookingId));
-
-        if (booking.getStatus() != BookingStatus.CONFIRMED && booking.getStatus() != BookingStatus.BOOKED) {
-            throw new BusinessException(
-                    "Le RDV doit être confirmé pour le check-in (statut=" + booking.getStatus() + ")");
-        }
-
-        Barber barber = booking.getBarber();
-        if (barber == null || barber.getSalon() == null) {
-            throw new BusinessException("Le barbier du RDV n'est rattaché à aucun salon");
-        }
-        Salon salon = barber.getSalon();
-
-        // Évite un double check-in pour le même RDV (entrée déjà active).
-        var existing = queueRepository.findFirstByBooking_IdAndStatusInOrderByCheckInTimeDesc(
-                bookingId, List.of(QueueStatus.WAITING, QueueStatus.NOTIFIED, QueueStatus.IN_CHAIR));
-        if (existing.isPresent()) {
-            return toDto(existing.get());
-        }
-
-        Client client = booking.getClient();
-        String name = client != null
-                ? ((client.getFirstName() != null ? client.getFirstName() : "") + " "
-                        + (client.getLastName() != null ? client.getLastName() : "")).trim()
-                : "Client";
-        if (name.isEmpty()) name = "Client";
-
-        QueueEntry entry = QueueEntry.builder()
-                .customerName(name)
-                .customerPhone(client != null ? client.getPhone() : null)
-                .numberOfPeople(1)
-                .salon(salon)
-                .client(client)
-                .preferredBarber(barber)
-                .booking(booking)
-                .checkInTime(LocalDateTime.now())
-                .status(QueueStatus.WAITING)
-                .notes("RDV #" + booking.getId())
-                .build();
-
-        if (booking.getBarberService() != null) {
-            entry.setRequestedServices(new java.util.ArrayList<>(List.of(booking.getBarberService())));
-        }
-
-        entry.setTicketNumber(generateTicketNumber(salon.getId()));
-        entry.setEstimatedWaitTime(estimateWaitTime(salon.getId(), entry));
-
-        QueueEntry saved = queueRepository.save(entry);
-        log.info("Check-in RDV {} -> file ticket={} salon={}", bookingId, saved.getTicketNumber(), salon.getId());
-        broadcastQueue(salon.getId());
-        return toDto(saved);
-    }
-
-    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueueFromSalonBookingQuietly(Long salonBookingId) {
         try {
             enqueueFromSalonBooking(salonBookingId);
         } catch (Exception e) {
             log.warn("Auto-ajout file échoué pour réservation salon {} : {}", salonBookingId, e.getMessage());
-        }
-    }
-
-    @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void enqueueFromBookingQuietly(Long bookingId) {
-        // Transaction NEUVE : indispensable car appelée depuis un afterCommit
-        // (sinon l'INSERT rejoint la transaction déjà committée et n'est pas persisté).
-        try {
-            checkInFromBooking(bookingId);
-        } catch (Exception e) {
-            log.warn("Auto-ajout file échoué pour RDV {} : {}", bookingId, e.getMessage());
         }
     }
 
@@ -252,7 +177,6 @@ public class QueueServiceImpl implements QueueService {
         }
         entry.setWorkstation(ws);
         entry.setAssignedEmployee(ws.getCurrentEmployee());
-        entry.setAssignedBarber(ws.getCurrentBarber()); // modèle barber-centric
         entry.setStatus(QueueStatus.NOTIFIED);
         entry.setCalledAt(LocalDateTime.now());
 
@@ -336,12 +260,6 @@ public class QueueServiceImpl implements QueueService {
         entry.setPaymentStatus(PaymentStatus.PAID);
 
         // Propagation au RDV si l'entrée provient d'une réservation.
-        if (entry.getBooking() != null) {
-            Booking b = entry.getBooking();
-            b.setPaymentStatus(PaymentStatus.PAID);
-            b.setPaymentMethod(entry.getPaymentMethod());
-            bookingRepository.save(b);
-        }
 
         QueueEntry saved = queueRepository.save(entry);
         broadcastQueue(entry.getSalon().getId());
@@ -375,15 +293,6 @@ public class QueueServiceImpl implements QueueService {
     private BigDecimal computePrice(QueueEntry e) {
         if (e.getExpectedPrice() != null && e.getExpectedPrice().signum() > 0) {
             return e.getExpectedPrice();
-        }
-        if (e.getBooking() != null && e.getBooking().getTotalPrice() != null) {
-            return e.getBooking().getTotalPrice();
-        }
-        if (e.getRequestedServices() != null && !e.getRequestedServices().isEmpty()) {
-            return e.getRequestedServices().stream()
-                    .map(BarberService::getPrice)
-                    .filter(p -> p != null)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
         return BigDecimal.ZERO;
     }
@@ -525,11 +434,7 @@ public class QueueServiceImpl implements QueueService {
                 ? queueRepository.countAheadOf(salonId, entry.getCheckInTime())
                 : queueRepository.countBySalon_IdAndStatus(salonId, QueueStatus.WAITING);
 
-        int avgServiceMinutes = entry.getRequestedServices() == null || entry.getRequestedServices().isEmpty()
-                ? DEFAULT_SERVICE_DURATION_MIN
-                : entry.getRequestedServices().stream()
-                  .mapToInt(s -> s.getDuration() != null ? s.getDuration() : DEFAULT_SERVICE_DURATION_MIN)
-                  .sum();
+        int avgServiceMinutes = DEFAULT_SERVICE_DURATION_MIN;
 
         long activeStations = workstationRepository.countBySalon_IdAndStatus(salonId, StationStatus.OCCUPIED)
                 + workstationRepository.countBySalon_IdAndStatus(salonId, StationStatus.FREE);
@@ -564,7 +469,6 @@ public class QueueServiceImpl implements QueueService {
 
         Employee assigned = e.getAssignedEmployee();
         Workstation ws = e.getWorkstation();
-        Barber assignedB = e.getAssignedBarber();
 
         return QueueEntryDto.builder()
                 .id(e.getId())
@@ -577,14 +481,8 @@ public class QueueServiceImpl implements QueueService {
                 .preferredEmployeeId(e.getPreferredEmployee() != null ? e.getPreferredEmployee().getId() : null)
                 .assignedEmployeeId(assigned != null ? assigned.getId() : null)
                 .assignedEmployeeName(assigned != null ? (assigned.getFirstName() + " " + assigned.getLastName()) : null)
-                .preferredBarberId(e.getPreferredBarber() != null ? e.getPreferredBarber().getId() : null)
-                .assignedBarberId(assignedB != null ? assignedB.getId() : null)
-                .assignedBarberName(assignedB != null ? assignedB.getName() : null)
-                .bookingId(e.getBooking() != null ? e.getBooking().getId() : null)
                 .workstationId(ws != null ? ws.getId() : null)
                 .workstationName(ws != null ? ws.getName() : null)
-                .requestedServiceIds(e.getRequestedServices() == null ? List.of()
-                        : e.getRequestedServices().stream().map(BarberService::getId).collect(Collectors.toList()))
                 .checkInTime(e.getCheckInTime())
                 .calledAt(e.getCalledAt())
                 .startedAt(e.getStartedAt())

@@ -25,7 +25,6 @@ public class ConversationMessageDto {
     private String content;
     private MessageType messageType;
     private Long replyToId;
-    private Long bookingId;
     private LocalDateTime createdAt;
     private LocalDateTime readAt;
     private LocalDateTime editedAt;

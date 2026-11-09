@@ -119,13 +119,6 @@ public class ClientController {
     // ==========================================
     // Note: Le client utilise /v1/bookings/my-bookings, pas ça.
 
-    @Operation(summary = "Historique RDV d'un client (Admin/Barbier)")
-    @GetMapping("/{clientId}/bookings")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
-    public ResponseEntity<List<BookingDto>> getClientBookings(@PathVariable Long clientId) {
-        return ResponseEntity.ok(clientService.getClientBookings(clientId));
-    }
-
     @Operation(summary = "Ajouter une note privée sur un client (Barbier)")
     @PatchMapping("/{clientId}/notes")
     @PreAuthorize("hasRole('BARBER')")
@@ -134,15 +127,4 @@ public class ClientController {
         return ResponseEntity.ok(clientService.updateNotes(clientId, body.get("notes")));
     }
 
-    @GetMapping("/barber/{barberId}")
-    @PreAuthorize("hasAnyRole('BARBER', 'ADMIN')")
-    public ResponseEntity<List<ClientDto>> getBarberClients(@PathVariable Long barberId) {
-        return ResponseEntity.ok(clientService.getClientsByBarberId(barberId));
-    }
-
-    //
-    @GetMapping("/barber/{barberId}/summary")
-    public ResponseEntity<List<BarberClientSummaryDto>> getBarberClientsSummary(@PathVariable Long barberId) {
-        return ResponseEntity.ok(clientService.getBarberClientsSummary(barberId));
-    }
 }

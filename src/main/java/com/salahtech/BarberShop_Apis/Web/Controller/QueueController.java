@@ -9,7 +9,6 @@ import com.salahtech.BarberShop_Apis.Enums.PaymentMethod;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.QueueService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 import com.salahtech.BarberShop_Apis.repositories.QueueEntryRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,7 +52,6 @@ public class QueueController {
     private final ReceiptPdfService receiptPdfService;
     private final TenantGuard tenantGuard;
     private final QueueEntryRepository queueEntryRepository;
-    private final BookingRepository bookingRepository;
 
     // ===================== Helpers d'accès =====================
 
@@ -97,17 +95,6 @@ public class QueueController {
             req.setClientId(clientId);
         }
         return ResponseEntity.status(HttpStatus.CREATED).body(queueService.checkIn(req));
-    }
-
-    @Operation(summary = "Check-in à l'arrivée d'un client ayant un RDV confirmé")
-    @PostMapping("/from-booking/{bookingId}")
-    @PreAuthorize(STAFF_ROLES)
-    public ResponseEntity<QueueEntryDto> checkInFromBooking(@PathVariable Long bookingId,
-                                                            @CurrentUser ApplicationUser user) {
-        Long salonId = bookingRepository.findSalonIdById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("RDV introuvable ou sans salon: " + bookingId));
-        tenantGuard.assertSalonStaff(user, salonId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(queueService.checkInFromBooking(bookingId));
     }
 
     @Operation(summary = "Lister la file active (en attente, notifié, en service)")

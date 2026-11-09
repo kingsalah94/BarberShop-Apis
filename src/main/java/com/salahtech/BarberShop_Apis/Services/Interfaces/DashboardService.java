@@ -13,13 +13,6 @@ public interface DashboardService {
 
     DashboardStatsDto getAllStatsForAdmin();
 
-    DashboardStatsDto getStatsByBarber(Long barberId);
-
-    List<TimePointLongDto> getBookingsTrend(Long barberId, LocalDate from, LocalDate to);
-
-    List<TimePointDecimalDto> getRevenueTrend(Long barberId, LocalDate from, LocalDate to);
-
-    Map<BookingStatus, Long> getStatusBreakdown(Long barberId, LocalDate from, LocalDate to);
 
     List<TimePointLongDto> getBookingsTrend(LocalDate from, LocalDate to);
 
