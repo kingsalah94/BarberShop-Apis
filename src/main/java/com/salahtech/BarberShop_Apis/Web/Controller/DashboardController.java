@@ -30,73 +30,49 @@ import java.util.Map;
 public class DashboardController {
 
     private final DashboardService service;
-    private final BarberRepository barberRepository; // ✅ Injection ajoutée
+    private final com.salahtech.BarberShop_Apis.Services.Interfaces.SalonBookingService salonBookingService;
 
-    @Operation(summary = "Statistiques Globales (Admin) ou Personnelles (Barber)")
+    @Operation(summary = "Prochaines réservations, tous salons (ADMIN)")
+    @GetMapping("/upcoming")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<com.salahtech.BarberShop_Apis.Dtos.SalonBookingDto>> upcoming() {
+        return ResponseEntity.ok(salonBookingService.upcomingPlatform());
+    }
+
+    // Tableau de bord PLATEFORME (console admin) — réservations du modèle salon.
+    // Les vues par salon / par prestataire passent par /v1/salons/{id}/bookings/stats.
+
+    @Operation(summary = "Statistiques globales de la plateforme (ADMIN)")
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
-    public ResponseEntity<DashboardStatsDto> getStats(@CurrentUser ApplicationUser user) {
-        Long barberId = determineTargetId(user);
-
-        if (barberId == null) {
-            // Admin voit tout
-            return ResponseEntity.ok(service.getAllStatsForAdmin());
-        } else {
-            // Barber voit ses stats
-            return ResponseEntity.ok(service.getStatsByBarber(barberId));
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DashboardStatsDto> getStats() {
+        return ResponseEntity.ok(service.getAllStatsForAdmin());
     }
 
-    @Operation(summary = "Tendance des Réservations (Courbe)")
+    @Operation(summary = "Tendance des réservations (ADMIN)")
     @GetMapping("/trends/bookings")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TimePointLongDto>> getBookingsTrend(
-            @CurrentUser ApplicationUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-
-        Long barberId = determineTargetId(user);
-        return ResponseEntity.ok(service.getBookingsTrend(barberId, from, to));
+        return ResponseEntity.ok(service.getBookingsTrend(from, to));
     }
 
-    @Operation(summary = "Tendance du Chiffre d'Affaires (Courbe)")
+    @Operation(summary = "Tendance du chiffre d'affaires (ADMIN)")
     @GetMapping("/trends/revenue")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<TimePointDecimalDto>> getRevenueTrend(
-            @CurrentUser ApplicationUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-
-        Long barberId = determineTargetId(user);
-        return ResponseEntity.ok(service.getRevenueTrend(barberId, from, to));
+        return ResponseEntity.ok(service.getAllRevenueTrend(from, to));
     }
 
-    @Operation(summary = "Répartition par Statut (Camembert)")
+    @Operation(summary = "Répartition par statut (ADMIN)")
     @GetMapping("/breakdown/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'BARBER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<BookingStatus, Long>> getStatusBreakdown(
-            @CurrentUser ApplicationUser user,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-
-        Long barberId = determineTargetId(user);
-        return ResponseEntity.ok(service.getStatusBreakdown(barberId, from, to));
-    }
-
-    // --- Helper Privé Corrigé ---
-    private Long determineTargetId(ApplicationUser user) {
-        // 1. Si c'est un ADMIN, on renvoie null (pour dire "Global")
-        boolean isAdmin = user.getRoles().stream().anyMatch(r -> r.getName().equals("ADMIN"));
-        if (isAdmin) {
-            return null;
-        }
-
-        // 2. Si c'est un BARBER (ou autre), on DOIT chercher son entité Barber
-        // Car l'ID de l'User (ex: 10) n'est pas le même que l'ID du Barbier (ex: 5)
-        return barberRepository.findByUser_Id(user.getId())
-                .map(Barber::getId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Aucun profil barbier associé à ce compte utilisateur."));
+        return ResponseEntity.ok(service.getAllStatusBreakdown(from, to));
     }
 }

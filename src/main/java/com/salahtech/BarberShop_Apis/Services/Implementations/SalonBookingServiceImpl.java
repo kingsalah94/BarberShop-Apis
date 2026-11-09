@@ -296,6 +296,14 @@ public class SalonBookingServiceImpl implements SalonBookingService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<SalonBookingDto> upcomingPlatform() {
+        return bookingRepository
+                .findTop6ByStartAtGreaterThanEqualAndStatusInOrderByStartAtAsc(LocalDateTime.now(), ACTIVE)
+                .stream().map(this::toDto).collect(Collectors.toList());
+    }
+
     /** Charge un employé et vérifie qu'il est rattaché au salon. */
     private Employee employeeOfSalon(Long salonId, Long employeeId) {
         Employee e = employeeRepository.findById(employeeId)

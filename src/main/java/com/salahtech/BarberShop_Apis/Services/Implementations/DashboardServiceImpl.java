@@ -17,6 +17,8 @@ import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 public class DashboardServiceImpl implements DashboardService {
 
     private final BookingRepository bookingRepository;
+    /** Vues plateforme (ADMIN) : réservations du modèle salon. */
+    private final com.salahtech.BarberShop_Apis.repositories.SalonBookingRepository salonBookings;
     private static final ZoneId ZONE = ZoneId.of("Africa/Niamey");
 
     @Override
@@ -33,18 +35,18 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDate startOfWeekDate = today.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDateTime startWeek = startOfWeekDate.atStartOfDay();
 
-        long total = bookingRepository.count();
-        long completed = bookingRepository.countByStatus(BookingStatus.COMPLETED);
-        long pending = bookingRepository.countByStatus(BookingStatus.PENDING);
-        long cancelled = bookingRepository.countByStatus(BookingStatus.CANCELLED);
+        long total = salonBookings.count();
+        long completed = salonBookings.countByStatus(BookingStatus.COMPLETED);
+        long pending = salonBookings.countByStatus(BookingStatus.PENDING);
+        long cancelled = salonBookings.countByStatus(BookingStatus.CANCELLED);
 
-        BigDecimal totalRevenue = nvl(bookingRepository.sumRevenueAllCompleted());
-        BigDecimal monthlyRevenue = nvl(bookingRepository.sumRevenueCompletedBetween(startMonth, now));
-        BigDecimal dailyRevenue = nvl(bookingRepository.sumRevenueCompletedBetween(startToday, endToday));
+        BigDecimal totalRevenue = nvl(salonBookings.sumCompletedRevenue());
+        BigDecimal monthlyRevenue = nvl(salonBookings.sumCompletedRevenueBetween(startMonth, now));
+        BigDecimal dailyRevenue = nvl(salonBookings.sumCompletedRevenueBetween(startToday, endToday));
 
-        long todayBookings = bookingRepository.countBetween(startToday, endToday);
-        long weekBookings = bookingRepository.countBetween(startWeek, now);
-        long monthBookings = bookingRepository.countBetween(startMonth, now);
+        long todayBookings = salonBookings.countByStartAtGreaterThanEqualAndStartAtLessThan(startToday, endToday);
+        long weekBookings = salonBookings.countByStartAtGreaterThanEqualAndStartAtLessThan(startWeek, now);
+        long monthBookings = salonBookings.countByStartAtGreaterThanEqualAndStartAtLessThan(startMonth, now);
 
         return new DashboardStatsDto(
                 total, completed, pending, cancelled,
@@ -60,7 +62,7 @@ public class DashboardServiceImpl implements DashboardService {
         while (!cur.isAfter(to)) {
             LocalDateTime start = cur.atStartOfDay();
             LocalDateTime end = cur.plusDays(1).atStartOfDay();
-            long cnt = bookingRepository.countBetween(start, end);
+            long cnt = salonBookings.countByStartAtGreaterThanEqualAndStartAtLessThan(start, end);
             out.add(new TimePointLongDto(cur, cnt));
             cur = cur.plusDays(1);
         }
@@ -74,7 +76,7 @@ public class DashboardServiceImpl implements DashboardService {
         while (!cur.isAfter(to)) {
             LocalDateTime start = cur.atStartOfDay();
             LocalDateTime end = cur.plusDays(1).atStartOfDay();
-            BigDecimal val = nvl(bookingRepository.sumRevenueCompletedBetween(start, end));
+            BigDecimal val = nvl(salonBookings.sumCompletedRevenueBetween(start, end));
             out.add(new TimePointDecimalDto(cur, val));
             cur = cur.plusDays(1);
         }
@@ -87,7 +89,7 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.plusDays(1).atStartOfDay();
         for (BookingStatus st : BookingStatus.values()) {
-            long c = bookingRepository.countByStatusBetween(st, start, end);
+            long c = salonBookings.countByStatusAndStartAtGreaterThanEqualAndStartAtLessThan(st, start, end);
             map.put(st, c);
         }
         return map;

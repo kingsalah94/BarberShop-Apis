@@ -21,6 +21,8 @@ public interface DashboardService {
 
     Map<BookingStatus, Long> getStatusBreakdown(Long barberId, LocalDate from, LocalDate to);
 
+    List<TimePointLongDto> getBookingsTrend(LocalDate from, LocalDate to);
+
     List<TimePointDecimalDto> getAllRevenueTrend(LocalDate from, LocalDate to);
 
     Map<BookingStatus, Long> getAllStatusBreakdown(LocalDate from, LocalDate to);

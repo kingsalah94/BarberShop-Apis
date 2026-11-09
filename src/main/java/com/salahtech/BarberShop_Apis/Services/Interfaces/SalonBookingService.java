@@ -22,6 +22,9 @@ public interface SalonBookingService {
     /** Prestataires que le client peut choisir (barbiers actifs du salon). */
     List<com.salahtech.BarberShop_Apis.Dtos.SalonStaffDto> bookableStaff(Long salonId);
 
+    /** Prochaines réservations actives, tous salons confondus (console admin). */
+    List<com.salahtech.BarberShop_Apis.Dtos.SalonBookingDto> upcomingPlatform();
+
     /** Crée une réservation (client connecté). */
     SalonBookingDto create(Long salonId, CreateSalonBookingRequest req, ApplicationUser user);
 

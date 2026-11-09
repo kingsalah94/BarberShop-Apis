@@ -23,4 +23,31 @@ public interface SalonBookingRepository extends JpaRepository<SalonBooking, Long
 
     /** Toutes les réservations d'un salon (pour agréger les clients). */
     List<SalonBooking> findBySalon_Id(Long salonId);
+
+    // ===== Tableau de bord plateforme (ADMIN) =====
+
+    long countByStatus(BookingStatus status);
+
+    List<SalonBooking> findTop6ByStartAtGreaterThanEqualAndStatusInOrderByStartAtAsc(
+            LocalDateTime from, Collection<BookingStatus> statuses);
+
+    /** Intervalle semi-ouvert [from, to[. */
+    long countByStartAtGreaterThanEqualAndStartAtLessThan(LocalDateTime from, LocalDateTime to);
+
+    long countByStatusAndStartAtGreaterThanEqualAndStartAtLessThan(
+            BookingStatus status, LocalDateTime from, LocalDateTime to);
+
+    /** Chiffre d'affaires = prestations terminées. */
+    @org.springframework.data.jpa.repository.Query(
+            "select coalesce(sum(b.totalPrice), 0) from SalonBooking b where b.status = "
+            + "com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED")
+    java.math.BigDecimal sumCompletedRevenue();
+
+    @org.springframework.data.jpa.repository.Query(
+            "select coalesce(sum(b.totalPrice), 0) from SalonBooking b where b.status = "
+            + "com.salahtech.BarberShop_Apis.Enums.BookingStatus.COMPLETED "
+            + "and b.startAt >= :from and b.startAt < :to")
+    java.math.BigDecimal sumCompletedRevenueBetween(
+            @org.springframework.data.repository.query.Param("from") LocalDateTime from,
+            @org.springframework.data.repository.query.Param("to") LocalDateTime to);
 }
