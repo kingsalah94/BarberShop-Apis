@@ -35,6 +35,9 @@ public class SalonServiceImpl implements SalonService {
     private final EstablishmentTypeRepository establishmentTypeRepository;
     private final BarberServices barberServices;
     private final com.salahtech.BarberShop_Apis.repositories.SalonMembershipRepository membershipRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository userRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.RoleRepository roleRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.EmployeeRepository employeeRepository;
 
     @Override
     public SalonDto create(CreateSalonRequest req, ApplicationUser owner) {
@@ -58,8 +61,47 @@ public class SalonServiceImpl implements SalonService {
                     .build());
         }
 
+        // Barbier indépendant (ancien modèle) : il devient propriétaire de son salon
+        // ET reste prestataire réservable dans ce salon.
+        if (owner != null && owner.getUserType() == com.salahtech.BarberShop_Apis.Enums.ApplicationUserType.BARBER) {
+            promoteIndependentBarber(owner, saved);
+        }
+
         log.info("Salon créé id={} owner={}", saved.getId(), owner != null ? owner.getId() : null);
         return toDto(saved);
+    }
+
+    /** BARBER sans salon → SALON_OWNER (rôle + type) + fiche prestataire dans son nouveau salon. */
+    private void promoteIndependentBarber(ApplicationUser user, Salon salon) {
+        user.setUserType(com.salahtech.BarberShop_Apis.Enums.ApplicationUserType.SALON_OWNER);
+        roleRepository.findByName("SALON_OWNER").ifPresent(r -> {
+            java.util.Set<com.salahtech.BarberShop_Apis.models.Role> roles =
+                    user.getRoles() == null ? new java.util.HashSet<>() : new java.util.HashSet<>(user.getRoles());
+            roles.add(r);
+            user.setRoles(roles);
+        });
+        userRepository.save(user);
+
+        if (employeeRepository.findByUser_Id(user.getId()).isEmpty()) {
+            com.salahtech.BarberShop_Apis.models.Barber barber = user.getBarber();
+            if (barber != null && barber.getSalon() == null) {
+                barber.setSalon(salon);
+                barberRepository.save(barber);
+            }
+            com.salahtech.BarberShop_Apis.models.Employee e = com.salahtech.BarberShop_Apis.models.Employee.builder()
+                    .user(user)
+                    .barber(barber)
+                    .salon(salon)
+                    .primarySalon(salon)
+                    .salons(new java.util.HashSet<>(java.util.Set.of(salon)))
+                    .firstName(user.getFirstName() != null ? user.getFirstName() : "Prestataire")
+                    .lastName(user.getLastName() != null ? user.getLastName() : "-")
+                    .email(user.getEmail())
+                    .role(com.salahtech.BarberShop_Apis.Enums.EmployeeRole.BARBER)
+                    .build();
+            employeeRepository.save(e);
+        }
+        log.info("Barbier indépendant {} promu propriétaire du salon {}", user.getId(), salon.getId());
     }
 
     @Override

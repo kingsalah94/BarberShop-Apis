@@ -42,9 +42,17 @@ public class SalonController {
 
     @Operation(summary = "Créer un salon (le propriétaire est l'utilisateur courant)")
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SALON_OWNER')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SALON_OWNER', 'BARBER')")
     public ResponseEntity<SalonDto> create(@Valid @RequestBody CreateSalonRequest req,
                                            @CurrentUser ApplicationUser user) {
+        // Rôle Spring BARBER : seul un barbier INDÉPENDANT (user_type BARBER) peut créer
+        // son salon ; un prestataire (EMPLOYEE) d'un salon existant ne le peut pas.
+        boolean ownerOrAdmin = user.getRoles() != null && user.getRoles().stream()
+                .anyMatch(r -> "ADMIN".equals(r.getName()) || "SALON_OWNER".equals(r.getName()));
+        if (!ownerOrAdmin && user.getUserType() != com.salahtech.BarberShop_Apis.Enums.ApplicationUserType.BARBER) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Création de salon réservée aux propriétaires et aux barbiers indépendants");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(salonService.create(req, user));
     }
 
