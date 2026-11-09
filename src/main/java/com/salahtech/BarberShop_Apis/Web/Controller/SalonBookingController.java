@@ -28,7 +28,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/salons/{salonId}/bookings")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Salon Bookings", description = "Réservations orientées salon")
 public class SalonBookingController {
 
@@ -42,7 +41,8 @@ public class SalonBookingController {
      */
     private Long scopeEmployeeId(ApplicationUser user, Long salonId) {
         if (!tenantGuard.isEmployeeOn(user, salonId)) return null;
-        return employeeRepository.findByUser_Id(user.getId()).map(e -> e.getId()).orElse(null);
+        // Prestataire sans fiche employé : ne voit RIEN (avant : null = tout le salon).
+        return employeeRepository.findByUser_Id(user.getId()).map(e -> e.getId()).orElse(-1L);
     }
 
     @Operation(summary = "Réserver (client) : salon + service + créneau")

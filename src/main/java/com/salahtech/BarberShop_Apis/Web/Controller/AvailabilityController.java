@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/v1/availabilities")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
 @Tag(name = "Availability", description = "Gestion du planning et des créneaux")
 public class AvailabilityController {

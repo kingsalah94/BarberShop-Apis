@@ -27,7 +27,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/employees")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Employees", description = "Gestion interne du personnel du salon")
 public class EmployeeController {
 

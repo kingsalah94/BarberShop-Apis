@@ -14,16 +14,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Clients d'un salon (agrégés depuis les réservations). Lecture = tout membre (front-desk). */
+/**
+ * Clients d'un salon (agrégés depuis les réservations). Lecture = tout membre (front-desk) ;
+ * un prestataire ne voit que les clients qu'il a servis (données de contact incluses).
+ */
 @RestController
 @RequestMapping("/v1/salons/{salonId}/clients")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Salon Clients", description = "Clients d'un salon")
 public class SalonClientsController {
 
     private final SalonBookingService bookingService;
     private final TenantGuard tenantGuard;
+    private final com.salahtech.BarberShop_Apis.repositories.EmployeeRepository employeeRepository;
 
     @Operation(summary = "Lister les clients du salon")
     @GetMapping
@@ -31,6 +34,10 @@ public class SalonClientsController {
     public ResponseEntity<List<SalonClientDto>> list(@PathVariable Long salonId,
                                                      @CurrentUser ApplicationUser user) {
         tenantGuard.assertCanFrontDesk(user, salonId);
-        return ResponseEntity.ok(bookingService.listClients(salonId));
+        Long scope = null;
+        if (tenantGuard.isEmployeeOn(user, salonId)) {
+            scope = employeeRepository.findByUser_Id(user.getId()).map(e -> e.getId()).orElse(-1L);
+        }
+        return ResponseEntity.ok(bookingService.listClients(salonId, scope));
     }
 }

@@ -28,7 +28,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/messaging")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Messaging", description = "Messagerie à conversations (temps réel)")
 public class MessagingController {
 

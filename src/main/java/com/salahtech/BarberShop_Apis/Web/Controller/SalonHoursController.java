@@ -26,7 +26,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/salons/{salonId}")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Salon Hours", description = "Horaires d'ouverture et exceptions d'un salon")
 public class SalonHoursController {
 

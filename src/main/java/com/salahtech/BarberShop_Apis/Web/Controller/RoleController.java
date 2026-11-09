@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1/roles")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Roles", description = "CRUD & Search des rôles")
 @PreAuthorize("hasRole('ADMIN')")
 public class RoleController {

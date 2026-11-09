@@ -23,7 +23,6 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/v1/profile")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "User Profile", description = "Gestion unifiée des profils utilisateur")
 public class UserProfileController {
 

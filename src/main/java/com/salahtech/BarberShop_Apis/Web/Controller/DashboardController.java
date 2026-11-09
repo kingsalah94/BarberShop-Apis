@@ -26,7 +26,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/dashboard")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Dashboard", description = "Statistiques et Graphiques")
 public class DashboardController {
 

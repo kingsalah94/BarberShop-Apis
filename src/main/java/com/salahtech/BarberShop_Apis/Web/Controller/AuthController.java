@@ -17,7 +17,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/v1/auth")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Authentication", description = "Inscription, Connexion, Sécurité")
 public class AuthController {
 

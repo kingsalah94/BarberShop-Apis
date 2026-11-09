@@ -25,7 +25,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/salons/{salonId}/posts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Salon Posts", description = "Réalisations / portfolio d'un salon")
 public class SalonPostController {
 

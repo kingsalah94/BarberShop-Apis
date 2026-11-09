@@ -13,7 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/categories")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Categories", description = "Gestion des catégories de services (Dynamique)")
 public class CategoryController {
 

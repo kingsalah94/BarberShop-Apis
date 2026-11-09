@@ -25,7 +25,6 @@ import java.util.List;
 @RequestMapping("/v1/barbers")
 @RequiredArgsConstructor
 @Validated
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Barbers", description = "Gestion et recherche des barbiers")
 public class BarberController {
 

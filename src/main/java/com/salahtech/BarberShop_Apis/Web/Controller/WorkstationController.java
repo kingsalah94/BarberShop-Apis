@@ -27,7 +27,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/workstations")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Workstations", description = "Gestion des postes de travail du salon")
 public class WorkstationController {
 

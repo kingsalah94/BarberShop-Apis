@@ -28,7 +28,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/salons/{salonId}/services")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Salon Services", description = "Catalogue de services d'un salon")
 public class SalonServiceController {
 

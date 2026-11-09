@@ -18,7 +18,6 @@ import java.util.Set;
 @RestController
 @RequestMapping("/v1/users")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Users Admin", description = "CRUD & Search des utilisateurs")
 public class UserAdminController {
 

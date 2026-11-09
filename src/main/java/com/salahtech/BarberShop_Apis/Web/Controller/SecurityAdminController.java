@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1/security")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Security Admin", description = "Actions admin: révoquer tokens, rotation KID")
 @PreAuthorize("hasRole('ADMIN')")
 public class SecurityAdminController {

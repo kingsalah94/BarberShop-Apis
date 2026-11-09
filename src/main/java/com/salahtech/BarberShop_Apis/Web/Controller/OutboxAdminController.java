@@ -16,7 +16,6 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/v1/outbox")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Outbox Admin", description = "Gestion des messages asynchrones (Kafka)")
 @PreAuthorize("hasRole('ADMIN')") // Sécurisé globalement pour ce contrôleur
 public class OutboxAdminController {

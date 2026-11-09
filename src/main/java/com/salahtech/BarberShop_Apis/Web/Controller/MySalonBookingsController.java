@@ -19,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/me/salon-bookings")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "My Salon Bookings", description = "Réservations salon du client connecté")
 public class MySalonBookingsController {
 

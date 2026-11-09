@@ -32,7 +32,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/salons")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Salons", description = "Gestion des salons (multi-tenant)")
 public class SalonController {
 

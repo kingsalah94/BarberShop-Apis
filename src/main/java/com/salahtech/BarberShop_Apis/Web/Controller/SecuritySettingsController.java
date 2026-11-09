@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1/security")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Security Settings", description = "Lecture & Mise à jour des paramètres de sécurité")
 @PreAuthorize("hasRole('ADMIN')")
 public class SecuritySettingsController {

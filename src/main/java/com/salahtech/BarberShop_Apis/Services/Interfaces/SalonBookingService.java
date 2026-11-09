@@ -63,5 +63,10 @@ public interface SalonBookingService {
     SalonStatsDto getStats(Long salonId, LocalDate from, LocalDate to, Long employeeId);
 
     /** Clients du salon (agrégés depuis leurs réservations). */
-    List<com.salahtech.BarberShop_Apis.Dtos.SalonClientDto> listClients(Long salonId);
+    default List<com.salahtech.BarberShop_Apis.Dtos.SalonClientDto> listClients(Long salonId) {
+        return listClients(salonId, null);
+    }
+
+    /** Avec {@code employeeId} : uniquement les clients servis par ce prestataire. */
+    List<com.salahtech.BarberShop_Apis.Dtos.SalonClientDto> listClients(Long salonId, Long employeeId);
 }

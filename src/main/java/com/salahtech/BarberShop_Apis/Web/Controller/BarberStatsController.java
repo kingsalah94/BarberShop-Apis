@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/v1/barbers")
 @RequiredArgsConstructor
 @Tag(name = "Barber Statistics", description = "Statistiques et Analytics")
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class BarberStatsController {
 
     private final BarberStatsService barberStatsService;

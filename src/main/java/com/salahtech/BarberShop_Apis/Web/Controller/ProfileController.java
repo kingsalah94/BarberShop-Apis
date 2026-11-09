@@ -21,7 +21,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/v1/users/profile") // Standard REST: 'users', pas 'user'
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "User Profile", description = "Gestion du profil utilisateur")
 public class ProfileController {
 

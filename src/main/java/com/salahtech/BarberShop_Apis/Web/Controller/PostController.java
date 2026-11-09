@@ -19,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/posts")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Portfolio (Posts)", description = "Gestion des photos des barbiers")
 public class PostController {
 

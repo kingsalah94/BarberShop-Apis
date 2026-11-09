@@ -20,7 +20,6 @@ import java.time.OffsetDateTime;
 @RestController
 @RequestMapping("/v1/audit")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600) // On utilise * pour être cohérent avec les autres
 @Tag(name = "Audit", description = "Logs et Traçabilité")
 public class AuditController {
 

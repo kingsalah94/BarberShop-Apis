@@ -20,7 +20,6 @@ import java.util.Set;
 @RestController
 @RequestMapping("/v1/device-tokens")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Device Tokens", description = "Gestion des tokens Push Notification (Admin)")
 public class DeviceTokenController {
 

@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1/notifications")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Validated
 @Tag(name = "Notifications", description = "Outils de test et relance de notifications")
 public class NotificationsController {

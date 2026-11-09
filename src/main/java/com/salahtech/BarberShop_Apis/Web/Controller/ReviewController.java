@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1/reviews")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Reviews", description = "Gestion des avis et notations")
 public class ReviewController {
 

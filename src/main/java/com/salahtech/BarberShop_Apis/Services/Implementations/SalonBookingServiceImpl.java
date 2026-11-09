@@ -540,10 +540,14 @@ public class SalonBookingServiceImpl implements SalonBookingService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<SalonClientDto> listClients(Long salonId) {
+    public List<SalonClientDto> listClients(Long salonId, Long employeeId) {
         salon(salonId);
         Map<Long, SalonClientDto> byClient = new java.util.LinkedHashMap<>();
         for (SalonBooking b : bookingRepository.findBySalon_Id(salonId)) {
+            if (employeeId != null && (b.getAssignedEmployee() == null
+                    || !employeeId.equals(b.getAssignedEmployee().getId()))) {
+                continue; // prestataire : seulement ses propres clients
+            }
             Client c = b.getClient();
             if (c == null) continue;
             SalonClientDto dto = byClient.computeIfAbsent(c.getId(), id -> SalonClientDto.builder()

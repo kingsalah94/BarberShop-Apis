@@ -23,7 +23,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/v1/catalog")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*", maxAge = 3600)
 @Tag(name = "Catalog", description = "Catalogue client : salons, services, horaires")
 public class CatalogController {
 
