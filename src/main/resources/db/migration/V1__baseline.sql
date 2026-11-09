@@ -16,14 +16,14 @@
 -- Name: public; Type: SCHEMA; Schema: -; Owner: -
 --
 
-CREATE SCHEMA public;
+-- (supprimé : le schéma public existe déjà sur toute base PostgreSQL)
 
 
 --
 -- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
 --
 
-COMMENT ON SCHEMA public IS 'standard public schema';
+-- (supprimé : le schéma public existe déjà sur toute base PostgreSQL)
 
 
 
