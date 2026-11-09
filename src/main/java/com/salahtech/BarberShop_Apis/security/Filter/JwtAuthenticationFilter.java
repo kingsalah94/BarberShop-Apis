@@ -64,8 +64,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
             
             // Valider le token et vérifier qu'il s'agit d'un access token
-            if (jwtUtil.validateToken(jwtToken, userDetails) && 
-                jwtUtil.validateAccessToken(jwtToken)) {
+            // Compte désactivé/verrouillé : le jeton (même valide) ne donne plus accès.
+            if (jwtUtil.validateToken(jwtToken, userDetails) &&
+                jwtUtil.validateAccessToken(jwtToken) &&
+                userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
                 
                 UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
                         new UsernamePasswordAuthenticationToken(
