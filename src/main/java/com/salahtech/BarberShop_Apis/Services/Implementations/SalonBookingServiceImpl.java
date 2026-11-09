@@ -350,24 +350,49 @@ public class SalonBookingServiceImpl implements SalonBookingService {
 
     /** Push au client : « Rendez-vous confirmé » (no-op silencieux si pas de device token). */
     private void notifyClientConfirmed(SalonBooking b) {
+        String svc = b.getOffering() != null ? b.getOffering().getName() : "votre prestation";
+        String when = b.getStartAt() != null ? b.getStartAt().format(DateTimeFormatter.ofPattern("dd/MM 'à' HH:mm")) : "";
+        pushToClient(b, "BOOKING_CONFIRMED", "Rendez-vous confirmé",
+                "Votre RDV (" + svc + ") " + when + " est confirmé.");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int sendRemindersFor(LocalDate day) {
+        int sent = 0;
+        for (SalonBooking b : bookingRepository.findByStatusInAndStartAtBetween(
+                List.of(BookingStatus.CONFIRMED, BookingStatus.BOOKED),
+                day.atStartOfDay(), day.plusDays(1).atStartOfDay())) {
+            String svc = b.getOffering() != null ? b.getOffering().getName() : "votre prestation";
+            String salonName = b.getSalon() != null ? b.getSalon().getName() : "le salon";
+            String at = b.getStartAt().format(DateTimeFormatter.ofPattern("HH:mm"));
+            if (pushToClient(b, "BOOKING_REMINDER", "Rappel : rendez-vous demain",
+                    svc + " à " + at + " chez " + salonName + ".")) {
+                sent++;
+            }
+        }
+        log.info("Rappels RDV salon du {} : {} envoyé(s)", day, sent);
+        return sent;
+    }
+
+    /** Push au client de la réservation (sans appareil enregistré : rien). Jamais d'exception. */
+    private boolean pushToClient(SalonBooking b, String type, String title, String body) {
         try {
             Client c = b.getClient();
-            if (c == null || c.getUser() == null) return;
+            if (c == null || c.getUser() == null) return false;
             Long userId = c.getUser().getId();
-            if (!deviceTokenService.hasActiveToken(userId)) return;
+            if (!deviceTokenService.hasActiveToken(userId)) return false;
             String token = deviceTokenService.getDeviceToken(userId);
-            if (token == null || token.isBlank()) return;
+            if (token == null || token.isBlank()) return false;
 
-            String svc = b.getOffering() != null ? b.getOffering().getName() : "votre prestation";
-            String when = b.getStartAt() != null ? b.getStartAt().format(DateTimeFormatter.ofPattern("dd/MM 'à' HH:mm")) : "";
             Map<String, String> data = new java.util.HashMap<>();
-            data.put("type", "BOOKING_CONFIRMED");
+            data.put("type", type);
             data.put("salonBookingId", String.valueOf(b.getId()));
-            notificationService.sendNotification(token, "Rendez-vous confirmé",
-                    "Votre RDV (" + svc + ") " + when + " est confirmé.", data);
-            log.info("Notif confirmation envoyée client={} réservation={}", userId, b.getId());
+            notificationService.sendNotification(token, title, body, data);
+            return true;
         } catch (Exception e) {
-            log.warn("Notif confirmation RDV salon {} échouée : {}", b.getId(), e.getMessage());
+            log.warn("Notif {} RDV salon {} échouée : {}", type, b.getId(), e.getMessage());
+            return false;
         }
     }
 

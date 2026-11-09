@@ -28,6 +28,10 @@ public interface SalonBookingRepository extends JpaRepository<SalonBooking, Long
 
     long countByStatus(BookingStatus status);
 
+    /** Toutes les réservations, tous salons, sur un intervalle et des statuts (rappels). */
+    List<SalonBooking> findByStatusInAndStartAtBetween(
+            Collection<BookingStatus> statuses, LocalDateTime from, LocalDateTime to);
+
     List<SalonBooking> findTop6ByStartAtGreaterThanEqualAndStatusInOrderByStartAtAsc(
             LocalDateTime from, Collection<BookingStatus> statuses);
 

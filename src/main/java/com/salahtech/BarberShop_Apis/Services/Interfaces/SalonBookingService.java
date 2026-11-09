@@ -25,6 +25,9 @@ public interface SalonBookingService {
     /** Prochaines réservations actives, tous salons confondus (console admin). */
     List<com.salahtech.BarberShop_Apis.Dtos.SalonBookingDto> upcomingPlatform();
 
+    /** Rappel push la veille aux clients ayant un RDV confirmé ; renvoie le nombre de rappels envoyés. */
+    int sendRemindersFor(java.time.LocalDate day);
+
     /** Crée une réservation (client connecté). */
     SalonBookingDto create(Long salonId, CreateSalonBookingRequest req, ApplicationUser user);
 
