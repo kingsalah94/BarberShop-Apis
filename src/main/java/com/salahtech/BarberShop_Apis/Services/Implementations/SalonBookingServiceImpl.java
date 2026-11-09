@@ -162,6 +162,9 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         }
 
         // Re-vérifie la capacité au moment de la réservation (anti double-booking).
+        // Verrou sur le salon : deux réservations simultanées ne peuvent plus lire
+        // la même capacité restante puis insérer toutes les deux.
+        salonRepository.lockById(salonId);
         int cap = capacity(salonId);
         long overlap = bookingRepository
                 .findBySalon_IdAndStatusInAndStartAtBetween(salonId, ACTIVE,
@@ -249,6 +252,9 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     @Override
     public SalonBookingDto confirm(Long salonId, Long bookingId, Long workstationId, Long employeeId) {
         SalonBooking b = owned(salonId, bookingId);
+        if (b.getStatus() == BookingStatus.CANCELLED || b.getStatus() == BookingStatus.COMPLETED) {
+            throw new BusinessException("Réservation " + b.getStatus() + " : confirmation impossible");
+        }
         boolean wasPending = b.getStatus() == BookingStatus.PENDING || b.getStatus() == BookingStatus.BOOKED;
         b.setStatus(BookingStatus.CONFIRMED);
         assignStation(b, salonId, workstationId);
@@ -259,11 +265,7 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         // Réservation du JOUR confirmée → ajout automatique à la file d'attente du salon.
         if (wasPending && saved.getStartAt() != null
                 && saved.getStartAt().toLocalDate().equals(LocalDate.now())) {
-            try {
-                queueService.enqueueFromSalonBooking(saved.getId());
-            } catch (Exception e) {
-                log.warn("Auto-ajout file (réservation salon {}) échoué : {}", saved.getId(), e.getMessage());
-            }
+            enqueueAfterCommit(saved.getId());
         }
         // Notifie le client que son rendez-vous est confirmé (uniquement lors d'une vraie confirmation).
         if (wasPending) notifyClientConfirmed(saved);
@@ -304,12 +306,27 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         assignStation(b, salonId, workstationId);
         if (employeeId != null) b.setAssignedEmployee(resolveAssignable(salonId, employeeId, b.getStartAt().toLocalDate()));
         SalonBooking saved = bookingRepository.save(b);
-        try {
-            queueService.enqueueFromSalonBooking(saved.getId());
-        } catch (Exception e) {
-            log.warn("Check-in file (réservation salon {}) échoué : {}", saved.getId(), e.getMessage());
-        }
+        enqueueAfterCommit(saved.getId());
         return toDto(saved);
+    }
+
+    /**
+     * Ajout en file APRÈS le commit, en transaction séparée : une exception de la file
+     * ne marque plus la transaction de la réservation « rollback-only » (avant : le
+     * catch masquait l'erreur mais confirm/check-in échouait au commit en 500).
+     */
+    private void enqueueAfterCommit(Long salonBookingId) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            queueService.enqueueFromSalonBookingQuietly(salonBookingId);
+                        }
+                    });
+        } else {
+            queueService.enqueueFromSalonBookingQuietly(salonBookingId);
+        }
     }
 
     /** Affecte un poste (et son titulaire éventuel) à la réservation, en vérifiant le salon. */
@@ -334,6 +351,9 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     @Override
     public SalonBookingDto cancel(Long salonId, Long bookingId, ApplicationUser user) {
         SalonBooking b = owned(salonId, bookingId);
+        if (b.getStatus() == BookingStatus.COMPLETED) {
+            throw new BusinessException("Une réservation terminée ne peut pas être annulée");
+        }
         b.setStatus(BookingStatus.CANCELLED);
         return toDto(bookingRepository.save(b));
     }
@@ -364,6 +384,12 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         }
         if (b.getStatus() != BookingStatus.COMPLETED) {
             throw new BusinessException("Vous pourrez laisser un avis une fois la prestation terminée");
+        }
+        if (req.getOverallRating() == null || req.getOverallRating() < 1 || req.getOverallRating() > 5) {
+            throw new BusinessException("La note doit être comprise entre 1 et 5");
+        }
+        if (req.getTipAmount() != null && req.getTipAmount().signum() < 0) {
+            throw new BusinessException("Le pourboire ne peut pas être négatif");
         }
         if (reviewRepository.existsBySalonBooking_Id(b.getId())) {
             throw new BusinessException("Vous avez déjà laissé un avis pour cette réservation");

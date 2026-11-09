@@ -26,6 +26,13 @@ public interface QueueService {
     /** Ajoute à la file le client d'une réservation salon confirmée (flux salon-centric). */
     QueueEntryDto enqueueFromSalonBooking(Long salonBookingId);
 
+    /**
+     * Variante tolérante, en transaction NEUVE : à appeler APRÈS le commit de la
+     * réservation (afterCommit). Un échec de la file ne peut ni annuler ni faire
+     * échouer la confirmation / le check-in de la réservation.
+     */
+    void enqueueFromSalonBookingQuietly(Long salonBookingId);
+
     /** « Ma place dans la file » : entrée active du client dans un salon (null si aucune). */
     QueuePositionDto myPosition(Long salonId, Long clientId);
 

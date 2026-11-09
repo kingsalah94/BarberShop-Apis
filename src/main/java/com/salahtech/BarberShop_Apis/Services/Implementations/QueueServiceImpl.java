@@ -147,6 +147,16 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void enqueueFromSalonBookingQuietly(Long salonBookingId) {
+        try {
+            enqueueFromSalonBooking(salonBookingId);
+        } catch (Exception e) {
+            log.warn("Auto-ajout file échoué pour réservation salon {} : {}", salonBookingId, e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void enqueueFromBookingQuietly(Long bookingId) {
         // Transaction NEUVE : indispensable car appelée depuis un afterCommit
         // (sinon l'INSERT rejoint la transaction déjà committée et n'est pas persisté).
@@ -212,6 +222,8 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     public QueueEntryDto callNext(Long salonId, Long workstationId) {
+        // Verrou salon : deux postes qui appellent en même temps n'appellent plus le même client.
+        salonRepository.lockById(salonId);
         QueueEntry next = queueRepository.findWaitingBySalon(salonId).stream()
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("Aucun client en attente"));
@@ -276,8 +288,15 @@ public class QueueServiceImpl implements QueueService {
     public QueueEntryDto complete(Long queueEntryId) {
         QueueEntry entry = queueRepository.findById(queueEntryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entrée file introuvable: " + queueEntryId));
+        if (entry.getStatus() == QueueStatus.COMPLETED) {
+            return toDto(entry); // idempotent (double clic / rejeu)
+        }
+        if (entry.getStatus() == QueueStatus.CANCELLED || entry.getStatus() == QueueStatus.NO_SHOW) {
+            throw new BusinessException("Impossible de terminer une entrée " + entry.getStatus());
+        }
         entry.setStatus(QueueStatus.COMPLETED);
         entry.setEndedAt(LocalDateTime.now());
+        completeLinkedSalonBooking(entry);
 
         if (entry.getWorkstation() != null) {
             Workstation ws = entry.getWorkstation();
@@ -294,6 +313,15 @@ public class QueueServiceImpl implements QueueService {
     public QueueEntryDto pay(Long queueEntryId, PaymentMethod method, BigDecimal amount) {
         QueueEntry entry = queueRepository.findById(queueEntryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entrée file introuvable: " + queueEntryId));
+
+        // Garde : on n'encaisse qu'une prestation en cours ou terminée, et une seule fois.
+        if (entry.getPaymentStatus() == PaymentStatus.PAID) {
+            throw new BusinessException("Cette prestation est déjà encaissée");
+        }
+        if (entry.getStatus() != QueueStatus.IN_CHAIR && entry.getStatus() != QueueStatus.COMPLETED) {
+            throw new BusinessException("Encaissement impossible (status=" + entry.getStatus()
+                    + ") : la prestation doit être en cours ou terminée");
+        }
 
         // Montant : celui fourni (permet remise / pourboire), sinon prix calculé.
         BigDecimal amt = (amount != null) ? amount : computePrice(entry);
@@ -318,6 +346,29 @@ public class QueueServiceImpl implements QueueService {
         QueueEntry saved = queueRepository.save(entry);
         broadcastQueue(entry.getSalon().getId());
         return toDto(saved);
+    }
+
+    /**
+     * Fin de prestation → la réservation salon d'origine passe à COMPLETED
+     * (débloque l'avis client et les stats « terminés » / CA).
+     */
+    private void completeLinkedSalonBooking(QueueEntry entry) {
+        if (entry.getSalonBookingId() == null) return;
+        salonBookingRepository.findById(entry.getSalonBookingId()).ifPresent(sb -> {
+            if (sb.getStatus() != BookingStatus.CANCELLED && sb.getStatus() != BookingStatus.COMPLETED) {
+                sb.setStatus(BookingStatus.COMPLETED);
+                salonBookingRepository.save(sb);
+            }
+        });
+    }
+
+    /** Libère le poste d'une prestation interrompue. */
+    private void releaseWorkstation(QueueEntry entry) {
+        Workstation ws = entry.getWorkstation();
+        if (ws != null && ws.getStatus() == StationStatus.OCCUPIED) {
+            ws.setStatus(StationStatus.FREE);
+            workstationRepository.save(ws);
+        }
     }
 
     /** Montant à encaisser : prix attendu (service réservé) > total du RDV > somme des services. */
@@ -352,8 +403,14 @@ public class QueueServiceImpl implements QueueService {
     public QueueEntryDto cancel(Long queueEntryId, String reason) {
         QueueEntry entry = queueRepository.findById(queueEntryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entrée file introuvable: " + queueEntryId));
-        if (entry.getStatus() == QueueStatus.COMPLETED) {
-            throw new BusinessException("Impossible d'annuler une entrée terminée");
+        if (entry.getStatus() == QueueStatus.CANCELLED) {
+            return toDto(entry); // idempotent
+        }
+        if (entry.getStatus() == QueueStatus.COMPLETED || entry.getStatus() == QueueStatus.NO_SHOW) {
+            throw new BusinessException("Impossible d'annuler une entrée " + entry.getStatus());
+        }
+        if (entry.getStatus() == QueueStatus.IN_CHAIR) {
+            releaseWorkstation(entry);
         }
         entry.setStatus(QueueStatus.CANCELLED);
         entry.setEndedAt(LocalDateTime.now());
@@ -369,6 +426,10 @@ public class QueueServiceImpl implements QueueService {
     public QueueEntryDto markNoShow(Long queueEntryId) {
         QueueEntry entry = queueRepository.findById(queueEntryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entrée file introuvable: " + queueEntryId));
+        if (entry.getStatus() != QueueStatus.WAITING && entry.getStatus() != QueueStatus.NOTIFIED) {
+            throw new BusinessException("Absent impossible (status=" + entry.getStatus()
+                    + ") : seulement pour un client en attente ou appelé");
+        }
         entry.setStatus(QueueStatus.NO_SHOW);
         entry.setEndedAt(LocalDateTime.now());
         QueueEntry saved = queueRepository.save(entry);
@@ -452,6 +513,8 @@ public class QueueServiceImpl implements QueueService {
     }
 
     private String generateTicketNumber(Long salonId) {
+        // Verrou salon (jusqu'au commit) : deux check-in simultanés n'obtiennent plus le même numéro.
+        salonRepository.lockById(salonId);
         LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
         long todayCount = queueRepository.countByDayBySalon(salonId, startOfDay);
         return String.format("A-%03d", todayCount + 1);
