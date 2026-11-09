@@ -1,0 +1,40 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  PROFIL PROD — activé par SPRING_PROFILES_ACTIVE=prod (docker-compose).
+#
+#  Garde-fous :
+#   - Base : DB_URL / DB_USERNAME / DB_PASSWORD SANS valeur par défaut →
+#     l'application refuse de démarrer s'il en manque une.
+#   - ddl-auto: validate imposé (JPA_DDL_AUTO ignoré) : Hibernate ne modifie
+#     jamais le schéma, seules les migrations Flyway db/migration/V*.sql le font.
+#   - Données de démo : seeders absents du profil prod (@Profile("!prod")),
+#     même si APP_DEMO_DATA_ENABLED=true traîne dans le .env.
+#   - Swagger / OpenAPI désactivés (surface d'attaque, cartographie de l'API).
+# ════════════════════════════════════════════════════════════════════════════
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+app:
+  demo-data:
+    enabled: false
+  public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+  show-actuator: false
+
+server:
+  error:
+    include-binding-errors: never
+    include-stacktrace: never

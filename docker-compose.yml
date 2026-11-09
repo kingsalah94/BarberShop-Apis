@@ -1,0 +1,67 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  BarberShop API — PostgreSQL + backend
+#    cp .env.example .env   (remplir DB_PASSWORD et JWT_SECRET_BASE64 au minimum)
+#    docker compose up -d --build
+#  Les valeurs viennent du fichier .env (lu automatiquement par compose).
+# ═══════════════════════════════════════════════════════════════════════════
+name: barbershop
+
+services:
+
+  # ── Base de données ─────────────────────────────────────────────────────
+  db:
+    image: postgres:17-alpine
+    container_name: barbershop-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-barbershop}
+      POSTGRES_USER:     ${DB_USERNAME:-barbershop}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD doit être défini dans .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-barbershop} -d ${DB_NAME:-barbershop}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Backend Spring Boot ─────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: barbershop/api:latest
+    container_name: barbershop-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # Toutes les variables du .env (mail, Twilio, OAuth, admin...)
+    env_file: .env
+    environment:
+      # Profil prod : validate + Flyway, démo et Swagger désactivés
+      SPRING_PROFILES_ACTIVE: prod
+      # La base est le conteneur « db » (remplace DB_URL du .env)
+      DB_URL:                 jdbc:postgresql://db:5432/${DB_NAME:-barbershop}
+      DB_USERNAME:            ${DB_USERNAME:-barbershop}
+      DB_PASSWORD:            ${DB_PASSWORD:?DB_PASSWORD doit être défini dans .env}
+      # OBLIGATOIRE : compose refuse de démarrer sans (openssl rand -base64 64)
+      JWT_SECRET_BASE64:      ${JWT_SECRET_BASE64:?JWT_SECRET_BASE64 doit être défini dans .env}
+      MAIL_USERNAME:          ${MAIL_USERNAME:-}
+      MAIL_PASSWORD:          ${MAIL_PASSWORD:-}
+      # Firebase (optionnel) : décommenter le volume ci-dessous
+      # FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase.json
+      JAVA_OPTS:              "-XX:MaxRAMPercentage=75"
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - uploads-data:/app/uploads
+      - logs-data:/app/logs
+      # - ./secrets/firebase.json:/run/secrets/firebase.json:ro
+
+volumes:
+  db-data:
+  uploads-data:
+  logs-data:

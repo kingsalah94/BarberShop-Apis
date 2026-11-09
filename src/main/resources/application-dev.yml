@@ -1,0 +1,16 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  PROFIL DEV — poste local (profil par défaut : spring.profiles.default=dev).
+#  Secrets lus dans BarberShop-Apis/.env (copie de .env.example, ignoré par git).
+#  Schéma : Flyway + validate comme en prod (la base locale contient de vraies
+#  données de test, on ne laisse pas Hibernate la modifier).
+# ════════════════════════════════════════════════════════════════════════════
+
+app:
+  # Données de démonstration (salons, barbiers, comptes démo) : actives en dev
+  # sauf APP_DEMO_DATA_ENABLED=false dans .env.
+  demo-data:
+    enabled: ${APP_DEMO_DATA_ENABLED:true}
+
+logging:
+  level:
+    com.salahtech.BarberShop_Apis: INFO

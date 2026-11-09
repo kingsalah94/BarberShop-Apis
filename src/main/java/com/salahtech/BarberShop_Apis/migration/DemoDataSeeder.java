@@ -1,5 +1,7 @@
 package com.salahtech.BarberShop_Apis.migration;
 
+import org.springframework.context.annotation.Profile;
+
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.SalonRole;
 import com.salahtech.BarberShop_Apis.Enums.StationStatus;
@@ -31,6 +33,7 @@ import java.util.UUID;
  * Désactivable via app.demo-data.enabled=false
  */
 @Component
+@Profile("!prod") // jamais en production, quelle que soit la configuration
 @RequiredArgsConstructor
 @Slf4j
 @Order(2)

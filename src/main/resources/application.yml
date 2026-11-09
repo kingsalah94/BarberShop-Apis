@@ -1,0 +1,336 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  CONFIGURATION COMMUNE — BarberShop API
+#  Profils : dev (défaut, application-dev.yml) / prod (application-prod.yml,
+#  SPRING_PROFILES_ACTIVE=prod). Les secrets viennent de l'environnement ou du
+#  fichier .env (ignoré par git, voir .env.example) — jamais de ce fichier.
+# ════════════════════════════════════════════════════════════════════════════
+# ──────────────────────────────────────────────────────────────────────
+spring:
+  config:
+    import: "optional:file:.env[.properties],optional:file:BarberShop-Apis/.env[.properties]"
+  profiles:
+    default: "dev"
+  application:
+    name: "BarberShop-Apis"
+  jpa:
+    hibernate:
+      ddl-auto: "${JPA_DDL_AUTO:validate}"
+    properties:
+      "[hibernate.dialect]": "org.hibernate.dialect.PostgreSQLDialect"
+      "[hibernate.jdbc.lob.non_contextual_creation]": true
+      "[hibernate.format_sql]": false
+      "[hibernate.jdbc.batch_size]": 20
+      "[hibernate.order_inserts]": true
+      "[hibernate.order_updates]": true
+      "[hibernate.batch_versioned_data]": true
+    show-sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 1
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/Test}"
+    username: "${DB_USERNAME:postgres}"
+    password: "${DB_PASSWORD}"
+    driver-class-name: "org.postgresql.Driver"
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 600000
+      connection-timeout: 20000
+  data:
+    redis:
+      host: "${REDIS_HOST:localhost}"
+      port: "${REDIS_PORT:6379}"
+      password: "${REDIS_PASSWORD:}"
+      timeout: "2000ms"
+      jedis:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+  mail:
+    username: "${MAIL_USERNAME}"
+    password: "${MAIL_PASSWORD}"
+    host: "smtp.gmail.com"
+    port: 587
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+        debug: false
+    default-encoding: "UTF-8"
+  servlet:
+    multipart:
+      max-file-size: "10MB"
+      max-request-size: "10MB"
+      file-size-threshold: "2KB"
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: "non-null"
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: "${GOOGLE_CLIENT_ID}"
+            client-secret: "${GOOGLE_CLIENT_SECRET}"
+            scope: "openid,profile,email"
+          facebook:
+            client-id: "${FACEBOOK_CLIENT_ID}"
+            client-secret: "${FACEBOOK_CLIENT_SECRET}"
+            scope: "email,public_profile"
+  rabbitmq:
+    host: "localhost"
+    port: 5672
+    username: "guest"
+    password: "guest"
+  kafka:
+    bootstrap-servers: "localhost:9092"
+    producer:
+      acks: "all"
+      retries: 10
+      properties:
+        "[enable.idempotence]": true
+        "[max.in.flight.requests.per.connection]": 5
+        "[delivery.timeout.ms]": 120000
+      key-serializer: "org.apache.kafka.common.serialization.StringSerializer"
+      value-serializer: "org.springframework.kafka.support.serializer.JsonSerializer"
+
+# ──────────────────────────────────────────────────────────────────────
+app:
+  cors:
+    allowed-origins: "${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:8100,http://localhost:8080}"
+  reset-data: false
+  upload:
+    dir: "uploads"
+  public-base-url: "http://localhost:8080"
+  outbox:
+    exchange: "notifications.exchange"
+    routingKey: "booking.notifications"
+    queue: "notifications.queue"
+    topic: "booking.notifications"
+    batch-size: 100
+    backoff:
+      initial-ms: 2000
+      multiplier: "2.0"
+      max-ms: 60000
+  admin:
+    password: "${APP_ADMIN_PASSWORD:}"
+  demo-data:
+    enabled: "${APP_DEMO_DATA_ENABLED:false}"
+
+# ──────────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+  servlet:
+    context-path: "/api"
+  error:
+    include-message: "always"
+    include-binding-errors: "always"
+
+# ──────────────────────────────────────────────────────────────────────
+logging:
+  level:
+    org:
+      springframework:
+        mail: "INFO"
+        security: "INFO"
+      hibernate:
+        SQL: "WARN"
+        type:
+          descriptor:
+            sql:
+              BasicBinder: "WARN"
+    com:
+      salahtech:
+        BarberShop_Apis: "INFO"
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: "logs/barbershop.log"
+  logback:
+    rollingpolicy:
+      max-file-size: "10MB"
+      max-history: 30
+
+# ──────────────────────────────────────────────────────────────────────
+jwt:
+  algorithm: "HS512"
+  secret-base64: "${JWT_SECRET_BASE64}"
+  access-token-expiration: "${JWT_ACCESS_TTL:3600000}"
+  refresh-token-expiration: "${JWT_REFRESH_TTL:2592000000}"
+
+# ──────────────────────────────────────────────────────────────────────
+cors:
+  allowed-origins:
+    - "http://localhost:4200"
+    - "http://localhost:3000"
+    - "https://yourdomain.com"
+  allowed-methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+    - "PATCH"
+    - "OPTIONS"
+  allowed-headers:
+    - "*"
+  exposed-headers:
+    - "X-User-Id"
+    - "X-User-Role"
+    - "X-Token-Refresh-Needed"
+    - "X-Token-Expires-In"
+  allow-credentials: true
+  max-age: 3600
+
+# ──────────────────────────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: "/v3/api-docs"
+  swagger-ui:
+    path: "/swagger-ui.html"
+    operationsSorter: "method"
+    tagsSorter: "alpha"
+  show-actuator: true
+
+# ──────────────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info,metrics"
+  endpoint:
+    health:
+      show-details: "when-authorized"
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+# ──────────────────────────────────────────────────────────────────────
+info:
+  app:
+    name: "Barber Shop API"
+    description: "API REST pour application de réservation de coiffure"
+    version: "1.0.0"
+    developer: "Votre Nom"
+    contact: "your-email@example.com"
+
+# ──────────────────────────────────────────────────────────────────────
+file:
+  upload:
+    directory: "${UPLOAD_DIR:./uploads}"
+    max-size: 10485760
+    allowed-types:
+      - "image/jpeg"
+      - "image/jpg"
+      - "image/png"
+      - "image/gif"
+      - "image/webp"
+
+# ──────────────────────────────────────────────────────────────────────
+notification:
+  email:
+    enabled: true
+    from: "${NOTIFICATION_EMAIL:noreply@barbershop.com}"
+    templates:
+      welcome: "classpath:templates/email/welcome.html"
+      password-reset: "classpath:templates/email/password-reset.html"
+      booking-confirmation: "classpath:templates/email/booking-confirmation.html"
+  sms:
+    enabled: "${SMS_ENABLED:false}"
+    provider: "twilio"
+    account-sid: "${TWILIO_ACCOUNT_SID:}"
+    auth-token: "${TWILIO_AUTH_TOKEN:}"
+    from-number: "${TWILIO_FROM_NUMBER:}"
+
+# ──────────────────────────────────────────────────────────────────────
+payment:
+  stripe:
+    public-key: "${STRIPE_PUBLIC_KEY:pk_test_...}"
+    secret-key: "${STRIPE_SECRET_KEY:sk_test_...}"
+    webhook-secret: "${STRIPE_WEBHOOK_SECRET:whsec_...}"
+  paypal:
+    client-id: "${PAYPAL_CLIENT_ID:}"
+    client-secret: "${PAYPAL_CLIENT_SECRET:}"
+    mode: "${PAYPAL_MODE:sandbox}"
+
+# ──────────────────────────────────────────────────────────────────────
+maps:
+  google:
+    api-key: "${GOOGLE_MAPS_API_KEY:your-google-maps-api-key}"
+    enabled: true
+
+# ──────────────────────────────────────────────────────────────────────
+cache:
+  redis:
+    enabled: "${CACHE_ENABLED:true}"
+    ttl:
+      user-profile: 3600
+      salon-list: 1800
+      barberService-list: 7200
+      barber-availability: 300
+
+# ──────────────────────────────────────────────────────────────────────
+business:
+  booking:
+    advance-booking-days: 30
+    cancellation-hours: 24
+    reminder-hours: 2
+    slot-duration-minutes: 30
+  working-hours:
+    default-start: "09:00"
+    default-end: "19:00"
+    break-start: "12:00"
+    break-end: "14:00"
+  pricing:
+    currency: "EUR"
+    tax-rate: "0.20"
+
+# ──────────────────────────────────────────────────────────────────────
+security:
+  password:
+    min-length: 8
+    require-uppercase: true
+    require-lowercase: true
+    require-digit: true
+    require-special-char: false
+  account-lockout:
+    max-attempts: 5
+    lockout-duration-minutes: 30
+  session:
+    timeout-minutes: 30
+
+# ──────────────────────────────────────────────────────────────────────
+rate-limit:
+  login:
+    capacity: 5
+    refill-tokens: 1
+    refill-period: 300
+
+# ──────────────────────────────────────────────────────────────────────
+firebase:
+  config:
+    path: "firebase-barberService-account.json"
+  credentials-file: "${FIREBASE_CREDENTIALS_FILE:}"
+
+# ──────────────────────────────────────────────────────────────────────
+sms:
+  enabled: false
+
+# ──────────────────────────────────────────────────────────────────────
+twilio:
+  account-sid: "${TWILIO_ACCOUNT_SID:}"
+  auth-token: "${TWILIO_AUTH_TOKEN:}"
+  phone-number: "+22798349883"

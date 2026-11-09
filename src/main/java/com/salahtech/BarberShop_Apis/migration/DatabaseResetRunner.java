@@ -1,5 +1,7 @@
 package com.salahtech.BarberShop_Apis.migration;
 
+import org.springframework.context.annotation.Profile;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
+@Profile("!prod") // jamais en production, quelle que soit la configuration
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RequiredArgsConstructor
 public class DatabaseResetRunner implements CommandLineRunner {

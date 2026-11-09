@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>Sur une base vide (CI), Flyway applique V1 puis Hibernate valide le schéma :
  * ce test échoue si une entité diverge des migrations. Nécessite DB_URL /
- * DB_USERNAME / DB_PASSWORD / JWT_SECRET_BASE64 (ou secrets.properties en local).</p>
+ * DB_USERNAME / DB_PASSWORD / JWT_SECRET_BASE64 (ou le fichier .env en local).</p>
  */
 @SpringBootTest(properties = {
         "spring.kafka.listener.auto-startup=false",

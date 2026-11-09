@@ -1,5 +1,7 @@
 package com.salahtech.BarberShop_Apis.migration;
 
+import org.springframework.context.annotation.Profile;
+
 import com.salahtech.BarberShop_Apis.Dtos.CreateEmployeeRequest;
 import com.salahtech.BarberShop_Apis.Dtos.EmployeeDto;
 import com.salahtech.BarberShop_Apis.Dtos.QueueEntryDto;
@@ -38,6 +40,7 @@ import java.util.UUID;
  */
 @Slf4j
 @Component
+@Profile("!prod") // jamais en production, quelle que soit la configuration
 @Order(10) // après DemoDataSeeder (2) + EnumConstraintMigration (0)
 @RequiredArgsConstructor
 public class DemoOpsSeeder implements CommandLineRunner {

@@ -26,6 +26,9 @@ README.md
 
 # Secrets et données locales : jamais dans l'image
 **/secrets.properties
+**/.env.*
+!.env.example
+secrets
 **/firebase-*.json
 target
 logs

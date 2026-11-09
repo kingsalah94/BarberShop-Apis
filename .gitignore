@@ -44,3 +44,7 @@ src/main/resources/firebase-*.json
 uploads/
 kafka_data/
 logs/
+
+# Secrets (format MonzonApp) : .env réel jamais commité, modèle versionné
+!.env.example
+secrets/
