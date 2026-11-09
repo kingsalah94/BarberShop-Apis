@@ -232,7 +232,9 @@ public class SalonServiceImpl implements SalonService {
                 .ownerName(owner != null ? buildName(owner) : null)
                 .establishmentTypeId(type != null ? type.getId() : null)
                 .establishmentTypeName(type != null ? type.getName() : null)
-                .barbersCount(barberRepository.countBySalon_Id(s.getId()))
+                // Prestataires réservables (fiches employé BARBER actives), et non plus l'ancien profil barbier
+                .barbersCount(employeeRepository.findBySalonIdAndRole(s.getId(),
+                        com.salahtech.BarberShop_Apis.Enums.EmployeeRole.BARBER).size())
                 .workstationsCount(workstationRepository.countBySalon_Id(s.getId()))
                 .build();
     }
