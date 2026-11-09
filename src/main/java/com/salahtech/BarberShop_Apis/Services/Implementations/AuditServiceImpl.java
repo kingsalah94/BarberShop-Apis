@@ -3,7 +3,7 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 import com.salahtech.BarberShop_Apis.Dtos.AuditEventDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.AuditService;
 import com.salahtech.BarberShop_Apis.models.AuditEvent;
-import com.salahtech.BarberShop_Apis.reppsitories.AuditEventRepository;
+import com.salahtech.BarberShop_Apis.repositories.AuditEventRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

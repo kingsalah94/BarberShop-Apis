@@ -8,7 +8,7 @@ import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.DashboardService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;

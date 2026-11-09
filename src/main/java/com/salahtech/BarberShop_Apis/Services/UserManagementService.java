@@ -3,7 +3,6 @@ package com.salahtech.BarberShop_Apis.Services;
 import java.math.BigDecimal;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +21,10 @@ import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
+import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 @Service
 @Transactional

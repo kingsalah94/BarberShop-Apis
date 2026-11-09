@@ -13,9 +13,9 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.ReviewService;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.models.Review;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ReviewRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Service

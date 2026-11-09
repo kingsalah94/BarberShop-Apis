@@ -9,7 +9,7 @@
 // import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 // import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 // import com.salahtech.BarberShop_Apis.models.Role;
-// import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+// import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 // import org.junit.jupiter.api.BeforeEach;
 // import org.junit.jupiter.api.Test;

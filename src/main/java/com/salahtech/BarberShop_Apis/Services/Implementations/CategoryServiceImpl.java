@@ -2,7 +2,7 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.salahtech.BarberShop_Apis.Services.Interfaces.CategoryService;
 import com.salahtech.BarberShop_Apis.models.Category;
-import com.salahtech.BarberShop_Apis.reppsitories.CategoryRepository;
+import com.salahtech.BarberShop_Apis.repositories.CategoryRepository;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

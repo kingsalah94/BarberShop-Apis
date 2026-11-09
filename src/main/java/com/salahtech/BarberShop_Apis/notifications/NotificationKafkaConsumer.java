@@ -7,9 +7,9 @@ import com.salahtech.BarberShop_Apis.Services.EmailService;
 import com.salahtech.BarberShop_Apis.Services.Implementations.PushNotificationService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Booking;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ProcessedMessageRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.ProcessedMessageRepository;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;

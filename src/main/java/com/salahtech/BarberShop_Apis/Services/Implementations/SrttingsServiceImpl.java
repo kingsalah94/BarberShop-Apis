@@ -14,7 +14,7 @@ import java.util.Objects;
 import com.salahtech.BarberShop_Apis.Dtos.SystemStatusDto;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.SettingsService;
 import com.salahtech.BarberShop_Apis.models.GlobalSettings;
-import com.salahtech.BarberShop_Apis.reppsitories.GlobalSettingsRepository;
+import com.salahtech.BarberShop_Apis.repositories.GlobalSettingsRepository;
 
 @Service
 @RequiredArgsConstructor

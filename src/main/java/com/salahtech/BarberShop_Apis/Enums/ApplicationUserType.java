@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum ApplicationUserType {
-     CLIENT, BARBER, SALON_OWNER, ADMIN;
+     CLIENT, BARBER, SALON_OWNER, ADMIN, MANAGER, RECEPTIONIST, EMPLOYEE;
 
      @JsonCreator
      public static ApplicationUserType from(Object raw) {
@@ -29,6 +29,18 @@ public enum ApplicationUserType {
                case "ADMIN":
                case "ADMINISTRATOR":
                     return ADMIN;
+
+               case "MANAGER":
+                    return MANAGER;
+
+               case "RECEPTIONIST":
+               case "RECEPTION":
+                    return RECEPTIONIST;
+
+               case "EMPLOYEE":
+               case "STAFF":
+               case "PRESTATAIRE":
+                    return EMPLOYEE;
 
                default:
                     throw new IllegalArgumentException("Unknown userType: " + raw);

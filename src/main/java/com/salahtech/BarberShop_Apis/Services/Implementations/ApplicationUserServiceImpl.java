@@ -12,7 +12,7 @@ import com.salahtech.BarberShop_Apis.Services.EmailService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ApplicationUserService;
 import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 import com.salahtech.BarberShop_Apis.models.*;
-import com.salahtech.BarberShop_Apis.reppsitories.*;
+import com.salahtech.BarberShop_Apis.repositories.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -384,6 +384,10 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             case BARBER -> "BARBER";
             case SALON_OWNER -> "SALON_OWNER";
             case ADMIN -> "ADMIN";
+            case MANAGER -> "MANAGER";
+            case RECEPTIONIST -> "RECEPTIONIST";
+            // Prestataire avec accès espace pro : rôle Spring BARBER (déjà whitelisté).
+            case EMPLOYEE -> "BARBER";
         };
         return roleRepository.findByName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("Rôle " + roleName + " non trouvé en base"));

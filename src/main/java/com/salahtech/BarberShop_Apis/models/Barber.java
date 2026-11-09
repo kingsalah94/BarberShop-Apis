@@ -29,18 +29,24 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
+// equals/hashCode basés sur l'id uniquement : évite la récursion infinie
+// Barber.user <-> ApplicationUser.barber (StackOverflowError).
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Builder
 @Table(name = "barbers")
 public class Barber {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     private String name; // "Ahmed Benali"
@@ -48,6 +54,7 @@ public class Barber {
     // Relation OneToOne avec ApplicationUser
     @OneToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id", unique = true, nullable = false)
+    @ToString.Exclude
     private ApplicationUser user;
 
     @NotBlank
@@ -114,6 +121,12 @@ public class Barber {
     @ManyToOne
     @JoinColumn(name = "establishment_type_id")
     private EstablishmentType establishmentType;
+
+    // Tenant : le salon (établissement) auquel ce barbier est rattaché.
+    // Nullable pour ne pas casser les barbiers existants / solo (migration douce).
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "salon_id")
+    private Salon salon;
 
     @Column(nullable = false)
     @Builder.Default

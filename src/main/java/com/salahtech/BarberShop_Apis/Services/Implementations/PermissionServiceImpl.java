@@ -3,7 +3,7 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 import com.salahtech.BarberShop_Apis.Dtos.PermissionDto;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.models.Permission;
-import com.salahtech.BarberShop_Apis.reppsitories.PermissionRepository;
+import com.salahtech.BarberShop_Apis.repositories.PermissionRepository;
 import com.salahtech.BarberShop_Apis.specs.PermissionSpecifications;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.PermissionService;
 import lombok.RequiredArgsConstructor;

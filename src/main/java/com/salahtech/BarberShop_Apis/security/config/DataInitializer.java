@@ -7,8 +7,8 @@ import org.springframework.stereotype.Component;
 
 import com.salahtech.BarberShop_Apis.models.Permission;
 import com.salahtech.BarberShop_Apis.models.Role;
-import com.salahtech.BarberShop_Apis.reppsitories.PermissionRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+import com.salahtech.BarberShop_Apis.repositories.PermissionRepository;
+import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 import java.util.Set;
 

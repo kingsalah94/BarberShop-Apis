@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import com.salahtech.BarberShop_Apis.Dtos.*;
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.DashboardService;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 
 @Service
 @RequiredArgsConstructor

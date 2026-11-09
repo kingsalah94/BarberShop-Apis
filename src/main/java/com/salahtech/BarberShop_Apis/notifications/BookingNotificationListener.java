@@ -4,7 +4,7 @@ package com.salahtech.BarberShop_Apis.notifications;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
 import com.salahtech.BarberShop_Apis.domain.events.*;
 import com.salahtech.BarberShop_Apis.models.Booking;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

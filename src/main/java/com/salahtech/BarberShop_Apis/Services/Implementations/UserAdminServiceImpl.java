@@ -3,7 +3,6 @@ package com.salahtech.BarberShop_Apis.Services.Implementations;
 import com.salahtech.BarberShop_Apis.Dtos.ApplicationUserDto;
 import com.salahtech.BarberShop_Apis.Enums.ApplicationUserType;
 import com.salahtech.BarberShop_Apis.Enums.AuthProvider;
-import com.salahtech.BarberShop_Apis.Exceptions.NotAnImageFileException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.EmailService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.UserAdminService;
@@ -13,17 +12,14 @@ import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
 
-import static org.springframework.http.MediaType.*;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
-import com.salahtech.BarberShop_Apis.specs.UserSpecifications;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
+import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.*;
 import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import lombok.RequiredArgsConstructor;
@@ -33,20 +29,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
 import static com.salahtech.BarberShop_Apis.Utils.Constants.*;
-import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
-import java.io.IOException;
+
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -193,6 +183,9 @@ public class UserAdminServiceImpl implements UserAdminService {
                 case BARBER -> "BARBER";
                 case SALON_OWNER -> "SALON_OWNER";
                 case ADMIN -> "ADMIN";
+                case MANAGER -> "MANAGER";
+                case RECEPTIONIST -> "RECEPTIONIST";
+                case EMPLOYEE -> "BARBER";
             };
             Role role = roleRepo.findByName(roleName)
                     .orElseThrow(() -> new ResourceNotFoundException("Rôle " + roleName + " non trouvé"));
@@ -230,8 +223,8 @@ public class UserAdminServiceImpl implements UserAdminService {
             case CLIENT -> createClientProfile(user);
             case BARBER -> createBarberProfile(user);
             case SALON_OWNER -> createBarberProfile(user); // Un salon owner est aussi un barber
-            case ADMIN -> {
-                /* Pas de profil métier pour admin */ }
+            case ADMIN, MANAGER, RECEPTIONIST -> {
+                /* Pas de profil métier (admin / sous-comptes de gestion) */ }
         }
     }
 

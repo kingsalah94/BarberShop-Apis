@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {

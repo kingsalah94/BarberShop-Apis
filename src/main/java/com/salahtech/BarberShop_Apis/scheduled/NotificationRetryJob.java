@@ -1,12 +1,11 @@
 package com.salahtech.BarberShop_Apis.scheduled;
 
 import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.OutboxService;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.OutboxEventRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

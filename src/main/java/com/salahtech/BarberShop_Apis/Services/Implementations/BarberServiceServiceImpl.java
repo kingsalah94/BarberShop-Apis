@@ -26,10 +26,10 @@ import com.salahtech.BarberShop_Apis.Exceptions.AccessDeniedException;
 import com.salahtech.BarberShop_Apis.Exceptions.InvalideEntityException;
 import com.salahtech.BarberShop_Apis.Exceptions.ResourceNotFoundException;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.ServiceService;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberServiceRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.CategoryRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberServiceRepository;
+import com.salahtech.BarberShop_Apis.repositories.CategoryRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

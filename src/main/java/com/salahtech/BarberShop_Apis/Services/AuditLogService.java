@@ -1,7 +1,7 @@
 package com.salahtech.BarberShop_Apis.Services;
 
 import com.salahtech.BarberShop_Apis.models.AuditEvent;
-import com.salahtech.BarberShop_Apis.reppsitories.AuditEventRepository; // Note: j'utilise ton package 'reppsitories'
+import com.salahtech.BarberShop_Apis.repositories.AuditEventRepository; // Note: j'utilise ton package 'repositories'
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;

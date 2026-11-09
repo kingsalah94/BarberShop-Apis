@@ -8,7 +8,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import com.salahtech.BarberShop_Apis.reppsitories.OutboxEventRepository;
+import com.salahtech.BarberShop_Apis.repositories.OutboxEventRepository;
 
 import java.time.OffsetDateTime;
 import java.util.List;

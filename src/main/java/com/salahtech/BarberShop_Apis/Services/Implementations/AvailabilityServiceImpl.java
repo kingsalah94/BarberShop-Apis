@@ -12,9 +12,9 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.AvailabilityService;
 import com.salahtech.BarberShop_Apis.models.Availability;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Booking;
-import com.salahtech.BarberShop_Apis.reppsitories.AvailabilityRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.AvailabilityRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

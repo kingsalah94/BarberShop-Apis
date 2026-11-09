@@ -20,13 +20,13 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.ClientService;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Booking;
 import com.salahtech.BarberShop_Apis.models.Client;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ClientFavoriteRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ReviewRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.ClientFavoriteRepository;
+import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
+import com.salahtech.BarberShop_Apis.repositories.ReviewRepository;
+import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +41,6 @@ import org.springframework.web.multipart.MultipartFile;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -175,6 +174,9 @@ public class ClientServiceImpl implements ClientService {
             case BARBER -> "BARBER";
             case SALON_OWNER -> "SALON_OWNER";
             case ADMIN -> "ADMIN";
+            case MANAGER -> "MANAGER";
+            case RECEPTIONIST -> "RECEPTIONIST";
+            case EMPLOYEE -> "BARBER";
         };
         return roleRepository.findByName(roleName)
                 .orElseThrow(() -> new ResourceNotFoundException("Rôle " + roleName + " non trouvé en base"));

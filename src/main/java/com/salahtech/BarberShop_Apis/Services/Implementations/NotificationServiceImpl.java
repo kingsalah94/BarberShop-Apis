@@ -12,9 +12,9 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.OutboxService;
 import com.salahtech.BarberShop_Apis.Services.SMSService;
 import com.salahtech.BarberShop_Apis.models.AuditEvent;
 import com.salahtech.BarberShop_Apis.models.Booking;
-import com.salahtech.BarberShop_Apis.reppsitories.AuditEventRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BookingRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.NotificationRepository; // ✅ Ajouté
+import com.salahtech.BarberShop_Apis.repositories.AuditEventRepository;
+import com.salahtech.BarberShop_Apis.repositories.BookingRepository;
+import com.salahtech.BarberShop_Apis.repositories.NotificationRepository; // ✅ Ajouté
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

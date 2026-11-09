@@ -20,10 +20,10 @@ import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Barber;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Role;
-import com.salahtech.BarberShop_Apis.reppsitories.ApplicationUserRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.BarberRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.ClientRepository;
-import com.salahtech.BarberShop_Apis.reppsitories.RoleRepository;
+import com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository;
+import com.salahtech.BarberShop_Apis.repositories.BarberRepository;
+import com.salahtech.BarberShop_Apis.repositories.ClientRepository;
+import com.salahtech.BarberShop_Apis.repositories.RoleRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,7 +70,11 @@ public class UserProfileService {
         // Créer ou mettre à jour le profil métier
         switch (user.getUserType()) {
             case CLIENT -> updateClientProfile(user, request);
-            case BARBER, SALON_OWNER -> updateBarberProfile(user, request);
+            case BARBER -> updateBarberProfile(user, request);
+            // SALON_OWNER : pas de profil barbier — seules les infos communes
+            // (téléphone/photo) sont mises à jour ci-dessus ; le salon est géré à part.
+            case SALON_OWNER -> { /* no-op */ }
+            default -> { /* no-op */ }
         }
 
         user = userRepository.save(user);
@@ -126,6 +130,14 @@ public class UserProfileService {
     }
 
     private boolean isProfileComplete(ApplicationUser user) {
+        // Sous-comptes de gestion (manager / réceptionniste) : opérationnels d'emblée,
+        // pas de profil métier ni de téléphone requis.
+        if (user.getUserType() == ApplicationUserType.MANAGER
+                || user.getUserType() == ApplicationUserType.RECEPTIONIST
+                || user.getUserType() == ApplicationUserType.EMPLOYEE) {
+            return true;
+        }
+
         // Vérifications communes
         if (user.getPhone() == null || user.getPhone().isBlank())
             return false;
@@ -135,7 +147,7 @@ public class UserProfileService {
             case CLIENT -> {
                 return user.getClient() != null;
             }
-            case BARBER, SALON_OWNER -> {
+            case BARBER -> {
                 if (user.getBarber() == null)
                     return false;
                 Barber barber = user.getBarber();
@@ -143,6 +155,12 @@ public class UserProfileService {
                         !barber.getSalonName().equals("À définir") &&
                         barber.getLocation() != null &&
                         !barber.getLocation().equals("À définir");
+            }
+            case SALON_OWNER -> {
+                // Un propriétaire n'a PAS de profil barbier. Son profil est
+                // considéré complet dès qu'il a un téléphone ; son salon se
+                // crée séparément via « Mon Salon ».
+                return true; // (le téléphone est déjà validé plus haut)
             }
             default -> {
                 return true;

@@ -20,6 +20,11 @@ public class Salon {
     private Double longitude;
     private String phoneNumber;
 
+    /** Logo du salon (URL) — branding. */
+    private String logoUrl;
+    /** Photo de couverture (URL) — branding. */
+    private String coverUrl;
+
     // Le Gérant (Propriétaire du compte)
     @OneToOne
     private ApplicationUser owner;

@@ -32,11 +32,16 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.ToString;
 
 @Data
+// equals/hashCode basés sur l'id uniquement : évite la récursion infinie
+// ApplicationUser.barber/client <-> Barber/Client.user (StackOverflowError).
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -46,6 +51,7 @@ public class ApplicationUser implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(unique = true, nullable = false)
@@ -141,10 +147,12 @@ public class ApplicationUser implements UserDetails {
 
     // Relation OneToOne avec Barber
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
+    @ToString.Exclude
     private Barber barber;
 
     // extrait ApplicationUser.java
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
+    @ToString.Exclude
     private Client client;
 
     // Constructeur personnalisé

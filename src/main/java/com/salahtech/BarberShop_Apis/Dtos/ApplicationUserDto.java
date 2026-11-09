@@ -41,6 +41,8 @@ public class ApplicationUserDto {
 
     private BarberDto barberDto; // seulement en lecture
 
+    private Long barberId; // raccourci : id du profil barbier (si présent)
+
     private String fullName;
 
     public static ApplicationUserDto fromEntity(ApplicationUser user) {
@@ -68,6 +70,7 @@ public class ApplicationUserDto {
                 .accountNonLocked(user.isAccountNonLocked())
                 .credentialsNonExpired(user.isCredentialsNonExpired())
                 .barberDto(user.getBarber() != null ? BarberDto.fromEntity(user.getBarber()) : null)
+                .barberId(user.getBarber() != null ? user.getBarber().getId() : null)
                 .roles(user.getRoles() != null ? user.getRoles().stream().map(Role::getName).collect(Collectors.toSet())
                         : null)
                 .permissions(

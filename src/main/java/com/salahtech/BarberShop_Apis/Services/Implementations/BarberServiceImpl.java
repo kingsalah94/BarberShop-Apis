@@ -13,7 +13,7 @@ import com.salahtech.BarberShop_Apis.Services.Interfaces.AvailabilityService;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BarberServices;
 import com.salahtech.BarberShop_Apis.Validators.BarberValidator;
 import com.salahtech.BarberShop_Apis.models.*;
-import com.salahtech.BarberShop_Apis.reppsitories.*;
+import com.salahtech.BarberShop_Apis.repositories.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;

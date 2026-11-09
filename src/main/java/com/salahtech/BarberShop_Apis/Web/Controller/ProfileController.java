@@ -39,7 +39,7 @@ public class ProfileController {
 
     @Operation(summary = "Mettre à jour mon profil")
     @PutMapping("/me")
-    @PreAuthorize("isAuthenticated() and hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()") // chacun peut éditer SON propre profil
     public ResponseEntity<ApplicationUserDto> updateMe(
             @CurrentUser ApplicationUser user,
             @Valid @RequestBody UpdateProfileRequest req) {

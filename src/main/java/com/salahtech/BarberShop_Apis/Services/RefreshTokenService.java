@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import com.salahtech.BarberShop_Apis.Utils.JwtUtil;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.RefreshToken;
-import com.salahtech.BarberShop_Apis.reppsitories.RefreshTokenRepository;
+import com.salahtech.BarberShop_Apis.repositories.RefreshTokenRepository;
 
 @Service
 public class RefreshTokenService {

@@ -6,14 +6,14 @@ import com.salahtech.BarberShop_Apis.Dtos.*;
 import com.salahtech.BarberShop_Apis.Enums.*;
 import com.salahtech.BarberShop_Apis.Exceptions.*;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.BookingService;
+import com.salahtech.BarberShop_Apis.Services.Interfaces.QueueService;
 import com.salahtech.BarberShop_Apis.models.*;
 import com.salahtech.BarberShop_Apis.outbox.OutboxEvent;
 import com.salahtech.BarberShop_Apis.outbox.OutboxStatus;
-import com.salahtech.BarberShop_Apis.reppsitories.*;
+import com.salahtech.BarberShop_Apis.repositories.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -38,6 +39,7 @@ public class BookingServiceImpl implements BookingService {
     private final ApplicationUserRepository applicationUserRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final QueueService queueService;
 
     // ========================================================================
     // 📝 1. CRÉATION (CLIENT)
@@ -333,7 +335,41 @@ public class BookingServiceImpl implements BookingService {
         notifyChange(saved, "BOOKING_CONFIRMED", "Réservation Confirmée ✅",
                 "Votre RDV a été validé.");
 
+        // Confirmer un RDV du jour l'ajoute automatiquement à la file d'attente
+        // (le check-in manuel reste possible pour les RDV d'un autre jour).
+        maybeEnqueueForToday(saved);
+
         return mapToDto(saved);
+    }
+
+    /**
+     * Ajoute le RDV à la file d'attente si c'est pour aujourd'hui et que le barbier
+     * est rattaché à un salon. Idempotent (anti double check-in) et non bloquant :
+     * un échec ne fait jamais échouer la confirmation.
+     */
+    private void maybeEnqueueForToday(Booking booking) {
+        LocalDateTime when = booking.getStartAt() != null ? booking.getStartAt() : booking.getBookingDate();
+        if (when == null || !when.toLocalDate().equals(LocalDate.now())) return; // garde "même jour"
+        if (booking.getBarber() == null || booking.getBarber().getSalon() == null) return;
+
+        final Long bookingId = booking.getId();
+        // enqueueFromBookingQuietly ouvre une transaction NEUVE (REQUIRES_NEW) et avale
+        // toute erreur → l'INSERT est bien committé après le commit de la confirmation.
+        final Runnable enqueue = () -> queueService.enqueueFromBookingQuietly(bookingId);
+
+        // Exécuté APRÈS le commit de la confirmation (transaction séparée) : un échec
+        // de la file ne peut jamais faire échouer ni annuler la confirmation du RDV.
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            enqueue.run();
+                        }
+                    });
+        } else {
+            enqueue.run();
+        }
     }
 
     // ========================================================================

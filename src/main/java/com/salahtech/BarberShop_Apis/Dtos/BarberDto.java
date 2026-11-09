@@ -61,6 +61,9 @@ public class BarberDto implements Serializable {
     // C'est l'image du Barbier (Salon)
     private String profilePicture;
 
+    // Tenant : salon de rattachement du barbier (peut être null si non rattaché)
+    private Long salonId;
+
     public static BarberDto fromEntity(Barber b) {
         if (b == null)
             return null;
@@ -95,6 +98,8 @@ public class BarberDto implements Serializable {
                 // Si le barbier n'a pas d'image, on peut fallback sur le user ou laisser null
                 .profilePicture(b.getProfileImageUrl() != null ? b.getProfileImageUrl()
                         : (u != null ? u.getProfileImageUrl() : null))
+
+                .salonId(b.getSalon() != null ? b.getSalon().getId() : null)
 
                 .build();
     }
