@@ -146,6 +146,13 @@ public class QueueController {
                 .body(pdf);
     }
 
+    @Operation(summary = "Mes tickets actifs, tous salons confondus (client connecté)")
+    @GetMapping("/me")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<QueueEntryDto>> myEntries(@CurrentUser ApplicationUser user) {
+        return ResponseEntity.ok(queueService.myActiveEntries(myClientId(user)));
+    }
+
     @Operation(summary = "Ma place dans la file d'un salon (client connecté)")
     @GetMapping("/salon/{salonId}/me")
     @PreAuthorize("isAuthenticated()")

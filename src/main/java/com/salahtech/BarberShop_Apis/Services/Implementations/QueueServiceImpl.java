@@ -369,6 +369,22 @@ public class QueueServiceImpl implements QueueService {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<QueueEntryDto> myActiveEntries(Long clientId) {
+        if (clientId == null) return List.of();
+        return queueRepository.findActiveByClient(clientId,
+                        List.of(QueueStatus.WAITING, QueueStatus.NOTIFIED, QueueStatus.IN_CHAIR))
+                .stream().map(e -> {
+                    QueueEntryDto d = toDto(e);
+                    if (e.getStatus() == QueueStatus.WAITING) {
+                        d.setEstimatedWaitTime(estimateWaitTime(e.getSalon().getId(), e));
+                    }
+                    return d;
+                })
+                .collect(Collectors.toList());
+    }
+
     /** « Ma place dans la file » : entrée active du client dans un salon (ou null). */
     @Override
     @Transactional(readOnly = true)
@@ -477,6 +493,7 @@ public class QueueServiceImpl implements QueueService {
                 .customerPhone(e.getCustomerPhone())
                 .numberOfPeople(e.getNumberOfPeople())
                 .salonId(e.getSalon() != null ? e.getSalon().getId() : null)
+                .salonName(e.getSalon() != null ? e.getSalon().getName() : null)
                 .clientId(e.getClient() != null ? e.getClient().getId() : null)
                 .preferredEmployeeId(e.getPreferredEmployee() != null ? e.getPreferredEmployee().getId() : null)
                 .assignedEmployeeId(assigned != null ? assigned.getId() : null)

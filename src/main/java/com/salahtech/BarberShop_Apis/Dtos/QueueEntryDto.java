@@ -23,6 +23,7 @@ public class QueueEntryDto {
     private String customerPhone;
     private int numberOfPeople;
     private Long salonId;
+    private String salonName;
     private Long clientId;
     private Long preferredEmployeeId;
     private Long assignedEmployeeId;

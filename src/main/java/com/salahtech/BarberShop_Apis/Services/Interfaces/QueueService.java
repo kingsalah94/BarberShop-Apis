@@ -27,6 +27,9 @@ public interface QueueService {
     /** « Ma place dans la file » : entrée active du client dans un salon (null si aucune). */
     QueuePositionDto myPosition(Long salonId, Long clientId);
 
+    /** Tickets actifs (en attente, appelé, en service) du client, tous salons confondus. */
+    List<QueueEntryDto> myActiveEntries(Long clientId);
+
     QueueEntryDto callNext(Long salonId, Long workstationId);
 
     QueueEntryDto callSpecific(Long queueEntryId, Long workstationId);

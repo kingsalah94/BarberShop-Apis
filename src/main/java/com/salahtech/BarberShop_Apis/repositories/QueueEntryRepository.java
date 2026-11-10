@@ -40,6 +40,12 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
     Optional<QueueEntry> findFirstBySalonBookingIdAndStatusInOrderByCheckInTimeDesc(
             Long salonBookingId, List<QueueStatus> statuses);
 
+    /** Entrées actives d'un client, tous salons confondus (« mes tickets »). */
+    @Query("SELECT q FROM QueueEntry q WHERE q.client.id = :clientId "
+            + "AND q.status IN :statuses ORDER BY q.checkInTime DESC")
+    List<QueueEntry> findActiveByClient(@Param("clientId") Long clientId,
+                                        @Param("statuses") List<QueueStatus> statuses);
+
     /** Entrée active du client dans un salon (pour « ma place dans la file »). */
     @Query("SELECT q FROM QueueEntry q WHERE q.salon.id = :salonId AND q.client.id = :clientId "
             + "AND q.status IN :statuses ORDER BY q.checkInTime DESC")

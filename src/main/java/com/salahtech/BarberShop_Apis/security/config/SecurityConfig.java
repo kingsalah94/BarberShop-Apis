@@ -114,6 +114,8 @@ public class SecurityConfig {
                         .requestMatchers("/v1/settings/**").permitAll() // La config qu'on a faite avant
                         .requestMatchers(HttpMethod.GET, "/v1/catalog/**").permitAll() // Catalogue client (lecture publique)
                         // Exemples par rôle
+                        // Profil personnel (/me, avatar, jeton FCM) : tout utilisateur connecté, clients compris.
+                        .requestMatchers("/v1/users/profile/me", "/v1/users/profile/me/**").authenticated()
                         .requestMatchers("/v1/users/**").hasAnyRole("ADMIN", "SALON_OWNER", "BARBER", "MANAGER", "RECEPTIONIST")
                         .requestMatchers(HttpMethod.GET, "/v1/dashboard/**")
                         .hasAnyRole("ADMIN", "SALON_OWNER", "BARBER", "MANAGER", "RECEPTIONIST")
