@@ -42,6 +42,14 @@ public class CatalogController {
         return ResponseEntity.ok(catalogService.getSalon(salonId));
     }
 
+    @Operation(summary = "Derniers avis publics d'un salon")
+    @GetMapping("/salons/{salonId}/reviews")
+    public ResponseEntity<List<com.salahtech.BarberShop_Apis.Dtos.SalonPublicReviewDto>> reviews(
+            @PathVariable Long salonId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(catalogService.latestReviews(salonId, limit));
+    }
+
     @Operation(summary = "Réalisations d'un salon (public)")
     @GetMapping("/salons/{salonId}/posts")
     public ResponseEntity<List<SalonPostDto>> salonPosts(@PathVariable Long salonId) {
