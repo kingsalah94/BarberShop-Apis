@@ -32,8 +32,9 @@ public class CatalogController {
 
     @Operation(summary = "Lister les salons (catalogue client)")
     @GetMapping("/salons")
-    public ResponseEntity<List<SalonCatalogDto>> listSalons() {
-        return ResponseEntity.ok(catalogService.listSalons());
+    public ResponseEntity<List<SalonCatalogDto>> listSalons(
+            @RequestParam(required = false) Long localityId) {
+        return ResponseEntity.ok(catalogService.listSalons(localityId));
     }
 
     @Operation(summary = "Fiche d'un salon : services actifs + horaires")

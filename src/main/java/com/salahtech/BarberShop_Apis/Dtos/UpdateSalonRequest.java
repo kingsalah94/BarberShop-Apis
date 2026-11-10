@@ -20,5 +20,7 @@ public class UpdateSalonRequest {
     private Double latitude;
     private Double longitude;
     private String phoneNumber;
+    /** Zone (quartier ou ville) ; 0 pour l'effacer. */
+    private Long localityId;
     private Long establishmentTypeId;
 }

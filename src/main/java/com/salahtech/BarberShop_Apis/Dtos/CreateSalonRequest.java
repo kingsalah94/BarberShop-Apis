@@ -21,6 +21,8 @@ public class CreateSalonRequest {
     private Double latitude;
     private Double longitude;
     private String phoneNumber;
+    /** Zone (quartier ou ville) du référentiel ; facultative. */
+    private Long localityId;
 
     /** Optionnel : type d'établissement (catégories accessibles) */
     private Long establishmentTypeId;

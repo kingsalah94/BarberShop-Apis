@@ -17,6 +17,10 @@ public class SalonDto {
     private Double longitude;
     private String phoneNumber;
 
+    /** Localité la plus précise (quartier, sinon ville…) et son chemin depuis le pays. */
+    private Long localityId;
+    private java.util.List<LocalityRefDto> localityPath;
+
     /** Branding. */
     private String logoUrl;
     private String coverUrl;

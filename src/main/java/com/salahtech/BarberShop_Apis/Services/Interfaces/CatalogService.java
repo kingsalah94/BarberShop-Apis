@@ -8,6 +8,9 @@ import java.util.List;
 /** Catalogue public (côté client) : parcourir les salons, leurs services et horaires. */
 public interface CatalogService {
     List<SalonCatalogDto> listSalons();
+
+    /** Salons de la zone (descendants inclus) ; null = tous. */
+    List<SalonCatalogDto> listSalons(Long localityId);
     SalonCatalogDetailDto getSalon(Long salonId);
     /** Derniers avis publics d'un salon (prénom + initiale du client). */
     List<com.salahtech.BarberShop_Apis.Dtos.SalonPublicReviewDto> latestReviews(Long salonId, int limit);

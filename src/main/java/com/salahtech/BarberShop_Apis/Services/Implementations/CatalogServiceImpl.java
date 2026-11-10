@@ -33,6 +33,7 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class CatalogServiceImpl implements CatalogService {
 
+    private final LocalityService localityService;
     private final SalonRepository salonRepository;
     private final SalonOfferingRepository offeringRepository;
     private final SalonReviewRepository reviewRepository;
@@ -96,7 +97,14 @@ public class CatalogServiceImpl implements CatalogService {
 
     @Override
     public List<SalonCatalogDto> listSalons() {
+        return listSalons(null);
+    }
+
+    @Override
+    public List<SalonCatalogDto> listSalons(Long localityId) {
+        java.util.Set<Long> within = localityId == null ? null : localityService.salonIdsWithin(localityId);
         return salonRepository.findAll().stream()
+                .filter(s -> within == null || within.contains(s.getId()))
                 .map(s -> {
                     Extras x = extras(s.getId());
                     return SalonCatalogDto.builder()
@@ -104,6 +112,8 @@ public class CatalogServiceImpl implements CatalogService {
                             .name(s.getName())
                             .address(s.getAddress())
                             .phoneNumber(s.getPhoneNumber())
+                            .localityId(s.getLocality() != null ? s.getLocality().getId() : null)
+                            .localityPath(s.getLocality() != null ? localityService.pathOf(s.getLocality()) : null)
                             .latitude(s.getLatitude())
                             .longitude(s.getLongitude())
                             .establishmentTypeName(s.getType() != null ? s.getType().getName() : null)
@@ -132,6 +142,8 @@ public class CatalogServiceImpl implements CatalogService {
                 .name(s.getName())
                 .address(s.getAddress())
                 .phoneNumber(s.getPhoneNumber())
+                .localityId(s.getLocality() != null ? s.getLocality().getId() : null)
+                .localityPath(s.getLocality() != null ? localityService.pathOf(s.getLocality()) : null)
                 .latitude(s.getLatitude())
                 .longitude(s.getLongitude())
                 .establishmentTypeName(s.getType() != null ? s.getType().getName() : null)

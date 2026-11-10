@@ -113,6 +113,8 @@ public class SecurityConfig {
                         .requestMatchers("/v1/auth/**").permitAll() // Tes autres routes publiques
                         .requestMatchers("/v1/settings/**").permitAll() // La config qu'on a faite avant
                         .requestMatchers(HttpMethod.GET, "/v1/catalog/**").permitAll() // Catalogue client (lecture publique)
+                        // Référentiel géographique : lecture publique (inscription, filtres) ; /all et /stats restent admin.
+                        .requestMatchers(HttpMethod.GET, "/v1/localities", "/v1/localities/*/path").permitAll()
                         // Exemples par rôle
                         // Profil personnel (/me, avatar, jeton FCM) : tout utilisateur connecté, clients compris.
                         .requestMatchers("/v1/users/profile/me", "/v1/users/profile/me/**").authenticated()

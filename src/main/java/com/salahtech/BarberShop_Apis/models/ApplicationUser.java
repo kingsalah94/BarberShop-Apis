@@ -24,6 +24,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -116,6 +117,13 @@ public class ApplicationUser implements UserDetails {
 
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
+
+    /** Zone de l'utilisateur (ville / quartier) — sert de filtre par défaut et aux statistiques. */
+    @ToString.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locality_id")
+    private Locality locality;
 
     /** Dernier changement de mot de passe (expiration configurable). */
     @Column(name = "password_changed_at")

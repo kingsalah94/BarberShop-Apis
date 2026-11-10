@@ -22,6 +22,13 @@ public class Salon {
     private Double longitude;
     private String phoneNumber;
 
+    /** Localité la plus précise connue (quartier, sinon ville…) — référentiel Pays › Région › Ville › Quartier. */
+    @ToString.Exclude
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "locality_id")
+    private Locality locality;
+
     /** Logo du salon (URL) — branding. */
     private String logoUrl;
     /** Photo de couverture (URL) — branding. */

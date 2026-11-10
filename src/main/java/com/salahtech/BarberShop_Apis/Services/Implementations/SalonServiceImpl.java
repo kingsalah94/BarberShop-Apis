@@ -38,6 +38,7 @@ public class SalonServiceImpl implements SalonService {
     private final com.salahtech.BarberShop_Apis.repositories.ApplicationUserRepository userRepository;
     private final com.salahtech.BarberShop_Apis.repositories.RoleRepository roleRepository;
     private final com.salahtech.BarberShop_Apis.repositories.EmployeeRepository employeeRepository;
+    private final LocalityService localityService;
 
     @Override
     public SalonDto create(CreateSalonRequest req, ApplicationUser owner) {
@@ -47,6 +48,7 @@ public class SalonServiceImpl implements SalonService {
         salon.setLatitude(req.getLatitude());
         salon.setLongitude(req.getLongitude());
         salon.setPhoneNumber(req.getPhoneNumber());
+        if (req.getLocalityId() != null) salon.setLocality(localityService.find(req.getLocalityId()));
         salon.setOwner(owner);
         salon.setType(resolveType(req.getEstablishmentTypeId()));
 
@@ -113,6 +115,9 @@ public class SalonServiceImpl implements SalonService {
         if (req.getLatitude() != null) salon.setLatitude(req.getLatitude());
         if (req.getLongitude() != null) salon.setLongitude(req.getLongitude());
         if (req.getPhoneNumber() != null) salon.setPhoneNumber(req.getPhoneNumber());
+        if (req.getLocalityId() != null) {
+            salon.setLocality(req.getLocalityId() == 0 ? null : localityService.find(req.getLocalityId()));
+        }
         if (req.getEstablishmentTypeId() != null) salon.setType(resolveType(req.getEstablishmentTypeId()));
 
         return toDto(salonRepository.save(salon));
@@ -226,6 +231,8 @@ public class SalonServiceImpl implements SalonService {
                 .latitude(s.getLatitude())
                 .longitude(s.getLongitude())
                 .phoneNumber(s.getPhoneNumber())
+                .localityId(s.getLocality() != null ? s.getLocality().getId() : null)
+                .localityPath(s.getLocality() != null ? localityService.pathOf(s.getLocality()) : null)
                 .logoUrl(s.getLogoUrl())
                 .coverUrl(s.getCoverUrl())
                 .ownerId(owner != null ? owner.getId() : null)
