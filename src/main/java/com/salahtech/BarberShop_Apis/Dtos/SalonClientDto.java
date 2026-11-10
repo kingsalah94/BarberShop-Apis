@@ -24,4 +24,7 @@ public class SalonClientDto {
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime lastVisit;
+
+    /** Note privée du salon sur ce client (null si aucune). */
+    private String note;
 }

@@ -65,4 +65,6 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
     long countBySalon_IdAndClient_IdAndStatusAndSalonBookingIdIsNull(Long salonId, Long clientId, QueueStatus status);
 
     List<QueueEntry> findByClient_IdAndStatusAndSalonBookingIdIsNull(Long clientId, QueueStatus status);
+
+    boolean existsBySalon_IdAndClient_Id(Long salonId, Long clientId);
 }

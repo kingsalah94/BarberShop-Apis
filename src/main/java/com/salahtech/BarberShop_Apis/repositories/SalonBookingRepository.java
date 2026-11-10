@@ -61,4 +61,6 @@ public interface SalonBookingRepository extends JpaRepository<SalonBooking, Long
 
     List<SalonBooking> findByClient_IdAndStatus(Long clientId,
                                                 com.salahtech.BarberShop_Apis.Enums.BookingStatus status);
+
+    boolean existsBySalon_IdAndClient_Id(Long salonId, Long clientId);
 }
