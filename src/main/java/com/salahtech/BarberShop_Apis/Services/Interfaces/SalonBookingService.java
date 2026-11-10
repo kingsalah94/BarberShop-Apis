@@ -40,6 +40,12 @@ public interface SalonBookingService {
      */
     List<SalonBookingDto> listForSalon(Long salonId, LocalDate date, Long employeeId);
 
+    /**
+     * Réservations d'un salon sur une période [from, to] (bornes incluses, 92 jours max),
+     * éventuellement limitées à un employé.
+     */
+    List<SalonBookingDto> listForSalonRange(Long salonId, LocalDate from, LocalDate to, Long employeeId);
+
     /** Réservations du client connecté. */
     List<SalonBookingDto> listMine(ApplicationUser user);
 

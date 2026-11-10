@@ -54,16 +54,22 @@ public class SalonBookingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bookingService.create(salonId, req, user));
     }
 
-    @Operation(summary = "Lister les réservations du salon pour une date (staff)")
+    @Operation(summary = "Lister les réservations du salon pour une date, ou une période from/to (staff, 92 j max)")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<SalonBookingDto>> list(
             @PathVariable Long salonId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @CurrentUser ApplicationUser user) {
         tenantGuard.assertCanFrontDesk(user, salonId);
         // Prestataire connecté → uniquement ses RDV ; owner/manager/réceptionniste → tout le salon.
-        return ResponseEntity.ok(bookingService.listForSalon(salonId, date, scopeEmployeeId(user, salonId)));
+        Long scope = scopeEmployeeId(user, salonId);
+        if (from != null || to != null) {
+            return ResponseEntity.ok(bookingService.listForSalonRange(salonId, from, to, scope));
+        }
+        return ResponseEntity.ok(bookingService.listForSalon(salonId, date, scope));
     }
 
     @Operation(summary = "Confirmer une réservation (+ poste / prestataire optionnels)")

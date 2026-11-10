@@ -232,10 +232,27 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     @Override
     @Transactional(readOnly = true)
     public List<SalonBookingDto> listForSalon(Long salonId, LocalDate date, Long employeeId) {
-        salon(salonId);
         LocalDate d = date != null ? date : LocalDate.now();
+        return listForSalonRange(salonId, d, d, employeeId);
+    }
+
+    /** Période maximale acceptée par {@link #listForSalonRange} (≈ un trimestre). */
+    static final int MAX_RANGE_DAYS = 92;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SalonBookingDto> listForSalonRange(Long salonId, LocalDate from, LocalDate to, Long employeeId) {
+        salon(salonId);
+        LocalDate f = from != null ? from : LocalDate.now();
+        LocalDate t = to != null ? to : f;
+        if (t.isBefore(f)) {
+            throw new com.salahtech.BarberShop_Apis.Exceptions.BadRequestException("La date de fin précède la date de début");
+        }
+        if (java.time.temporal.ChronoUnit.DAYS.between(f, t) >= MAX_RANGE_DAYS) {
+            throw new com.salahtech.BarberShop_Apis.Exceptions.BadRequestException("Période trop longue (" + MAX_RANGE_DAYS + " jours max)");
+        }
         return bookingRepository
-                .findBySalon_IdAndStartAtBetweenOrderByStartAtAsc(salonId, d.atStartOfDay(), d.atStartOfDay().plusDays(1))
+                .findBySalon_IdAndStartAtBetweenOrderByStartAtAsc(salonId, f.atStartOfDay(), t.plusDays(1).atStartOfDay())
                 .stream()
                 .filter(b -> employeeId == null
                         || (b.getAssignedEmployee() != null && employeeId.equals(b.getAssignedEmployee().getId())))
