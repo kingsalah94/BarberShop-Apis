@@ -40,6 +40,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     private final RoleRepository roleRepository;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final com.salahtech.BarberShop_Apis.security.PasswordPolicy passwordPolicy;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final ClientRepository clientRepository;
@@ -62,6 +63,12 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         ApplicationUser user = getUserByEmailOrThrow(principal.getUsername());
 
         validateUserStatus(user);
+
+        // Expiration du mot de passe (Paramètres › Sécurité) : on impose le changement à la connexion.
+        if (!user.isMustChangePassword()
+                && passwordPolicy.isExpired(user.getPasswordChangedAt() != null ? user.getPasswordChangedAt() : user.getCreatedAt())) {
+            user.setMustChangePassword(true);
+        }
 
         String accessToken = jwtUtil.generateAccessToken(principal);
         String refreshToken = jwtUtil.generateRefreshToken(principal);
@@ -86,9 +93,11 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             throw new BadRequestException("Un compte avec cet email existe déjà");
         }
 
+        passwordPolicy.validate(req.getPassword());
         ApplicationUser u = new ApplicationUser();
         u.setEmail(req.getEmail());
         u.setPassword(passwordEncoder.encode(req.getPassword()));
+        u.setPasswordChangedAt(LocalDateTime.now());
         u.setFirstName(req.getFirstName());
         u.setLastName(req.getLastName());
         u.setPhone(req.getPhone());
@@ -223,10 +232,15 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         }
 
         if (!request.getNewPassword().equals(request.getConfirmNewPassword())) {
-            throw new InvalideEntityException("Les nouveaux mots de passe ne correspondent pas.");
+            throw new BadRequestException("Les nouveaux mots de passe ne correspondent pas.");
         }
 
+        passwordPolicy.validate(request.getNewPassword());
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BadRequestException("Le nouveau mot de passe doit être différent de l'ancien.");
+        }
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordChangedAt(LocalDateTime.now());
         user.setMustChangePassword(false);
         userRepository.save(user);
 
@@ -260,7 +274,9 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
             throw new BadRequestException("Token expiré");
         }
 
+        passwordPolicy.validate(newPassword);
         u.setPassword(passwordEncoder.encode(newPassword));
+        u.setPasswordChangedAt(LocalDateTime.now());
         u.setResetPasswordToken(null);
         u.setResetPasswordExpires(null);
         u.setMustChangePassword(false);

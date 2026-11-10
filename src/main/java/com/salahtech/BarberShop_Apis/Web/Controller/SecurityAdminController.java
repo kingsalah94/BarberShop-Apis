@@ -3,6 +3,9 @@ package com.salahtech.BarberShop_Apis.Web.Controller;
 import com.salahtech.BarberShop_Apis.Services.Interfaces.SecuritySettingsService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
+import com.salahtech.BarberShop_Apis.repositories.RefreshTokenRepository;
+import com.salahtech.BarberShop_Apis.AOP.LogActivity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,12 +18,18 @@ import org.springframework.web.bind.annotation.*;
 public class SecurityAdminController {
 
     private final SecuritySettingsService settings;
+    private final RefreshTokenRepository refreshTokens;
 
-    /** Révoque tous les refresh tokens (stub: renvoie 0 si pas encore de store) */
+    /**
+     * Révoque toutes les sessions : supprime les jetons de rafraîchissement stockés.
+     * Chaque utilisateur (y compris l'admin) devra se reconnecter dès l'expiration de son jeton d'accès.
+     */
     @PostMapping("/revoke-refresh-tokens")
+    @Transactional
+    @LogActivity(action = "REVOKE_ALL_SESSIONS", entityName = "RefreshToken")
     public ResponseEntity<Integer> revokeAllRefreshTokens() {
-        // TODO: brancher sur ton store de refresh tokens si tu en as un
-        int revoked = 0;
+        int revoked = (int) refreshTokens.count();
+        refreshTokens.deleteAllInBatch();
         return ResponseEntity.ok(revoked);
     }
 

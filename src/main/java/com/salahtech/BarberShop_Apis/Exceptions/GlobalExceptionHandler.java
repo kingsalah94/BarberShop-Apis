@@ -116,6 +116,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
 
+    /**
+     * Erreurs métier « saisie invalide » (ancien mot de passe incorrect, entité invalide) : 400 avec le message.
+     * Volontairement pas 401 : le front interpréterait un 401 comme une session expirée et déconnecterait.
+     */
+    @ExceptionHandler({ InvalidCredentialsException.class, InvalideEntityException.class })
+    public ResponseEntity<Map<String, Object>> handleInvalidInput(RuntimeException e) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Bad Request");
+        response.put("message", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(BadRequestException e) {
         Map<String, Object> response = new HashMap<>();

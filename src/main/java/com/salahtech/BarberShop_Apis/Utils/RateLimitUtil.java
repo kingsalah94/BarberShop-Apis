@@ -4,6 +4,8 @@ import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Bucket4j;
 import io.github.bucket4j.Refill;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,9 +26,33 @@ public class RateLimitUtil {
     private int loginRefillPeriodSeconds;
     
     private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
-    
+
+    /** Paramètres › Sécurité : « Connexions / min » s'applique à l'opération login. */
+    @Autowired(required = false)
+    private ObjectProvider<com.salahtech.BarberShop_Apis.Services.Interfaces.SecuritySettingsService> securitySettings;
+
     public boolean tryConsume(String key, String operation) {
+        if ("login".equals(operation)) {
+            int perMinute = loginPerMinute();
+            if (perMinute > 0) {
+                // La valeur fait partie de la clé : un changement de réglage repart sur un seau neuf.
+                return cache.computeIfAbsent("login:" + perMinute + ":" + key,
+                        k -> Bucket4j.builder().addLimit(Bandwidth.classic(perMinute,
+                                Refill.greedy(perMinute, Duration.ofMinutes(1)))).build())
+                        .tryConsume(1);
+            }
+        }
         return getBucket(key, operation).tryConsume(1);
+    }
+
+    private int loginPerMinute() {
+        try {
+            var svc = securitySettings == null ? null : securitySettings.getIfAvailable();
+            Integer v = svc == null ? null : svc.get().getRateLoginPerMinute();
+            return v == null ? 0 : Math.min(Math.max(v, 1), 1000);
+        } catch (RuntimeException e) {
+            return 0; // réglage indisponible : configuration par défaut
+        }
     }
     
     private Bucket getBucket(String key, String operation) {

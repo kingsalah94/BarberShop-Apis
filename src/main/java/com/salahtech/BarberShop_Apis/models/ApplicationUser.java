@@ -117,6 +117,10 @@ public class ApplicationUser implements UserDetails {
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
+    /** Dernier changement de mot de passe (expiration configurable). */
+    @Column(name = "password_changed_at")
+    private LocalDateTime passwordChangedAt;
+
     @Column(name = "fcm_token")
     private String fcmToken; // Le jeton unique du téléphone pour Firebase
 

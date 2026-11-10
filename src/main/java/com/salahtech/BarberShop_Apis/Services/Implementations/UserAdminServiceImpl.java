@@ -52,6 +52,7 @@ public class UserAdminServiceImpl implements UserAdminService {
     private final RoleRepository roleRepo;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final com.salahtech.BarberShop_Apis.security.PasswordPolicy passwordPolicy;
 
     private Logger LOGGER = LoggerFactory.getLogger(getClass());
     @Autowired
@@ -140,6 +141,7 @@ public class UserAdminServiceImpl implements UserAdminService {
         String effectivePassword = (rawPassword == null || rawPassword.isBlank())
                 ? PasswordGenerator.generate(12) // => util ci-dessous
                 : rawPassword;
+        if (rawPassword != null && !rawPassword.isBlank()) passwordPolicy.validate(rawPassword);
 
         ApplicationUser user = new ApplicationUser();
         user.setEmail(dto.getEmail());

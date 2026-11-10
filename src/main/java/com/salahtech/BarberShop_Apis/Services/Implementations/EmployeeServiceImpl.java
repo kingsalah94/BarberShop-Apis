@@ -54,6 +54,7 @@ public class EmployeeServiceImpl implements EmployeeService {
     private final SalonMembershipRepository membershipRepository;
     private final EmployeeTimeOffRepository timeOffRepository;
     private final PasswordEncoder passwordEncoder;
+    private final com.salahtech.BarberShop_Apis.security.PasswordPolicy passwordPolicy;
 
     @Override
     public EmployeeDto create(CreateEmployeeRequest req) {
@@ -151,6 +152,7 @@ public class EmployeeServiceImpl implements EmployeeService {
             throw new BusinessException("Un compte existe déjà avec cet email: " + email);
         }
 
+        if (rawPassword != null && !rawPassword.isBlank()) passwordPolicy.validate(rawPassword);
         final String tempPassword = (rawPassword != null && !rawPassword.isBlank())
                 ? rawPassword : generateTempPassword();
 

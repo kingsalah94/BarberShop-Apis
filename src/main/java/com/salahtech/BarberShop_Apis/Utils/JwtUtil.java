@@ -4,6 +4,8 @@ import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -31,6 +33,10 @@ public class JwtUtil {
 
     @Value("${jwt.refresh-token-expiration:604800000}")
     private long refreshTokenExpiration;
+
+    /** Paramètres › Sécurité : durées de vie des jetons (prioritaires sur application.yml quand renseignées). */
+    @Autowired
+    private ObjectProvider<com.salahtech.BarberShop_Apis.Services.Interfaces.SecuritySettingsService> securitySettings;
 
     private SecretKey signingKey;
     private SignatureAlgorithm signatureAlgorithm;
@@ -99,25 +105,25 @@ public class JwtUtil {
     public String generateAccessToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", "ACCESS");
-        return createToken(claims, userDetails.getUsername(), accessTokenExpiration);
+        return createToken(claims, userDetails.getUsername(), getAccessTokenExpiration());
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", "REFRESH");
-        return createToken(claims, userDetails.getUsername(), refreshTokenExpiration);
+        return createToken(claims, userDetails.getUsername(), getRefreshTokenExpiration());
     }
 
     public String generateAccessToken(com.salahtech.BarberShop_Apis.models.ApplicationUser user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", "ACCESS");
-        return createToken(claims, user.getEmail(), accessTokenExpiration);
+        return createToken(claims, user.getEmail(), getAccessTokenExpiration());
     }
 
     public String generateRefreshToken(com.salahtech.BarberShop_Apis.models.ApplicationUser user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("tokenType", "REFRESH");
-        return createToken(claims, user.getEmail(), refreshTokenExpiration);
+        return createToken(claims, user.getEmail(), getRefreshTokenExpiration());
     }
 
     private String createToken(Map<String, Object> claims, String subject, long expirationMs) {
@@ -156,6 +162,21 @@ public class JwtUtil {
         }
     }
 
-    public long getAccessTokenExpiration() { return accessTokenExpiration; }
-    public long getRefreshTokenExpiration() { return refreshTokenExpiration; }
+    public long getAccessTokenExpiration() { return effectiveTtl(true); }
+    public long getRefreshTokenExpiration() { return effectiveTtl(false); }
+
+    /** Durée en ms : réglage admin si valide (accès ≥ 60 s, rafraîchissement ≥ 1 h), sinon configuration. */
+    private long effectiveTtl(boolean access) {
+        long fallback = access ? accessTokenExpiration : refreshTokenExpiration;
+        try {
+            var svc = securitySettings == null ? null : securitySettings.getIfAvailable();
+            if (svc == null) return fallback;
+            var s = svc.get();
+            Integer sec = access ? s.getJwtAccessTtlSeconds() : s.getJwtRefreshTtlSeconds();
+            long min = access ? 60 : 3600;
+            return sec != null && sec >= min ? sec * 1000L : fallback;
+        } catch (RuntimeException e) {
+            return fallback; // base indisponible : on ne bloque pas l'émission des jetons
+        }
+    }
 }
