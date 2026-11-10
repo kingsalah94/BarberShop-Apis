@@ -97,7 +97,9 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         u.setIsVerified(false);
         u.setVerificationToken(UUID.randomUUID().toString());
         u.setProvider(AuthProvider.LOCAL);
-        u.setMustChangePassword(true);
+        // Inscription publique : l'utilisateur vient de choisir son mot de passe,
+        // aucun changement forcé (réservé aux comptes créés par un tiers).
+        u.setMustChangePassword(false);
 
         ApplicationUserType type = req.getUserType() != null ? req.getUserType() : ApplicationUserType.CLIENT;
         u.setUserType(type);

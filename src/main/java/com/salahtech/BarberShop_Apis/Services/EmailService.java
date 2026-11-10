@@ -242,11 +242,13 @@ public class EmailService {
             message.setFrom(fromEmail);
             message.setTo(user.getEmail());
             message.setSubject("Réinitialisation de votre mot de passe");
+            // Lien vers la page web /reset-password (le token seul n'était saisissable nulle part).
+            String resetUrl = frontendUrl + "/reset-password?token=" + resetToken;
             message.setText(String.format(
                     "Bonjour %s,\n\nVous avez demandé la réinitialisation de votre mot de passe.\n\n" +
-                            "Votre token de réinitialisation: %s\n\nCe token expire dans 30 minutes.\n" +
+                            "Choisissez un nouveau mot de passe en ouvrant ce lien (valable 1 heure) :\n%s\n\n" +
                             "Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.\n\nCordialement,\nL'équipe %s",
-                    user.getFirstName() != null ? user.getFirstName() : user.getEmail(), resetToken, appName));
+                    user.getFirstName() != null ? user.getFirstName() : user.getEmail(), resetUrl, appName));
             mailSender.send(message);
             log.info("Email de réinitialisation envoyé à: {}", user.getEmail());
         } catch (Exception e) {
