@@ -41,6 +41,9 @@ public interface ApplicationUserService {
 
     ApplicationUser findByEmailOrCreate(String email, String name, AuthProvider provider, String providerId);
 
+    /** Connexion / inscription via un jeton Google ou Apple déjà vérifié. */
+    AuthResponseDTO socialLogin(com.salahtech.BarberShop_Apis.security.SocialTokenVerifier.SocialIdentity identity, String firstName, String lastName);
+
     // ApplicationUser findByEmailOrCreate(String email, String name, AuthProvider
     // provider, String providerId);
 

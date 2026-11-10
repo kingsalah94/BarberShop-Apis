@@ -80,6 +80,18 @@ spring:
 
 # ──────────────────────────────────────────────────────────────────────
 app:
+  # Connexion Google / Apple par jeton d'identité (/v1/auth/social). Vide = bouton masqué.
+  social:
+    google:
+      # Tous les identifiants client acceptés (Web, Android, iOS), séparés par des virgules.
+      client-ids: "${GOOGLE_CLIENT_IDS:}"
+      # Identifiant client « Web » (public) : bouton du site + serverClientId de l'app mobile.
+      web-client-id: "${GOOGLE_WEB_CLIENT_ID:}"
+    apple:
+      # Bundle ID iOS et/ou Services ID, séparés par des virgules.
+      client-ids: "${APPLE_CLIENT_IDS:}"
+      services-id: "${APPLE_SERVICES_ID:}"
+      redirect-uri: "${APPLE_REDIRECT_URI:}"
   cors:
     allowed-origins: "${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:8100,http://localhost:8080}"
   reset-data: false

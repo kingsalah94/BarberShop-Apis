@@ -42,6 +42,19 @@ public class AuthController {
     @Value("${jwt.refresh-token-expiration:2592000000}")
     private long refreshTtlMs;
 
+    private final com.salahtech.BarberShop_Apis.security.SocialTokenVerifier socialTokenVerifier;
+
+    /** Identifiant client Google « Web » (public) : bouton Google du site et serverClientId du mobile. */
+    @Value("${app.social.google.web-client-id:}")
+    private String googleWebClientId;
+
+    /** Apple « Services ID » + URL de retour (connexion Apple depuis le web / Android). */
+    @Value("${app.social.apple.services-id:}")
+    private String appleServicesId;
+
+    @Value("${app.social.apple.redirect-uri:}")
+    private String appleRedirectUri;
+
     @Operation(summary = "Connexion (Login)")
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody AuthRequestDTO request,
@@ -52,6 +65,32 @@ public class AuthController {
             return ResponseEntity.status(429).build();
         }
         return withRefreshCookie(http, userService.login(request));
+    }
+
+    @Operation(summary = "Connexion Google / Apple : jeton d'identité vérifié côté serveur (crée un compte client au besoin)")
+    @PostMapping("/social")
+    public ResponseEntity<AuthResponseDTO> social(@RequestBody java.util.Map<String, String> body, HttpServletRequest http) {
+        if (rateLimitUtil != null && !rateLimitUtil.tryConsume(clientIp(http), "login")) {
+            return ResponseEntity.status(429).build();
+        }
+        com.salahtech.BarberShop_Apis.Enums.AuthProvider provider;
+        try {
+            provider = com.salahtech.BarberShop_Apis.Enums.AuthProvider.valueOf(String.valueOf(body.get("provider")).trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new com.salahtech.BarberShop_Apis.Exceptions.BadRequestException("Fournisseur inconnu.");
+        }
+        var identity = socialTokenVerifier.verify(provider, body.get("idToken"));
+        return withRefreshCookie(http, userService.socialLogin(identity, body.get("firstName"), body.get("lastName")));
+    }
+
+    @Operation(summary = "Fournisseurs de connexion disponibles (identifiants publics pour les boutons)")
+    @GetMapping("/social/config")
+    public ResponseEntity<java.util.Map<String, Object>> socialConfig() {
+        java.util.Map<String, Object> out = new java.util.HashMap<>();
+        out.put("google", socialTokenVerifier.googleEnabled() && !googleWebClientId.isBlank() ? googleWebClientId : null);
+        out.put("apple", socialTokenVerifier.appleEnabled() && !appleServicesId.isBlank()
+                ? java.util.Map.of("clientId", appleServicesId, "redirectUri", appleRedirectUri) : null);
+        return ResponseEntity.ok(out);
     }
 
     @Operation(summary = "Inscription (Register) — public : crée uniquement des CLIENTS")

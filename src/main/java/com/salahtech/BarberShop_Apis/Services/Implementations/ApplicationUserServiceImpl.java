@@ -339,29 +339,74 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
     @Override
     @LogActivity(action = "SOCIAL_LOGIN", entityName = "User") // ✅ AUDIT (Creation via Google/FB)
     public ApplicationUser findByEmailOrCreate(String email, String name, AuthProvider provider, String providerId) {
+        String[] parts = name != null ? name.trim().split(" ", 2) : new String[] { "" };
+        return findOrCreateSocial(email, parts[0], parts.length > 1 ? parts[1] : "", provider, providerId, true);
+    }
+
+    /**
+     * Connexion Google / Apple à partir d'une identité vérifiée (jeton signé par le fournisseur).
+     * Compte existant (même e-mail) : connexion, à condition que le fournisseur garantisse l'e-mail.
+     * Sinon : création d'un compte CLIENT (mot de passe aléatoire inutilisable, connexion par le fournisseur).
+     */
+    @Override
+    @LogActivity(action = "SOCIAL_LOGIN", entityName = "User")
+    public AuthResponseDTO socialLogin(com.salahtech.BarberShop_Apis.security.SocialTokenVerifier.SocialIdentity id,
+                                       String firstName, String lastName) {
+        ApplicationUser user = findOrCreateSocial(id.email(), firstName, lastName, id.provider(), id.subject(), id.emailVerified());
+        validateUserStatus(user);
+        String accessToken = jwtUtil.generateAccessToken(user);
+        String refreshToken = jwtUtil.generateRefreshToken(user);
+        saveRefreshToken(user, refreshToken);
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
+        return new AuthResponseDTO(accessToken, refreshToken, jwtUtil.getAccessTokenExpiration(),
+                convertToUserDTO(user), user.isMustChangePassword());
+    }
+
+    private ApplicationUser findOrCreateSocial(String email, String firstName, String lastName,
+                                               AuthProvider provider, String providerId, boolean emailVerified) {
         Optional<ApplicationUser> existing = userRepository.findByEmail(email);
         if (existing.isPresent()) {
             ApplicationUser u = existing.get();
+            // Un e-mail non garanti par le fournisseur ne doit pas ouvrir un compte existant.
+            if (!emailVerified) {
+                throw new BadRequestException("Adresse e-mail non vérifiée par " + provider.name().charAt(0)
+                        + provider.name().substring(1).toLowerCase() + " : connectez-vous avec votre mot de passe.");
+            }
+            if (u.getProviderId() == null && u.getProvider() != AuthProvider.LOCAL) u.setProviderId(providerId);
             u.setLastLogin(LocalDateTime.now());
             return userRepository.save(u);
         }
 
+        String local = email.contains("@") ? email.substring(0, email.indexOf('@')) : email;
+        String fn = firstName != null && !firstName.isBlank() ? firstName.trim() : capitalize(local);
+        String ln = lastName != null && !lastName.isBlank() ? lastName.trim() : "-";
+
         ApplicationUser u = new ApplicationUser();
         u.setEmail(email);
-        String[] parts = name != null ? name.split(" ", 2) : new String[] { "", "" };
-        u.setFirstName(parts[0]);
-        u.setLastName(parts.length > 1 ? parts[1] : "");
+        u.setFirstName(fn);
+        u.setLastName(ln);
+        // Mot de passe aléatoire (jamais communiqué) : la connexion se fait par le fournisseur ;
+        // « mot de passe oublié » permet d'en définir un plus tard.
+        u.setPassword(passwordEncoder.encode(UUID.randomUUID() + "-" + UUID.randomUUID()));
+        u.setPasswordChangedAt(LocalDateTime.now());
         u.setProvider(provider);
         u.setProviderId(providerId);
         u.setIsEnabled(true);
-        u.setIsVerified(true);
+        u.setIsVerified(emailVerified);
+        u.setMustChangePassword(false);
+        u.setCreatedAt(LocalDateTime.now());
         u.setUserType(ApplicationUserType.CLIENT);
         u.setRoles(Set.of(getRoleByUserType(ApplicationUserType.CLIENT)));
+        u.setProfileImageUrl(getTemporaryProfileImageUrl(fn));
 
         u = userRepository.save(u);
         createClientProfile(u);
-
         return u;
+    }
+
+    private static String capitalize(String s) {
+        return s == null || s.isEmpty() ? "Client" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     // ========================================================================
