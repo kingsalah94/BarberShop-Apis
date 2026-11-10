@@ -60,4 +60,9 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
     /** Client propriétaire de l'entrée (null si walk-in anonyme). */
     @Query("SELECT c.id FROM QueueEntry q LEFT JOIN q.client c WHERE q.id = :id")
     Optional<Long> findClientIdById(@Param("id") Long id);
+
+    // ----- Fidélité : passages sans RDV d'un client identifié -----
+    long countBySalon_IdAndClient_IdAndStatusAndSalonBookingIdIsNull(Long salonId, Long clientId, QueueStatus status);
+
+    List<QueueEntry> findByClient_IdAndStatusAndSalonBookingIdIsNull(Long clientId, QueueStatus status);
 }

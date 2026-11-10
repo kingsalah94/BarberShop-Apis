@@ -54,4 +54,11 @@ public interface SalonBookingRepository extends JpaRepository<SalonBooking, Long
     java.math.BigDecimal sumCompletedRevenueBetween(
             @org.springframework.data.repository.query.Param("from") LocalDateTime from,
             @org.springframework.data.repository.query.Param("to") LocalDateTime to);
+
+    // ----- Fidélité -----
+    long countByClient_IdAndSalon_IdAndStatus(Long clientId, Long salonId,
+                                              com.salahtech.BarberShop_Apis.Enums.BookingStatus status);
+
+    List<SalonBooking> findByClient_IdAndStatus(Long clientId,
+                                                com.salahtech.BarberShop_Apis.Enums.BookingStatus status);
 }

@@ -44,4 +44,7 @@ public class QueueEntryDto {
     private PaymentMethod paymentMethod;
     private BigDecimal amount;          // montant encaissé (si payé)
     private BigDecimal estimatedPrice;  // montant à encaisser (calculé)
+    // ----- Fidélité -----
+    private boolean rewardAvailable;    // visite offerte utilisable à l'encaissement
+    private boolean rewardUsed;         // encaissée en visite offerte
 }

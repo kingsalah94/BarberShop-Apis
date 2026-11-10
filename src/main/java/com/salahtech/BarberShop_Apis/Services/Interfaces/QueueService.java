@@ -41,6 +41,9 @@ public interface QueueService {
     /** Encaisse le paiement d'une prestation (montant calculé si non fourni). Propagé au RDV si présent. */
     QueueEntryDto pay(Long queueEntryId, PaymentMethod method, BigDecimal amount);
 
+    /** Encaissement, avec option « visite offerte » (fidélité) : montant 0, récompense consommée. */
+    QueueEntryDto pay(Long queueEntryId, PaymentMethod method, BigDecimal amount, boolean useReward);
+
     QueueEntryDto cancel(Long queueEntryId, String reason);
 
     QueueEntryDto markNoShow(Long queueEntryId);

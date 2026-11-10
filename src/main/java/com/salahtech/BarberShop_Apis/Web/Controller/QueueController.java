@@ -213,9 +213,10 @@ public class QueueController {
     public ResponseEntity<QueueEntryDto> pay(@PathVariable Long queueEntryId,
                                              @RequestParam PaymentMethod method,
                                              @RequestParam(required = false) BigDecimal amount,
+                                             @RequestParam(defaultValue = "false") boolean useReward,
                                              @CurrentUser ApplicationUser user) {
         assertStaffOfEntry(user, queueEntryId);
-        return ResponseEntity.ok(queueService.pay(queueEntryId, method, amount));
+        return ResponseEntity.ok(queueService.pay(queueEntryId, method, amount, useReward));
     }
 
     @Operation(summary = "Annuler une entrée de file")

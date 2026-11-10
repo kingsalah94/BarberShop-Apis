@@ -43,6 +43,8 @@ public class QueueServiceImpl implements QueueService {
     private final WorkstationRepository workstationRepository;
     private final SalonBookingRepository salonBookingRepository;
     private final QueueNotifier notifier;
+    private final LoyaltyService loyaltyService;
+    private final com.salahtech.BarberShop_Apis.repositories.LoyaltyRewardRepository loyaltyRewardRepository;
 
     @Override
     public QueueEntryDto checkIn(CheckInRequest req) {
@@ -235,6 +237,12 @@ public class QueueServiceImpl implements QueueService {
 
     @Override
     public QueueEntryDto pay(Long queueEntryId, PaymentMethod method, BigDecimal amount) {
+        return pay(queueEntryId, method, amount, false);
+    }
+
+    @Override
+    @Transactional
+    public QueueEntryDto pay(Long queueEntryId, PaymentMethod method, BigDecimal amount, boolean useReward) {
         QueueEntry entry = queueRepository.findById(queueEntryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Entrée file introuvable: " + queueEntryId));
 
@@ -245,6 +253,17 @@ public class QueueServiceImpl implements QueueService {
         if (entry.getStatus() != QueueStatus.IN_CHAIR && entry.getStatus() != QueueStatus.COMPLETED) {
             throw new BusinessException("Encaissement impossible (status=" + entry.getStatus()
                     + ") : la prestation doit être en cours ou terminée");
+        }
+
+        if (useReward) {
+            // Visite offerte (fidélité) : consomme la récompense, encaissement à 0.
+            loyaltyService.redeem(entry);
+            entry.setAmount(BigDecimal.ZERO);
+            entry.setPaymentMethod(method != null ? method : PaymentMethod.CASH);
+            entry.setPaymentStatus(PaymentStatus.PAID);
+            QueueEntry saved = queueRepository.save(entry);
+            broadcastQueue(entry.getSalon().getId());
+            return toDto(saved);
         }
 
         // Montant : celui fourni (permet remise / pourboire), sinon prix calculé.
@@ -513,6 +532,8 @@ public class QueueServiceImpl implements QueueService {
                 .paymentMethod(e.getPaymentMethod())
                 .amount(e.getAmount())
                 .estimatedPrice(computePrice(e))
+                .rewardAvailable(loyaltyService.rewardAvailable(e))
+                .rewardUsed(e.getId() != null && loyaltyRewardRepository.existsByQueueEntry_Id(e.getId()))
                 .build();
     }
 }
