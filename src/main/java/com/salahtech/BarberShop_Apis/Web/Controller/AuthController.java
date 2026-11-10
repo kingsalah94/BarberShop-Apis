@@ -83,6 +83,25 @@ public class AuthController {
         return withRefreshCookie(http, userService.socialLogin(identity, body.get("firstName"), body.get("lastName")));
     }
 
+    /** Paquet Android rouvert après la connexion Apple (flux web d'Apple sur Android). */
+    @Value("${app.social.apple.android-package:com.barbershopapp.barbershop_mobile}")
+    private String appleAndroidPackage;
+
+    @Operation(summary = "Retour Apple (form_post) : rouvre l'app Android avec le résultat (sign_in_with_apple)")
+    @PostMapping(value = "/apple/callback", consumes = org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<Void> appleCallback(@RequestParam org.springframework.util.MultiValueMap<String, String> form) {
+        // On ne fait que relayer les champs d'Apple à l'app ; le jeton est vérifié ensuite par POST /social.
+        StringBuilder q = new StringBuilder();
+        for (String key : java.util.List.of("code", "id_token", "state", "user")) {
+            String v = form.getFirst(key);
+            if (v == null) continue;
+            if (q.length() > 0) q.append('&');
+            q.append(key).append('=').append(java.net.URLEncoder.encode(v, java.nio.charset.StandardCharsets.UTF_8));
+        }
+        String target = "intent://callback?" + q + "#Intent;package=" + appleAndroidPackage + ";scheme=signinwithapple;end";
+        return ResponseEntity.status(HttpStatus.SEE_OTHER).location(java.net.URI.create(target)).build();
+    }
+
     @Operation(summary = "Fournisseurs de connexion disponibles (identifiants publics pour les boutons)")
     @GetMapping("/social/config")
     public ResponseEntity<java.util.Map<String, Object>> socialConfig() {
