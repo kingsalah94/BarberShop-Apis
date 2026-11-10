@@ -134,7 +134,7 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
                 refreshToken,
                 jwtUtil.getAccessTokenExpiration(),
                 convertToUserDTO(u),
-                true);
+                u.isMustChangePassword()); // false : l'inscrit vient de choisir son mot de passe
     }
 
     @Override
