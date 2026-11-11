@@ -360,7 +360,9 @@ public class ApplicationUserServiceImpl implements ApplicationUserService {
         user.setLastLogin(LocalDateTime.now());
         userRepository.save(user);
         return new AuthResponseDTO(accessToken, refreshToken, jwtUtil.getAccessTokenExpiration(),
-                convertToUserDTO(user), user.isMustChangePassword());
+                // Identité prouvée par Google / Apple : pas d'écran « changer le mot de passe »
+                // (l'utilisateur n'en connaît souvent aucun ; « mot de passe oublié » permet d'en définir un).
+                convertToUserDTO(user), false);
     }
 
     private ApplicationUser findOrCreateSocial(String email, String firstName, String lastName,
