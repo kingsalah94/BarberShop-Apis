@@ -39,4 +39,22 @@ public class SalonBookingDto {
     private String notes;
     /** True si le client a déjà laissé un avis pour cette réservation. */
     private Boolean reviewed;
+
+    // ── Passage en salon (file d'attente liée au rendez-vous) : suivi client + paiement ──
+    /** Ticket de file (ex. « R-004 ») une fois le client arrivé ; null avant. */
+    private String visitTicket;
+    /** WAITING | NOTIFIED | IN_CHAIR | COMPLETED | CANCELLED | NO_SHOW ; null tant que le client n'est pas arrivé. */
+    private String visitStatus;
+    /** Position dans la file (1 = prochain) quand visitStatus = WAITING. */
+    private Integer visitPosition;
+    private String visitEmployeeName;
+    private String visitWorkstationName;
+    /** PENDING | PAID | … */
+    private String paymentStatus;
+    /** CASH | MOBILE_MONEY | CREDIT_CARD */
+    private String paymentMethod;
+    /** Montant encaissé (0 si visite offerte). */
+    private java.math.BigDecimal amountPaid;
+    /** Visite offerte par la fidélité. */
+    private Boolean rewardUsed;
 }

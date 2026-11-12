@@ -48,6 +48,8 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeTimeOffRepository timeOffRepository;
     private final SalonReviewRepository reviewRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.QueueEntryRepository queueEntryRepository;
+    private final com.salahtech.BarberShop_Apis.repositories.LoyaltyRewardRepository loyaltyRewardRepository;
     private final SalonHoursService hoursService;
     private final com.salahtech.BarberShop_Apis.Services.Interfaces.QueueService queueService;
     private final com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService notificationService;
@@ -338,8 +340,16 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     public List<SalonBookingDto> listMine(ApplicationUser user) {
         Client client = user != null ? user.getClient() : null;
         if (client == null) return List.of();
-        return bookingRepository.findByClient_IdOrderByStartAtDesc(client.getId())
-                .stream().map(this::toDto).collect(Collectors.toList());
+        List<SalonBooking> mine = bookingRepository.findByClient_IdOrderByStartAtDesc(client.getId());
+        // Passages en salon chargés en une requête (le plus récent par rendez-vous).
+        java.util.Map<Long, com.salahtech.BarberShop_Apis.models.QueueEntry> visits = new java.util.HashMap<>();
+        if (!mine.isEmpty()) {
+            for (var e : queueEntryRepository.findBySalonBookingIdIn(mine.stream().map(SalonBooking::getId).toList())) {
+                visits.merge(e.getSalonBookingId(), e, (a, b) -> a.getCheckInTime() != null && b.getCheckInTime() != null
+                        && b.getCheckInTime().isAfter(a.getCheckInTime()) ? b : a);
+            }
+        }
+        return mine.stream().map(b -> withVisit(toDto(b), visits.get(b.getId()))).collect(Collectors.toList());
     }
 
     @Override
@@ -671,5 +681,25 @@ public class SalonBookingServiceImpl implements SalonBookingService {
                 .notes(b.getNotes())
                 .reviewed(b.getId() != null && reviewRepository.existsBySalonBooking_Id(b.getId()))
                 .build();
+    }
+
+    /** Complète un rendez-vous avec son passage en salon : file, prestataire, poste, paiement. */
+    private SalonBookingDto withVisit(SalonBookingDto d, com.salahtech.BarberShop_Apis.models.QueueEntry e) {
+        if (e == null) return d;
+        d.setVisitTicket(e.getTicketNumber());
+        d.setVisitStatus(e.getStatus() != null ? e.getStatus().name() : null);
+        if (e.getStatus() == com.salahtech.BarberShop_Apis.Enums.QueueStatus.WAITING && e.getCheckInTime() != null && e.getSalon() != null) {
+            d.setVisitPosition((int) queueEntryRepository.countAheadOf(e.getSalon().getId(), e.getCheckInTime()) + 1);
+        }
+        if (e.getAssignedEmployee() != null) {
+            d.setVisitEmployeeName(((e.getAssignedEmployee().getFirstName() != null ? e.getAssignedEmployee().getFirstName() : "") + " "
+                    + (e.getAssignedEmployee().getLastName() != null ? e.getAssignedEmployee().getLastName() : "")).trim());
+        }
+        if (e.getWorkstation() != null) d.setVisitWorkstationName(e.getWorkstation().getName());
+        d.setPaymentStatus(e.getPaymentStatus() != null ? e.getPaymentStatus().name() : null);
+        d.setPaymentMethod(e.getPaymentMethod() != null ? e.getPaymentMethod().name() : null);
+        d.setAmountPaid(e.getAmount());
+        d.setRewardUsed(e.getId() != null && loyaltyRewardRepository.existsByQueueEntry_Id(e.getId()));
+        return d;
     }
 }

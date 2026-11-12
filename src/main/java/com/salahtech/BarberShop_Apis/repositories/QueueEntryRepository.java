@@ -62,6 +62,9 @@ public interface QueueEntryRepository extends JpaRepository<QueueEntry, Long> {
     Optional<Long> findClientIdById(@Param("id") Long id);
 
     // ----- Fidélité : passages sans RDV d'un client identifié -----
+    /** Passages liés à des rendez-vous (suivi client « Mes rendez-vous »). */
+    List<QueueEntry> findBySalonBookingIdIn(java.util.Collection<Long> salonBookingIds);
+
     long countBySalon_IdAndClient_IdAndStatusAndSalonBookingIdIsNull(Long salonId, Long clientId, QueueStatus status);
 
     List<QueueEntry> findByClient_IdAndStatusAndSalonBookingIdIsNull(Long clientId, QueueStatus status);
