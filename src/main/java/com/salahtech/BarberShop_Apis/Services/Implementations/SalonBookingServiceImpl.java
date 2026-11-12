@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import com.salahtech.BarberShop_Apis.Utils.OpeningHours;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -79,9 +80,9 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         SalonOffering svc = offering(salonId, serviceId);
         int duration = svc.getDurationMinutes() != null ? svc.getDurationMinutes() : 30;
 
-        EffectiveHoursDto eff = hoursService.getEffectiveHours(salonId, date);
-        List<TimeWindowDto> windows = effWindows(eff);
-        if (windows.isEmpty()) {
+        // Ouverture de la date (plages du jour + fin de nuit de la veille, ex. 18:00 → 03:00).
+        List<OpeningHours.Interval> intervals = intervalsAround(salonId, date);
+        if (intervals.isEmpty()) {
             return List.of();
         }
 
@@ -96,20 +97,39 @@ public class SalonBookingServiceImpl implements SalonBookingService {
 
         int cap = capacity(salonId);
         LocalDateTime dayStart = date.atStartOfDay();
+        LocalDateTime dayEnd = dayStart.plusDays(1);
+        // Fenêtre élargie : une prestation de fin de soirée peut déborder après minuit.
         List<SalonBooking> dayBookings = bookingRepository
-                .findBySalon_IdAndStatusInAndStartAtBetween(salonId, ACTIVE, dayStart, dayStart.plusDays(1));
+                .findBySalon_IdAndStatusInAndStartAtBetween(salonId, ACTIVE, dayStart.minusHours(12), dayEnd.plusHours(12));
         List<SalonBooking> employeeBookings = chosen == null ? List.of() : assignedTo(dayBookings, chosen.getId());
 
         LocalDateTime now = LocalDateTime.now();
         boolean today = date.equals(LocalDate.now());
 
-        // Un jeu de créneaux par plage d'ouverture (la pause déjeuner est ainsi exclue).
+        // Un jeu de créneaux par plage (pause déjeuner exclue) ; seuls les débuts tombant ce jour-là sont proposés.
         List<String> slots = new java.util.ArrayList<>();
-        for (TimeWindowDto w : windows) {
-            slots.addAll(buildSlots(date, w.getOpenAt(), w.getCloseAt(), duration, cap, dayBookings,
-                    employeeBookings, today, now));
+        for (OpeningHours.Interval iv : intervals) {
+            LocalDateTime from = iv.start().isBefore(dayStart) ? dayStart : iv.start();
+            for (LocalDateTime start = from; start.isBefore(dayEnd) && !start.plusMinutes(duration).isAfter(iv.end());
+                 start = start.plusMinutes(SLOT_STEP_MIN)) {
+                if (today && start.isBefore(now)) continue; // pas de créneau passé
+                LocalDateTime s0 = start, e0 = start.plusMinutes(duration);
+                long overlap = dayBookings.stream().filter(b -> b.getStartAt().isBefore(e0) && b.getEndAt().isAfter(s0)).count();
+                boolean employeeFree = employeeBookings.stream().noneMatch(b -> overlaps(b, s0, e0));
+                if (overlap < cap && employeeFree) slots.add(start.toLocalTime().format(HHMM));
+            }
         }
         return slots;
+    }
+
+    /** Intervalles d'ouverture touchant {@code date} : ceux du jour et la fin de nuit de la veille. */
+    private List<OpeningHours.Interval> intervalsAround(Long salonId, LocalDate date) {
+        List<OpeningHours.Interval> out = new java.util.ArrayList<>();
+        out.addAll(OpeningHours.intervals(date.minusDays(1), effWindows(hoursService.getEffectiveHours(salonId, date.minusDays(1))))
+                .stream().filter(iv -> iv.end().isAfter(date.atStartOfDay())).toList());
+        out.addAll(OpeningHours.intervals(date, effWindows(hoursService.getEffectiveHours(salonId, date))));
+        out.sort(java.util.Comparator.comparing(OpeningHours.Interval::start));
+        return out;
     }
 
     /** Plages effectives d'ouverture (rétro-compat : openAt/closeAt = plage unique si {@code windows} absent). */
@@ -120,23 +140,6 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             return List.of(TimeWindowDto.builder().openAt(eff.getOpenAt()).closeAt(eff.getCloseAt()).build());
         }
         return List.of();
-    }
-
-    private List<String> buildSlots(LocalDate date, LocalTime open, LocalTime close, int duration,
-                                    int capacity, List<SalonBooking> dayBookings,
-                                    List<SalonBooking> employeeBookings, boolean today, LocalDateTime now) {
-        List<String> slots = new java.util.ArrayList<>();
-        for (LocalTime t = open; !t.plusMinutes(duration).isAfter(close); t = t.plusMinutes(SLOT_STEP_MIN)) {
-            LocalDateTime start = date.atTime(t);
-            LocalDateTime end = start.plusMinutes(duration);
-            if (today && start.isBefore(now)) continue; // pas de créneau passé
-            long overlap = dayBookings.stream()
-                    .filter(b -> b.getStartAt().isBefore(end) && b.getEndAt().isAfter(start))
-                    .count();
-            boolean employeeFree = employeeBookings.stream().noneMatch(b -> overlaps(b, start, end));
-            if (overlap < capacity && employeeFree) slots.add(t.format(HHMM));
-        }
-        return slots;
     }
 
     @Override
@@ -162,14 +165,11 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             throw new BusinessException("Impossible de réserver dans le passé");
         }
 
-        EffectiveHoursDto eff = hoursService.getEffectiveHours(salonId, req.getDate());
-        List<TimeWindowDto> windows = effWindows(eff);
-        if (windows.isEmpty()) {
+        List<OpeningHours.Interval> intervals = intervalsAround(salonId, req.getDate());
+        if (intervals.isEmpty()) {
             throw new BusinessException("Le salon est fermé à cette date");
         }
-        LocalTime endTime = end.toLocalTime();
-        boolean fits = windows.stream()
-                .anyMatch(w -> !t.isBefore(w.getOpenAt()) && !endTime.isAfter(w.getCloseAt()));
+        boolean fits = intervals.stream().anyMatch(iv -> iv.contains(start, end));
         if (!fits) {
             throw new BusinessException("Créneau hors des horaires d'ouverture");
         }

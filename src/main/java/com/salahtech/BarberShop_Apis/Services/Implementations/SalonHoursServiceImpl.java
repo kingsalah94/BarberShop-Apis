@@ -126,26 +126,9 @@ public class SalonHoursServiceImpl implements SalonHoursService {
         return List.of();
     }
 
-    /** Valide les plages d'un jour : chaque plage open&lt;close, et pas de chevauchement. */
+    /** Valide les plages d'un jour (plage de nuit autorisée : fermeture le lendemain, ≤ 08:00). */
     private void validateWindows(List<TimeWindowDto> windows, String label) {
-        if (windows.isEmpty()) return;
-        List<TimeWindowDto> sorted = windows.stream()
-                .sorted(Comparator.comparing(TimeWindowDto::getOpenAt,
-                        Comparator.nullsLast(Comparator.naturalOrder())))
-                .collect(Collectors.toList());
-        LocalTime prevClose = null;
-        for (TimeWindowDto w : sorted) {
-            if (w.getOpenAt() == null || w.getCloseAt() == null) {
-                throw new BusinessException("Horaires requis (ouverture/fermeture) pour " + label);
-            }
-            if (!w.getCloseAt().isAfter(w.getOpenAt())) {
-                throw new BusinessException("La fermeture doit être après l'ouverture pour " + label);
-            }
-            if (prevClose != null && w.getOpenAt().isBefore(prevClose)) {
-                throw new BusinessException("Les plages se chevauchent pour " + label);
-            }
-            prevClose = w.getCloseAt();
-        }
+        com.salahtech.BarberShop_Apis.Utils.OpeningHours.validate(windows, label);
     }
 
     @Override
@@ -222,9 +205,8 @@ public class SalonHoursServiceImpl implements SalonHoursService {
         if (open == null || close == null) {
             throw new BusinessException("Horaires requis (ouverture/fermeture) pour " + label);
         }
-        if (!close.isAfter(open)) {
-            throw new BusinessException("L'heure de fermeture doit être après l'ouverture pour " + label);
-        }
+        com.salahtech.BarberShop_Apis.Utils.OpeningHours.validate(
+                List.of(TimeWindowDto.builder().openAt(open).closeAt(close).build()), label);
     }
 
     private SalonExceptionDto toDto(SalonException e) {

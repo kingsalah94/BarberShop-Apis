@@ -62,27 +62,32 @@ public class CatalogServiceImpl implements CatalogService {
         String openAt = null;
         String closeAt = null;
         try {
-            EffectiveHoursDto today = hoursService.getEffectiveHours(salonId, LocalDate.now());
-            if (today != null && !today.isClosed()) {
-                LocalTime t = LocalTime.now();
-                List<TimeWindowDto> windows = (today.getWindows() == null || today.getWindows().isEmpty())
-                        ? List.of(new TimeWindowDto(today.getOpenAt(), today.getCloseAt()))
-                        : today.getWindows();
-                windows = windows.stream()
-                        .filter(w -> w.getOpenAt() != null && w.getCloseAt() != null)
-                        .sorted(Comparator.comparing(TimeWindowDto::getOpenAt))
-                        .toList();
-                if (!windows.isEmpty()) {
-                    // Ouvert : fin de la plage en cours. Sinon : prochaine ouverture du jour
-                    // (pause de midi comprise), à défaut la première ; fermeture = fin de journée.
-                    TimeWindowDto current = windows.stream()
-                            .filter(w -> !t.isBefore(w.getOpenAt()) && t.isBefore(w.getCloseAt()))
-                            .findFirst().orElse(null);
-                    openNow = current != null;
-                    TimeWindowDto next = windows.stream()
-                            .filter(w -> w.getOpenAt().isAfter(t)).findFirst().orElse(windows.get(0));
-                    openAt = fmt(openNow ? current.getOpenAt() : next.getOpenAt());
-                    closeAt = fmt(openNow ? current.getCloseAt() : windows.get(windows.size() - 1).getCloseAt());
+            // Plages de la veille (fin de nuit) + du jour : un salon ouvert 18:00 → 03:00 est « ouvert » à 01:00.
+            LocalDate d = LocalDate.now();
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            List<com.salahtech.BarberShop_Apis.Utils.OpeningHours.Interval> ivs = new java.util.ArrayList<>();
+            for (LocalDate day : List.of(d.minusDays(1), d)) {
+                EffectiveHoursDto eff = hoursService.getEffectiveHours(salonId, day);
+                if (eff == null || eff.isClosed()) continue;
+                List<TimeWindowDto> windows = (eff.getWindows() == null || eff.getWindows().isEmpty())
+                        ? List.of(new TimeWindowDto(eff.getOpenAt(), eff.getCloseAt()))
+                        : eff.getWindows();
+                ivs.addAll(com.salahtech.BarberShop_Apis.Utils.OpeningHours.intervals(day, windows));
+            }
+            ivs.sort(Comparator.comparing(com.salahtech.BarberShop_Apis.Utils.OpeningHours.Interval::start));
+            var current = ivs.stream().filter(iv -> iv.containsInstant(now)).findFirst().orElse(null);
+            openNow = current != null;
+            if (openNow) {
+                openAt = fmt(current.start().toLocalTime());
+                closeAt = fmt(current.end().toLocalTime());
+            } else {
+                // Prochaine ouverture aujourd'hui ; fermeture = fin de la dernière plage du jour.
+                var todays = ivs.stream().filter(iv -> iv.start().toLocalDate().equals(d)).toList();
+                var next = todays.stream().filter(iv -> iv.start().isAfter(now)).findFirst()
+                        .orElse(todays.isEmpty() ? null : todays.get(0));
+                if (next != null) {
+                    openAt = fmt(next.start().toLocalTime());
+                    closeAt = fmt(todays.get(todays.size() - 1).end().toLocalTime());
                 }
             }
         } catch (RuntimeException ignored) {
