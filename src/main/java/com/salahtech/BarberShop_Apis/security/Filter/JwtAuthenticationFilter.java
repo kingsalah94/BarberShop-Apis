@@ -54,8 +54,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             } catch (Exception e) {
                 logger.error("Token JWT invalide", e);
             }
-        } else {
-            logger.warn("Le token JWT ne commence pas par Bearer String");
+        } else if (logger.isDebugEnabled()) {
+            // Normal pour les routes publiques et le handshake WebSocket (/ws, jeton au CONNECT STOMP).
+            logger.debug("Requête sans jeton Bearer : " + request.getRequestURI());
         }
         
         // Valider le token
