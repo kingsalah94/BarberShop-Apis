@@ -175,9 +175,9 @@ public class DeviceToken {
         ANDROID, IOS, WEB
     }
 
+    /** Appareil vu à l'instant (enregistrement / renouvellement du jeton). */
     public void updateLastUsed() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updateLastUsed'");
+        markUsedNow();
     }
 
     // public void setDeviceType(String deviceType2) {
