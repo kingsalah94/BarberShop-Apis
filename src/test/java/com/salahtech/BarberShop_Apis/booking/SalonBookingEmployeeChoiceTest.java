@@ -59,6 +59,7 @@ class SalonBookingEmployeeChoiceTest {
     @Mock EmployeeTimeOffRepository timeOffRepository;
     @Mock SalonHoursService hoursService;
 
+    @Mock com.salahtech.BarberShop_Apis.notifications.UserNotifier userNotifier;
     @InjectMocks SalonBookingServiceImpl service;
 
     private final LocalDate day = LocalDate.now().plusDays(1);

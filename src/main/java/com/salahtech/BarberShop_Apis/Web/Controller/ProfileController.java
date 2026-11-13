@@ -26,6 +26,7 @@ public class ProfileController {
 
     private final ApplicationUserService userService;
     private final FileStorageService fileStorageService;
+    private final com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService deviceTokenService;
 
     // --- ACTIONS SUR L'UTILISATEUR CONNECTÉ ---
 
@@ -65,8 +66,26 @@ public class ProfileController {
             @RequestBody Map<String, String> payload) {
 
         String token = payload.get("token");
+        if (token == null || token.isBlank()) return ResponseEntity.badRequest().build();
         userService.saveFcmToken(user.getEmail(), token);
+        // Les envois push lisent la table device_tokens : on y enregistre aussi l'appareil.
+        com.salahtech.BarberShop_Apis.models.DeviceToken.DeviceType type;
+        try {
+            type = com.salahtech.BarberShop_Apis.models.DeviceToken.DeviceType
+                    .valueOf(payload.getOrDefault("platform", "ANDROID").toUpperCase());
+        } catch (IllegalArgumentException e) {
+            type = com.salahtech.BarberShop_Apis.models.DeviceToken.DeviceType.ANDROID;
+        }
+        deviceTokenService.saveDeviceToken(user.getId(), token, type);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "Retirer mon appareil des notifications push (déconnexion)")
+    @DeleteMapping("/me/fcm-token")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> removeFcmToken(@CurrentUser ApplicationUser user) {
+        deviceTokenService.deactivateDeviceToken(user.getId());
+        return ResponseEntity.noContent().build();
     }
 
     // --- ACTIONS ADMIN / READ ONLY ---

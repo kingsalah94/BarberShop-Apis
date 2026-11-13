@@ -1,8 +1,7 @@
 package com.salahtech.BarberShop_Apis.Services.Implementations;
 
 import com.salahtech.BarberShop_Apis.Dtos.QueueEntryDto;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
+import com.salahtech.BarberShop_Apis.notifications.UserNotifier;
 import com.salahtech.BarberShop_Apis.models.QueueEntry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,9 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -20,8 +17,7 @@ import java.util.Map;
 public class QueueNotifier {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final NotificationService notificationService;
-    private final DeviceTokenService deviceTokenService;
+    private final UserNotifier userNotifier;
 
     @Value("${sms.enabled:false}")
     private boolean smsEnabled;
@@ -41,39 +37,68 @@ public class QueueNotifier {
         String title = "Votre tour approche";
         String body = String.format("Bonjour %s, votre tour arrive bientôt (position %d). Veuillez vous préparer.",
                 entry.getCustomerName(), position);
-        notify(entry, title, body, "TURN_APPROACHING");
+        // Une seule fois par passage : la file est rediffusée à chaque mouvement.
+        Long uid = clientUserId(entry);
+        if (uid != null) userNotifier.notifyOnce(uid, "TURN_APPROACHING", title, body, entry.getId());
+        sms(entry, body);
     }
 
     public void notifyTurnReady(QueueEntry entry) {
         String title = "C'est votre tour !";
-        String body = String.format("%s, c'est à vous. Veuillez vous présenter à l'accueil.",
-                entry.getCustomerName());
-        notify(entry, title, body, "TURN_READY");
+        String body = String.format("%s, c'est à vous%s. Veuillez vous présenter.",
+                entry.getCustomerName(),
+                entry.getWorkstation() != null && entry.getWorkstation().getName() != null
+                        ? " (" + entry.getWorkstation().getName() + ")" : "");
+        Long uid = clientUserId(entry);
+        if (uid != null) userNotifier.notify(uid, "TURN_READY", title, body, entry.getId());
+        sms(entry, body);
     }
 
-    private void notify(QueueEntry entry, String title, String body, String type) {
+    /** Un client s'est enregistré lui-même dans la file (QR / appli) → le salon est prévenu. */
+    public void notifyStaffCheckIn(QueueEntry entry) {
         try {
-            if (entry.getClient() != null
-                    && entry.getClient().getUser() != null
-                    && deviceTokenService.hasActiveToken(entry.getClient().getUser().getId())) {
-                String token = deviceTokenService.getDeviceToken(entry.getClient().getUser().getId());
-                if (token != null && !token.isBlank()) {
-                    Map<String, String> data = new HashMap<>();
-                    data.put("type", type);
-                    data.put("queueEntryId", String.valueOf(entry.getId()));
-                    data.put("ticketNumber", entry.getTicketNumber());
-                    notificationService.sendNotification(token, title, body, data);
-                    log.info("FCM push envoyé queueEntry={} type={}", entry.getId(), type);
-                }
-            }
-        } catch (Exception ex) {
-            log.warn("Échec envoi FCM pour queueEntry={}: {}", entry.getId(), ex.getMessage());
+            userNotifier.notifyAll(UserNotifier.salonStaff(entry.getSalon(), entry.getPreferredEmployee()),
+                    "QUEUE_CHECKIN", "Client arrivé",
+                    entry.getCustomerName() + " est dans la file · ticket " + entry.getTicketNumber(), entry.getId());
+        } catch (Exception e) {
+            log.warn("Notif arrivée queueEntry={} échouée : {}", entry.getId(), e.getMessage());
         }
+    }
 
+    /** Encaissement enregistré → reçu au client. */
+    public void notifyPaid(QueueEntry entry, boolean reward) {
+        Long uid = clientUserId(entry);
+        if (uid == null) return;
+        String salon = entry.getSalon() != null ? entry.getSalon().getName() : "le salon";
+        String body = reward
+                ? "Votre visite offerte (fidélité) a été appliquée chez " + salon + "."
+                : "Paiement de " + (entry.getAmount() != null ? entry.getAmount().stripTrailingZeros().toPlainString() : "?")
+                        + " FCFA enregistré chez " + salon + ". Merci !";
+        userNotifier.notify(uid, "PAYMENT_RECEIVED", reward ? "Visite offerte appliquée" : "Paiement enregistré", body, entry.getId());
+    }
+
+    /** Fin de prestation → remerciement (+ visite offerte débloquée le cas échéant). */
+    public void notifyCompleted(QueueEntry entry, boolean rewardUnlocked) {
+        Long uid = clientUserId(entry);
+        if (uid == null) return;
+        String salon = entry.getSalon() != null ? entry.getSalon().getName() : "le salon";
+        userNotifier.notify(uid, "VISIT_COMPLETED", "Merci pour votre visite",
+                "À bientôt chez " + salon + " ! Donnez votre avis depuis « Mes rendez-vous ».", entry.getId());
+        if (rewardUnlocked) {
+            userNotifier.notify(uid, "LOYALTY_REWARD", "Visite offerte débloquée 🎉",
+                    "Votre carte fidélité chez " + salon + " est complète : votre prochaine visite est offerte.",
+                    entry.getId());
+        }
+    }
+
+    private static Long clientUserId(QueueEntry entry) {
+        return entry.getClient() != null && entry.getClient().getUser() != null
+                ? entry.getClient().getUser().getId() : null;
+    }
+
+    private void sms(QueueEntry entry, String body) {
         if (smsEnabled && entry.getCustomerPhone() != null && !entry.getCustomerPhone().isBlank()) {
             log.info("SMS [Twilio] -> {} : {}", entry.getCustomerPhone(), body);
-        } else if (entry.getCustomerPhone() != null) {
-            log.debug("SMS désactivé, skip pour {}", entry.getCustomerPhone());
         }
     }
 }

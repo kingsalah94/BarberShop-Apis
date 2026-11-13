@@ -52,8 +52,7 @@ public class SalonBookingServiceImpl implements SalonBookingService {
     private final com.salahtech.BarberShop_Apis.repositories.LoyaltyRewardRepository loyaltyRewardRepository;
     private final SalonHoursService hoursService;
     private final com.salahtech.BarberShop_Apis.Services.Interfaces.QueueService queueService;
-    private final com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService notificationService;
-    private final com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService deviceTokenService;
+    private final com.salahtech.BarberShop_Apis.notifications.UserNotifier userNotifier;
 
     private Salon salon(Long id) {
         return salonRepository.findById(id)
@@ -222,6 +221,14 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         SalonBooking saved = bookingRepository.save(b);
         log.info("SalonBooking créée id={} salon={} service={} client={} {}",
                 saved.getId(), salonId, svc.getId(), client.getId(), start);
+        // Prévient le salon (propriétaire + prestataire choisi) et accuse réception au client.
+        String when = start.format(DateTimeFormatter.ofPattern("dd/MM 'à' HH:mm"));
+        userNotifier.notifyAll(com.salahtech.BarberShop_Apis.notifications.UserNotifier.salonStaff(salon, chosen),
+                "BOOKING_NEW", "Nouvelle réservation",
+                clientName(client) + " · " + svc.getName() + " · " + when, saved.getId());
+        pushToClient(saved, "BOOKING_CREATED", "Demande envoyée",
+                "Votre demande chez " + salon.getName() + " (" + svc.getName() + ", " + when
+                        + ") attend la confirmation du salon.");
         return toDto(saved);
     }
 
@@ -394,7 +401,7 @@ public class SalonBookingServiceImpl implements SalonBookingService {
             String salonName = b.getSalon() != null ? b.getSalon().getName() : "le salon";
             String at = b.getStartAt().format(DateTimeFormatter.ofPattern("HH:mm"));
             if (pushToClient(b, "BOOKING_REMINDER", "Rappel : rendez-vous demain",
-                    svc + " à " + at + " chez " + salonName + ".")) {
+                    svc + " à " + at + " chez " + salonName + ".", true)) {
                 sent++;
             }
         }
@@ -402,25 +409,46 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         return sent;
     }
 
-    /** Push au client de la réservation (sans appareil enregistré : rien). Jamais d'exception. */
+    /** Notifie le client de la réservation (cloche + temps réel + push). Jamais d'exception. */
     private boolean pushToClient(SalonBooking b, String type, String title, String body) {
+        return pushToClient(b, type, title, body, false);
+    }
+
+    private boolean pushToClient(SalonBooking b, String type, String title, String body, boolean once) {
         try {
             Client c = b.getClient();
             if (c == null || c.getUser() == null) return false;
             Long userId = c.getUser().getId();
-            if (!deviceTokenService.hasActiveToken(userId)) return false;
-            String token = deviceTokenService.getDeviceToken(userId);
-            if (token == null || token.isBlank()) return false;
-
-            Map<String, String> data = new java.util.HashMap<>();
-            data.put("type", type);
-            data.put("salonBookingId", String.valueOf(b.getId()));
-            notificationService.sendNotification(token, title, body, data);
+            if (once) userNotifier.notifyOnce(userId, type, title, body, b.getId());
+            else userNotifier.notify(userId, type, title, body, b.getId());
             return true;
         } catch (Exception e) {
             log.warn("Notif {} RDV salon {} échouée : {}", type, b.getId(), e.getMessage());
             return false;
         }
+    }
+
+    /** Notifie le salon (propriétaire + prestataire affecté). */
+    private void notifyStaff(SalonBooking b, String type, String title, String body) {
+        try {
+            userNotifier.notifyAll(com.salahtech.BarberShop_Apis.notifications.UserNotifier
+                    .salonStaff(b.getSalon(), b.getAssignedEmployee()), type, title, body, b.getId());
+        } catch (Exception e) {
+            log.warn("Notif {} salon (RDV {}) échouée : {}", type, b.getId(), e.getMessage());
+        }
+    }
+
+    private static String clientName(Client c) {
+        if (c == null) return "Un client";
+        String n = ((c.getFirstName() != null ? c.getFirstName() : "") + " "
+                + (c.getLastName() != null ? c.getLastName() : "")).trim();
+        return n.isEmpty() ? "Un client" : n;
+    }
+
+    private static String describe(SalonBooking b) {
+        String svc = b.getOffering() != null ? b.getOffering().getName() : "prestation";
+        String when = b.getStartAt() != null ? b.getStartAt().format(DateTimeFormatter.ofPattern("dd/MM 'à' HH:mm")) : "";
+        return svc + (when.isEmpty() ? "" : " · " + when);
     }
 
     @Override
@@ -482,8 +510,15 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         if (b.getStatus() == BookingStatus.COMPLETED) {
             throw new BusinessException("Une réservation terminée ne peut pas être annulée");
         }
+        boolean wasActive = b.getStatus() != BookingStatus.CANCELLED;
         b.setStatus(BookingStatus.CANCELLED);
-        return toDto(bookingRepository.save(b));
+        SalonBooking saved = bookingRepository.save(b);
+        if (wasActive) {
+            pushToClient(saved, "BOOKING_CANCELLED", "Rendez-vous annulé",
+                    "Le salon " + (saved.getSalon() != null ? saved.getSalon().getName() : "")
+                            + " a annulé votre rendez-vous (" + describe(saved) + ").");
+        }
+        return toDto(saved);
     }
 
     @Override
@@ -497,8 +532,14 @@ public class SalonBookingServiceImpl implements SalonBookingService {
         if (b.getStatus() == BookingStatus.COMPLETED) {
             throw new BusinessException("Une réservation terminée ne peut pas être annulée");
         }
+        boolean wasActive = b.getStatus() != BookingStatus.CANCELLED;
         b.setStatus(BookingStatus.CANCELLED);
-        return toDto(bookingRepository.save(b));
+        SalonBooking saved = bookingRepository.save(b);
+        if (wasActive) {
+            notifyStaff(saved, "BOOKING_CANCELLED", "Réservation annulée",
+                    clientName(saved.getClient()) + " a annulé : " + describe(saved));
+        }
+        return toDto(saved);
     }
 
     @Override
@@ -533,6 +574,9 @@ public class SalonBookingServiceImpl implements SalonBookingService {
                 .tipAmount(req.getTipAmount())
                 .build());
         log.info("Avis salon créé pour réservation {} (note {})", b.getId(), req.getOverallRating());
+        notifyStaff(b, "REVIEW_NEW", "Nouvel avis " + "★".repeat(req.getOverallRating()),
+                clientName(client) + (req.getComment() != null && !req.getComment().isBlank()
+                        ? " : « " + req.getComment().trim() + " »" : " a noté sa visite."));
         return toDto(b);
     }
 

@@ -2,7 +2,6 @@ package com.salahtech.BarberShop_Apis.booking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,8 +23,7 @@ import org.mockito.quality.Strictness;
 
 import com.salahtech.BarberShop_Apis.Enums.BookingStatus;
 import com.salahtech.BarberShop_Apis.Services.Implementations.SalonBookingServiceImpl;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.DeviceTokenService;
-import com.salahtech.BarberShop_Apis.Services.Interfaces.NotificationService;
+import com.salahtech.BarberShop_Apis.notifications.UserNotifier;
 import com.salahtech.BarberShop_Apis.models.ApplicationUser;
 import com.salahtech.BarberShop_Apis.models.Client;
 import com.salahtech.BarberShop_Apis.models.Salon;
@@ -39,8 +37,7 @@ import com.salahtech.BarberShop_Apis.repositories.SalonBookingRepository;
 class SalonBookingReminderTest {
 
     @Mock SalonBookingRepository bookingRepository;
-    @Mock DeviceTokenService deviceTokenService;
-    @Mock NotificationService notificationService;
+    @Mock UserNotifier userNotifier;
     @InjectMocks SalonBookingServiceImpl service;
 
     private final LocalDate tomorrow = LocalDate.now().plusDays(1);
@@ -64,33 +61,36 @@ class SalonBookingReminderTest {
     }
 
     @Test
-    void seulsLesClientsAvecAppareilRecoiventLeRappel() {
+    void chaqueClientAvecCompteRecoitLeRappelUneSeuleFois() {
         when(bookingRepository.findByStatusInAndStartAtBetween(any(), any(), any()))
                 .thenReturn(List.of(booking(1, 100), booking(2, 200)));
-        when(deviceTokenService.hasActiveToken(100L)).thenReturn(true);
-        when(deviceTokenService.getDeviceToken(100L)).thenReturn("tok-100");
-        when(deviceTokenService.hasActiveToken(200L)).thenReturn(false);
 
         int sent = service.sendRemindersFor(tomorrow);
 
-        assertThat(sent).isEqualTo(1);
-        verify(notificationService).sendNotification(eq("tok-100"), contains("Rappel"),
-                contains("10:30"), anyMap());
-        verify(notificationService, never()).sendNotification(eq("tok-200"), anyString(), anyString(), anyMap());
+        assertThat(sent).isEqualTo(2);
+        verify(userNotifier).notifyOnce(eq(100L), eq("BOOKING_REMINDER"), contains("Rappel"), contains("10:30"), eq(1L));
+        verify(userNotifier).notifyOnce(eq(200L), eq("BOOKING_REMINDER"), anyString(), anyString(), eq(2L));
     }
 
     @Test
     void unEchecDEnvoiNeBloquePasLesAutres() {
         when(bookingRepository.findByStatusInAndStartAtBetween(any(), any(), any()))
                 .thenReturn(List.of(booking(1, 100), booking(2, 200)));
-        when(deviceTokenService.hasActiveToken(any())).thenReturn(true);
-        when(deviceTokenService.getDeviceToken(100L)).thenReturn("tok-100");
-        when(deviceTokenService.getDeviceToken(200L)).thenReturn("tok-200");
-        doThrow(new RuntimeException("FCM down")).when(notificationService)
-                .sendNotification(eq("tok-100"), anyString(), anyString(), anyMap());
+        doThrow(new RuntimeException("down")).when(userNotifier)
+                .notifyOnce(eq(100L), anyString(), anyString(), anyString(), any());
 
         assertThat(service.sendRemindersFor(tomorrow)).isEqualTo(1);
-        verify(notificationService).sendNotification(eq("tok-200"), anyString(), anyString(), anyMap());
+        verify(userNotifier).notifyOnce(eq(200L), anyString(), anyString(), anyString(), eq(2L));
+    }
+
+    @Test
+    void sansCompteClientPasDeRappel() {
+        SalonBooking anon = booking(3, 300);
+        anon.getClient().setUser(null);
+        when(bookingRepository.findByStatusInAndStartAtBetween(any(), any(), any())).thenReturn(List.of(anon));
+
+        assertThat(service.sendRemindersFor(tomorrow)).isZero();
+        verify(userNotifier, never()).notifyOnce(any(), anyString(), anyString(), anyString(), any());
     }
 
     @Test

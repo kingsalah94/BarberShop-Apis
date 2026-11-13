@@ -21,12 +21,19 @@ import java.util.Map;
 public class MessagingNotifier {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final com.salahtech.BarberShop_Apis.notifications.UserNotifier userNotifier;
 
     public void notifyNewMessage(Long receiverId, ConversationMessageDto msg) {
         if (receiverId == null) return;
         String dest = "/topic/user/" + receiverId + "/inbox";
         messagingTemplate.convertAndSend(dest, toEvent(msg));
         log.debug("WS message poussé vers {} (conv={}, msg={})", dest, msg.getConversationId(), msg.getId());
+        // Push téléphone (appli fermée) : pas de ligne dans la cloche, la messagerie a son propre badge.
+        String preview = "IMAGE".equalsIgnoreCase(String.valueOf(msg.getMessageType())) ? "📷 Photo"
+                : (msg.getContent() != null ? msg.getContent() : "Nouveau message");
+        userNotifier.pushOnly(receiverId, "MESSAGE",
+                msg.getSenderName() != null ? msg.getSenderName() : "Nouveau message", preview,
+                Map.of("conversationId", String.valueOf(msg.getConversationId())));
     }
 
     /** Payload plat attendu par le front : champs du message + `type` = MESSAGE. */

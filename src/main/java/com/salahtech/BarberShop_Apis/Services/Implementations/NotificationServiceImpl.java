@@ -51,7 +51,7 @@ public class NotificationServiceImpl implements NotificationService {
         // Récupère les notifs depuis la DB, mappe vers le DTO et renvoie la liste
         return notificationRepository.findByUserIdOrderByCreatedAtDesc(userId)
                 .stream()
-                .limit(20) // Limite aux 20 dernières pour la performance
+                .limit(50) // Les 50 dernières
                 .map(n -> NotificationMessageDto.builder()
                         .id(n.getId())
                         .userId(n.getUserId())

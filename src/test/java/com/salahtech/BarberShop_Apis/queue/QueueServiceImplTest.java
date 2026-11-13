@@ -54,6 +54,8 @@ class QueueServiceImplTest {
     @Mock SalonBookingRepository salonBookingRepository;
     @Mock QueueNotifier notifier;
 
+    @Mock com.salahtech.BarberShop_Apis.Services.Implementations.LoyaltyService loyaltyService;
+    @Mock com.salahtech.BarberShop_Apis.repositories.LoyaltyRewardRepository loyaltyRewardRepository;
     @InjectMocks QueueServiceImpl service;
 
     private Salon salon;

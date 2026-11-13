@@ -81,6 +81,7 @@ public class QueueServiceImpl implements QueueService {
         log.info("Check-in queue id={} ticket={} salon={}", saved.getId(), saved.getTicketNumber(), salon.getId());
 
         broadcastQueue(salon.getId());
+        if (saved.getClient() != null) notifier.notifyStaffCheckIn(saved);
         return toDto(saved);
     }
 
@@ -232,7 +233,19 @@ public class QueueServiceImpl implements QueueService {
 
         QueueEntry saved = queueRepository.save(entry);
         broadcastQueue(entry.getSalon().getId());
+        notifier.notifyCompleted(saved, rewardJustUnlocked(saved));
         return toDto(saved);
+    }
+
+    /** Cette visite vient-elle de compléter une carte fidélité (tampon revenu à 0, récompense dispo) ? */
+    private boolean rewardJustUnlocked(QueueEntry e) {
+        try {
+            if (e.getClient() == null || e.getSalon() == null) return false;
+            var st = loyaltyService.status(e.getClient().getId(), e.getSalon().getId(), null);
+            return st != null && st.getPaidVisits() > 0 && st.getStamps() == 0 && st.getRewardsAvailable() > 0;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     @Override
@@ -263,6 +276,7 @@ public class QueueServiceImpl implements QueueService {
             entry.setPaymentStatus(PaymentStatus.PAID);
             QueueEntry saved = queueRepository.save(entry);
             broadcastQueue(entry.getSalon().getId());
+            notifier.notifyPaid(saved, true);
             return toDto(saved);
         }
 
@@ -282,6 +296,7 @@ public class QueueServiceImpl implements QueueService {
 
         QueueEntry saved = queueRepository.save(entry);
         broadcastQueue(entry.getSalon().getId());
+        notifier.notifyPaid(saved, false);
         return toDto(saved);
     }
 
