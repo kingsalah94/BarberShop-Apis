@@ -24,6 +24,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final ApplicationUserService userService;
     private final RefreshTokenService refreshTokenService;
 
+    /** URL du site (prod : https://<domaine>). */
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
+
     public OAuth2AuthenticationSuccessHandler(JwtUtil jwtUtil,
                                               ApplicationUserService userService,
                                               RefreshTokenService refreshTokenService) {
@@ -57,7 +61,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         refreshTokenService.saveRefreshToken(user, refreshToken);
 
         // Redirection Front
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:4200/auth/callback")
+        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl + "/auth/callback")
                 .queryParam("token", accessToken)
                 .queryParam("refresh", refreshToken)
                 .build().toUriString();

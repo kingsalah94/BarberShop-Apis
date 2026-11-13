@@ -1,0 +1,117 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  BarberShop — PRODUCTION (un seul serveur, Docker)
+#
+#  Sur le serveur, les deux dépôts côte à côte :
+#    /opt/barbershop/BarberShop-Apis      (ce dépôt)
+#    /opt/barbershop/barbershop-web
+#
+#    cd /opt/barbershop/BarberShop-Apis/deploy
+#    cp .env.prod.example .env && nano .env        (DOMAIN, mots de passe…)
+#    mkdir -p secrets && cp <clé>.json secrets/firebase.json
+#    COMPOSE_BAKE=false docker compose -f docker-compose.prod.yml up -d --build
+#
+#  Seul Caddy est exposé (80/443, HTTPS automatique Let's Encrypt) :
+#    https://DOMAIN/        → site web (nginx)
+#    https://DOMAIN/api/*   → API Spring Boot (REST + WebSocket /api/ws)
+#  PostgreSQL et l'API ne sont PAS joignables depuis Internet.
+# ═══════════════════════════════════════════════════════════════════════════
+name: barbershop
+
+services:
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-barbershop}
+      POSTGRES_USER:     ${DB_USERNAME:-barbershop}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD manquant dans .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-barbershop} -d ${DB_NAME:-barbershop}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: barbershop/api:prod
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL:                 jdbc:postgresql://db:5432/${DB_NAME:-barbershop}
+      DB_USERNAME:            ${DB_USERNAME:-barbershop}
+      DB_PASSWORD:            ${DB_PASSWORD:?DB_PASSWORD manquant dans .env}
+      JWT_SECRET_BASE64:      ${JWT_SECRET_BASE64:?JWT_SECRET_BASE64 manquant dans .env}
+      APP_PUBLIC_BASE_URL:    https://${DOMAIN:?DOMAIN manquant dans .env}
+      APP_CORS_ALLOWED_ORIGINS: https://${DOMAIN}
+      # Liens des e-mails (vérification, mot de passe) et retour OAuth → le site
+      APP_FRONTEND_URL:       https://${DOMAIN}
+      FIREBASE_CREDENTIALS_FILE: /run/secrets/firebase.json
+      UPLOAD_DIR:             /app/uploads
+      TZ:                     Africa/Niamey
+      JAVA_OPTS:              "-XX:MaxRAMPercentage=75 -Duser.timezone=Africa/Niamey"
+    volumes:
+      - uploads-data:/app/uploads
+      - logs-data:/app/logs
+      - ./secrets/firebase.json:/run/secrets/firebase.json:ro
+    expose:
+      - "8080"
+
+  web:
+    build:
+      context: ../../barbershop-web
+      dockerfile: Dockerfile
+    image: barbershop/web:prod
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    environment:
+      DOMAIN:     ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL manquant dans .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  # Sauvegarde quotidienne de la base dans le volume db-backups (14 jours gardés).
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGUSER: ${DB_USERNAME:-barbershop}
+      PGPASSWORD: ${DB_PASSWORD}
+      PGDATABASE: ${DB_NAME:-barbershop}
+    volumes:
+      - db-backups:/backups
+      - ./backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "/backup.sh"]
+
+volumes:
+  db-data:
+  db-backups:
+  uploads-data:
+  logs-data:
+  caddy-data:
+  caddy-config:

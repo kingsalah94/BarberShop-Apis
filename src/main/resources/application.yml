@@ -42,8 +42,8 @@ spring:
       max-lifetime: 600000
       connection-timeout: 20000
   mail:
-    username: "${MAIL_USERNAME}"
-    password: "${MAIL_PASSWORD}"
+    username: "${MAIL_USERNAME:}"
+    password: "${MAIL_PASSWORD:}"
     host: "smtp.gmail.com"
     port: 587
     properties:

@@ -1,0 +1,29 @@
+# Proxy frontal : HTTPS automatique (Let's Encrypt) pour {$DOMAIN}.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip zstd
+
+	# API REST, fichiers téléversés et WebSocket (/api/ws) → Spring Boot.
+	handle /api/* {
+		request_body {
+			max_size 12MB
+		}
+		reverse_proxy api:8080
+	}
+
+	# Tout le reste → site Angular.
+	handle {
+		reverse_proxy web:80
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

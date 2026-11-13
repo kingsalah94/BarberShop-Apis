@@ -28,6 +28,9 @@ app:
     cookie-secure: true
   demo-data:
     enabled: false
+  # Jamais de comptes *@test.local en production.
+  test-users:
+    enabled: false
   public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:8080}
 
 springdoc:
@@ -38,6 +41,18 @@ springdoc:
   show-actuator: false
 
 server:
+  # Derrière le proxy HTTPS (Caddy) : X-Forwarded-Proto/Host pris en compte →
+  # URL des images = https://<domaine>/api/uploads/... et non http://api:8080.
+  forward-headers-strategy: framework
   error:
     include-binding-errors: never
     include-stacktrace: never
+
+management:
+  endpoint:
+    health:
+      show-details: never
+  health:
+    # Gmail indisponible ≠ API hors service (sinon /health = DOWN pour un souci d'e-mail).
+    mail:
+      enabled: false
